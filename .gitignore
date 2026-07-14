@@ -1,0 +1,29 @@
+#Python
+_pycache_/
+*.pyc
+
+#Virtual Environment
+backend/.venv/
+
+#Environment Variable
+backend/.env
+
+#VS Code
+.vscode/
+
+#macOS
+.DS_Store
+
+#Logs
+*.log
+
+#Pytest
+.pytest_cache/
+
+#Coverage
+.coverage
+htmlcov/
+
+
+
+
