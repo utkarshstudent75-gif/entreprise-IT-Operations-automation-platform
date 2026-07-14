@@ -1,0 +1,42 @@
+from fastapi import APIRouter
+
+from app.schemas.password import (
+    ForgotPasswordRequest,
+    VerifyOtpRequest,
+)
+
+from app.services.password_service import password_service
+from app.services.otp_service import otp_service
+
+router = APIRouter(
+    prefix="/password",
+    tags=["Password"],
+)
+
+
+@router.post("/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest):
+
+    password_service.request_password_reset(request.email)
+
+    return {
+        "message": "If the account exists, a verification code has been sent."
+    }
+
+
+@router.post("/verify-otp")
+async def verify_otp(request: VerifyOtpRequest):
+
+    verified = otp_service.verify_otp(
+        request.email,
+        request.otp,
+    )
+
+    if verified:
+        return {
+            "message": "OTP verified successfully."
+        }
+
+    return {
+        "message": "Invalid OTP."
+        }
