@@ -1,5 +1,5 @@
 import { EmailOutlined } from '@mui/icons-material'
-import { Button, Stack, TextField } from '@mui/material'
+import { Button, CircularProgress, Stack, TextField } from '@mui/material'
 import type { FormEvent } from 'react'
 
 interface EmailFormProps {
@@ -28,7 +28,13 @@ export function EmailForm({ email, isSubmitting, onEmailChange, onSubmit }: Emai
         type="email"
         value={email}
       />
-      <Button disabled={isSubmitting || !email.trim()} size="large" startIcon={<EmailOutlined />} type="submit" variant="contained">
+      <Button
+        disabled={isSubmitting || !email.trim()}
+        size="large"
+        startIcon={isSubmitting ? <CircularProgress color="inherit" size={20} /> : <EmailOutlined />}
+        type="submit"
+        variant="contained"
+      >
         {isSubmitting ? 'Sending code…' : 'Send OTP'}
       </Button>
     </Stack>

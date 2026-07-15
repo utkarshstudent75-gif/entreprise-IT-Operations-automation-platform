@@ -1,19 +1,10 @@
 import { LockResetOutlined } from '@mui/icons-material'
 import { Box, Container, Divider, Paper, Stack, Typography } from '@mui/material'
-import axios from 'axios'
 import { useState } from 'react'
 import { requestPasswordReset, verifyOtp } from '../api/passwordApi'
 import { EmailForm } from '../components/EmailForm'
 import { OtpForm } from '../components/OtpForm'
 import { StatusAlert, type AlertSeverity } from '../components/StatusAlert'
-
-function getErrorMessage(error: unknown, fallback: string) {
-  if (axios.isAxiosError<{ detail?: string; message?: string }>(error)) {
-    return error.response?.data?.detail ?? error.response?.data?.message ?? fallback
-  }
-
-  return fallback
-}
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -33,9 +24,7 @@ export function ForgotPasswordPage() {
     setMessage('')
     try {
       const response = await requestPasswordReset(email.trim())
-      showStatus(response.message, 'success')
-    } catch (error) {
-      showStatus(getErrorMessage(error, 'Unable to send an OTP. Please try again.'), 'error')
+      showStatus(response.message, response.success ? 'success' : 'error')
     } finally {
       setIsRequesting(false)
     }
@@ -46,9 +35,7 @@ export function ForgotPasswordPage() {
     setMessage('')
     try {
       const response = await verifyOtp(email.trim(), otp.trim())
-      showStatus(response.message, 'success')
-    } catch (error) {
-      showStatus(getErrorMessage(error, 'Unable to verify the OTP. Please try again.'), 'error')
+      showStatus(response.message, response.success ? 'success' : 'error')
     } finally {
       setIsVerifying(false)
     }

@@ -1,5 +1,5 @@
 import { VerifiedOutlined } from '@mui/icons-material'
-import { Button, Stack, TextField } from '@mui/material'
+import { Button, CircularProgress, Stack, TextField } from '@mui/material'
 import type { FormEvent } from 'react'
 
 interface OtpFormProps {
@@ -30,7 +30,13 @@ export function OtpForm({ email, isSubmitting, otp, onOtpChange, onSubmit }: Otp
         required
         value={otp}
       />
-      <Button disabled={isSubmitting || !email.trim() || !otp.trim()} size="large" startIcon={<VerifiedOutlined />} type="submit" variant="outlined">
+      <Button
+        disabled={isSubmitting || !email.trim() || !otp.trim()}
+        size="large"
+        startIcon={isSubmitting ? <CircularProgress color="inherit" size={20} /> : <VerifiedOutlined />}
+        type="submit"
+        variant="outlined"
+      >
         {isSubmitting ? 'Verifying…' : 'Verify OTP'}
       </Button>
     </Stack>
