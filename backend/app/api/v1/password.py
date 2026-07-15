@@ -27,16 +27,14 @@ async def forgot_password(request: ForgotPasswordRequest):
 @router.post("/verify-otp")
 async def verify_otp(request: VerifyOtpRequest):
 
-    verified = otp_service.verify_otp(
+    otp_service.verify_otp(
         request.email,
         request.otp,
     )
 
-    if verified:
-        return {
+    
+    return {
             "message": "OTP verified successfully."
         }
 
-    return {
-        "message": "Invalid OTP."
-        }
+    
