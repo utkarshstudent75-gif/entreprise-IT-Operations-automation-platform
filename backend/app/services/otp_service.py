@@ -22,8 +22,31 @@ class OTPService:
 
         if record is None:
           return False
-        if record["otp"] != otp:
+
+
+        #Check if the OTP has expired
+        if date.utcnow() > record["expires_at"]:
+          otp_repository.delete_otp(email)
           return False
+
+        #Check if maximum attempts have been exceeded
+        if record["attempts"] >= 3:
+          otp_repository.delete_otp(email)
+          return False
+
+        #Incorrect OTP
+        if record["otp"] != otp:
+          record["attempts"] += 1
+
+          if record["attempts"] >= 3:
+            otp_repository.delete_otp(email)
+
+            
+          return False
+
+
+
+
 
         otp_repository.delete_otp(email)
 
