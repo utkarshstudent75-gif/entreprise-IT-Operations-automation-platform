@@ -1,5 +1,5 @@
 import { EmailOutlined } from '@mui/icons-material'
-import { Button, CircularProgress, Stack, TextField } from '@mui/material'
+import { Button, CircularProgress, InputAdornment, Stack, TextField, Typography } from '@mui/material'
 import type { FormEvent } from 'react'
 
 interface EmailFormProps {
@@ -22,11 +22,13 @@ export function EmailForm({ email, isSubmitting, onEmailChange, onSubmit }: Emai
         autoFocus
         fullWidth
         id="email"
-        label="Email address"
+        helperText="We’ll send a one-time verification code to this address."
+        label="Work email address"
         onChange={(event) => onEmailChange(event.target.value)}
         required
         type="email"
         value={email}
+        slotProps={{ input: { startAdornment: <InputAdornment position="start"><EmailOutlined fontSize="small" /></InputAdornment> } }}
       />
       <Button
         disabled={isSubmitting || !email.trim()}
@@ -35,8 +37,11 @@ export function EmailForm({ email, isSubmitting, onEmailChange, onSubmit }: Emai
         type="submit"
         variant="contained"
       >
-        {isSubmitting ? 'Sending code…' : 'Send OTP'}
+        {isSubmitting ? 'Sending code…' : 'Send verification code'}
       </Button>
+      <Typography color="text.secondary" fontSize={12} lineHeight={1.5} textAlign="center">
+        Only accounts registered in your organization can be verified.
+      </Typography>
     </Stack>
   )
 }
