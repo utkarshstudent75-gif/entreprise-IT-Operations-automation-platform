@@ -1,16 +1,14 @@
-import random
+from app.services.otp_service import otp_service
+from app.services.notification_service import notification_service
 
 
-    class PasswordService:
+class PasswordService:
 
         def request_password_reset(self, email: str):
 
-            otp = otp_service.generate_otp()
+            otp = otp_service.generate_otp(email)
 
-            print("=" *50)
-            print(f"Generated OTP for {email}:{otp}")
-            print("=" *50)
-
+            notification_service.send_otp(email, otp)
 
             return True
 
