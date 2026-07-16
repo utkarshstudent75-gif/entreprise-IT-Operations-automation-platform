@@ -4,9 +4,8 @@ from app.schemas.password import (
     ForgotPasswordRequest,
     VerifyOtpRequest,
 )
-
-from app.services.password_service import password_service
 from app.services.otp_service import otp_service
+from app.services.password_service import password_service
 
 router = APIRouter(
     prefix="/password",
