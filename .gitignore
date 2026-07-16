@@ -24,6 +24,10 @@ backend/.env
 .coverage
 htmlcov/
 
+# Frontend build artifacts
+frontend/node_modules/
+frontend/dist/
+
 
 
 
