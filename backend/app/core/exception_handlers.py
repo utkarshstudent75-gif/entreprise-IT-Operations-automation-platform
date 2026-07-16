@@ -7,7 +7,12 @@ from app.core.logging_config import logger
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException):
-        logger.warning("HTTP %s - %s (%s)", exc.status_code, exc.detail, request.url.path,)
+        logger.warning(
+            "HTTP %s - %s (%s)",
+            exc.status_code,
+            exc.detail,
+            request.url.path,
+        )
 
         return JSONResponse(
             status_code=exc.status_code,
