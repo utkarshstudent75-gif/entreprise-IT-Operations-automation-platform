@@ -2,9 +2,11 @@
 
 ## Overview
 
-The **Enterprise IT Operations Automation Platform (EITOAP)** is an Azure-native, cloud-native platform designed to automate repetitive IT helpdesk operations such as password resets, identity verification, ticket creation, notifications, and audit logging.
+The **Enterprise IT Operations Automation Platform (EITOAP)** is a cloud-native platform designed to automate repetitive enterprise IT helpdesk operations such as password resets, identity verification, ticket creation, notifications, and audit logging.
 
-The platform is built using modern DevOps and SRE practices including Docker, Kubernetes, Infrastructure as Code (Terraform), GitHub Actions CI/CD, and Microsoft Azure. Future phases will integrate Microsoft Copilot Studio to provide AI-powered IT self-service.
+The project is being developed using modern **DevOps**, **Cloud Engineering**, and **Site Reliability Engineering (SRE)** practices. It follows a production-style development workflow with feature branches, containerization, CI/CD, Infrastructure as Code, and Kubernetes deployment.
+
+The long-term goal is to build an enterprise-grade platform capable of integrating with **Microsoft Entra ID**, **Microsoft Graph API**, and **Microsoft Copilot Studio** to provide AI-powered IT self-service.
 
 ---
 
@@ -22,7 +24,7 @@ Typical workflow:
 * User is notified
 * Ticket is closed after confirmation
 
-Although these tasks are repetitive and deterministic, they still consume valuable engineering time.
+Although these tasks are repetitive and deterministic, they still consume valuable engineering time and increase operational costs.
 
 ---
 
@@ -32,63 +34,24 @@ The Enterprise IT Operations Automation Platform automates the complete workflow
 
 * Secure identity verification
 * Password reset automation
-* Microsoft Entra ID integration
-* Microsoft Graph API integration
-* Automatic ticket creation
-* Notifications
-* Audit logging
-* AI-assisted support (future)
+* User self-service portal
+* Microsoft Entra ID integration *(Planned)*
+* Microsoft Graph API integration *(Planned)*
+* Automatic ticket creation *(Planned)*
+* Notification service
+* Audit logging *(Planned)*
+* AI-assisted support *(Future)*
 
 ---
 
 # Project Goals
 
 * Build an enterprise-grade cloud-native application.
-* Demonstrate Azure, DevOps, Kubernetes, and SRE skills.
+* Demonstrate modern DevOps and Cloud Engineering practices.
 * Showcase Infrastructure as Code.
+* Implement secure and scalable application architecture.
 * Build a portfolio-quality project suitable for technical interviews.
 * Follow production engineering best practices.
-
----
-
-# Key Features
-
-## Phase 1
-
-* Self-service password reset
-* User identity verification
-* Temporary password generation
-* Ticket creation
-* Notification service
-* Audit logging
-* Dockerized application
-
-## Phase 2
-
-* Kubernetes deployment (AKS)
-* Terraform Infrastructure
-* Helm charts
-* GitHub Actions CI/CD
-* Azure Container Registry
-
-## Phase 3
-
-* Monitoring
-* Logging
-* Metrics
-* Grafana dashboards
-* Prometheus
-* OpenTelemetry
-* Azure Monitor
-
-## Phase 4
-
-* Microsoft Copilot Studio integration
-* AI-powered IT Assistant
-* Intelligent ticket routing
-* Ticket summarization
-* Knowledge Base search
-* Root Cause Analysis
 
 ---
 
@@ -97,164 +60,278 @@ The Enterprise IT Operations Automation Platform automates the complete workflow
 ## Frontend
 
 * React
-* Next.js
-* Tailwind CSS
+* TypeScript
+* Vite
 
 ## Backend
 
 * Python
 * FastAPI
+* Uvicorn
+* Pydantic
 
-## Database
+## Database *(Upcoming)*
 
 * PostgreSQL
+* SQLAlchemy
+* Alembic
 
-## Cache
+## Cache *(Upcoming)*
 
 * Redis
 
 ## Containerization
 
 * Docker
+* Docker Compose
 
-## Orchestration
+## Orchestration *(Upcoming)*
 
 * Kubernetes
 * Minikube (Development)
 * Azure Kubernetes Service (Production)
 
-## Cloud
+## Cloud *(Upcoming)*
 
 * Microsoft Azure
 
-## Infrastructure as Code
+## Infrastructure as Code *(Upcoming)*
 
 * Terraform
 
-## Package Management
-
-* Helm
-
-## CI/CD
+## CI/CD *(Upcoming)*
 
 * GitHub Actions
 
-## Identity
+## Identity *(Upcoming)*
 
 * Microsoft Entra ID
 * Microsoft Graph API
 
-## Monitoring
+## Monitoring *(Upcoming)*
 
-* Azure Monitor
 * Prometheus
 * Grafana
+* Azure Monitor
 * OpenTelemetry
 
-## AI
+## AI *(Future)*
 
 * Microsoft Copilot Studio
 
 ---
 
+# Current Features
+
+## Implemented
+
+* FastAPI backend
+* React frontend
+* Forgot Password workflow
+* OTP verification
+* Password reset workflow
+* Notification service abstraction
+* Dockerized backend
+* Dockerized frontend
+* Docker Compose development environment
+
+## In Progress
+
+* PostgreSQL integration
+* SQLAlchemy ORM
+* Database migrations
+
+## Planned
+
+* Redis
+* GitHub Actions CI/CD
+* Kubernetes deployment
+* Azure deployment
+* Monitoring & Observability
+* Microsoft Entra ID integration
+* Microsoft Graph API integration
+
+---
+
 # High-Level Architecture
 
-> Architecture diagram will be added in a future update.
+```text
+                    Browser
+                       │
+                       ▼
+                React Frontend
+                       │
+                  REST API Calls
+                       │
+                       ▼
+                FastAPI Backend
+```
+
+### Target Production Architecture
+
+```text
+                        Users
+                           │
+                           ▼
+                    Azure Load Balancer
+                           │
+                           ▼
+                    Kubernetes (AKS)
+                           │
+         ┌─────────────────┴─────────────────┐
+         ▼                                   ▼
+    React Frontend                     FastAPI Backend
+                                              │
+                       ┌──────────────────────┴──────────────────────┐
+                       ▼                                             ▼
+                 PostgreSQL                                     Redis
+                       │
+                       ▼
+             Microsoft Graph API
+                       │
+                       ▼
+                Microsoft Entra ID
+```
 
 ---
 
 # Repository Structure
 
 ```text
-backend/
-frontend/
-infrastructure/
-docs/
-scripts/
-.github/
-
-README.md
-docker-compose.yml
+enterprise-it-operations-automation-platform/
+│
+├── backend/
+│   ├── app/
+│   ├── tests/
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── .dockerignore
+│
+├── frontend/
+│   ├── src/
+│   ├── Dockerfile
+│   ├── package.json
+│   └── .dockerignore
+│
+├── infrastructure/
+│   ├── helm/
+│   ├── kubernetes/
+│   └── terraform/
+│
+├── docs/
+├── scripts/
+├── docker-compose.yml
+├── LICENSE
+└── README.md
 ```
+
+---
+
+# Running the Project
+
+## Prerequisites
+
+* Docker Desktop
+* Docker Compose
+* Git
+
+## Clone the Repository
+
+```bash
+git clone https://github.com/<your-github-username>/entreprise-IT-Operations-automation-platform.git
+
+cd entreprise-IT-Operations-automation-platform
+```
+
+## Build and Start the Application
+
+```bash
+docker compose up --build
+```
+
+## Application URLs
+
+| Service            | URL                        |
+| ------------------ | -------------------------- |
+| Frontend           | http://localhost:5173      |
+| Backend API        | http://localhost:8000      |
+| FastAPI Swagger UI | http://localhost:8000/docs |
 
 ---
 
 # Development Workflow
 
-Developer
+This repository follows a feature-branch workflow similar to enterprise software development.
 
-↓
+```text
+main
+│
+├── feature/docker
+├── feature/postgresql
+├── feature/redis
+├── feature/cicd
+├── feature/kubernetes
+├── feature/azure-deployment
+└── feature/monitoring
+```
 
-Git
-
-↓
-
-GitHub
-
-↓
-
-GitHub Actions
-
-↓
-
-Docker Image
-
-↓
-
-Azure Container Registry
-
-↓
-
-Kubernetes
-
-↓
-
-Azure
+Each feature is developed independently, tested, and merged into `main` after completion.
 
 ---
 
 # Project Roadmap
 
-## Phase 1
+## ✅ Phase 1 – Foundation *(Current)*
 
-Enterprise Password Reset Platform
+Completed
 
-* Project foundation
-* Backend APIs
-* Frontend
-* Database
+* Project architecture
+* FastAPI backend
+* React frontend
 * Password reset workflow
-* Ticket workflow
+* OTP verification
+* Docker containerization
+* Docker Compose setup
 
-## Phase 2
+In Progress
 
-Cloud Native
+* PostgreSQL integration
+* SQLAlchemy ORM
+* Alembic migrations
 
-* Docker
-* Kubernetes
-* Terraform
-* Helm
+---
+
+## 🚧 Phase 2 – Cloud Native
+
+* Redis
 * GitHub Actions
-* Azure deployment
+* Azure Container Registry
+* Kubernetes
+* Helm
+* Azure Kubernetes Service
 
-## Phase 3
+---
 
-SRE
+## 🚧 Phase 3 – Site Reliability Engineering
 
-* Monitoring
+* Prometheus
+* Grafana
+* OpenTelemetry
+* Azure Monitor
 * Logging
 * Metrics
 * Alerting
 * Dashboards
 
-## Phase 4
+---
 
-AI Operations
+## 🚧 Phase 4 – AI Operations
 
 * Microsoft Copilot Studio
-* AI troubleshooting
-* Intelligent workflows
-* Knowledge base integration
+* AI-powered IT Assistant
+* Intelligent Ticket Routing
+* Knowledge Base Search
+* Root Cause Analysis
 
 ---
 
@@ -275,31 +352,46 @@ AI Operations
 
 This project demonstrates practical experience with:
 
-* Cloud Architecture
-* Azure
-* Kubernetes
-* Docker
+* Python
 * FastAPI
 * React
+* TypeScript
+* Docker
+* Docker Compose
+* PostgreSQL
+* Redis
+* Kubernetes
+* Microsoft Azure
 * Terraform
 * GitHub Actions
 * DevOps
-* SRE
+* Site Reliability Engineering (SRE)
 * Infrastructure as Code
 * CI/CD
-* Platform Engineering
+* Cloud-native application architecture
 
 ---
 
 # Current Status
 
-🚧 Phase 1 — In Progress
+**Version:** `v0.2.0`
 
-Repository initialized.
+### Completed
 
-Project architecture completed.
+* ✅ Backend implementation
+* ✅ Frontend implementation
+* ✅ Password reset workflow
+* ✅ OTP verification
+* ✅ Dockerized frontend
+* ✅ Dockerized backend
+* ✅ Docker Compose development environment
+* ✅ End-to-end application successfully running inside Docker containers
 
-Implementation begins next.
+### Currently Working On
+
+* PostgreSQL integration
+* SQLAlchemy ORM
+* Alembic migrations
 
 ---
 
