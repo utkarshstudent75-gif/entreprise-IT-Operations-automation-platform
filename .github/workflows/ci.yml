@@ -38,7 +38,7 @@ jobs:
                 
             - name: Validate FastAPI app
               run: |
-                python -m "from app.main import app"
+                python -c "from app.main import app"
 
     frontend:
         
