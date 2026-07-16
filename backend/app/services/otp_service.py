@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
 
@@ -53,7 +53,7 @@ class OTPService:
         logger.info("Received OTP: %s", otp)
 
         # Check expiry
-        if datetime.utcnow() > record["expires_at"]:
+        if datetime.now(UTC) > record["expires_at"]:
             otp_repository.delete_otp(email)
 
             logger.warning("OTP expired for %s", email)
