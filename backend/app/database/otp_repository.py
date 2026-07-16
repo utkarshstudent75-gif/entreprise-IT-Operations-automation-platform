@@ -21,5 +21,14 @@ class OTPRepository:
 
         self._otp_store.pop(email, None)
 
+    def increment_attempts(self, email: str) -> int:
+        """Increment and return the number of failed verification attempts."""
+        record = self._otp_store.get(email)
+        if record is None:
+            return 0
+
+        record["attempts"] += 1
+        return record["attempts"]
+
 
 otp_repository = OTPRepository()
