@@ -1,5 +1,5 @@
-from app.services.otp_service import otp_service
 from app.services.notification_service import notification_service
+from app.services.otp_service import otp_service
 
 
 class PasswordService:

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 
 class OTPRepository:
@@ -9,7 +9,7 @@ class OTPRepository:
 
         self._otp_store[email] = {
             "otp": otp,
-            "expires_at": datetime.utcnow() + timedelta(minutes=expiry_minutes),
+            "expires_at": datetime.now(UTC) + timedelta(minutes=expiry_minutes),
             "attempts": 0,
         }
 
