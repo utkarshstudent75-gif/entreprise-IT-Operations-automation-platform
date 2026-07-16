@@ -26,9 +26,9 @@ class OTPService:
         )
 
         otp_repository.save_otp(
-            email,
-            otp,
-            settings.OTP_EXPIRY_MINUTES,
+            email=email,
+            otp=otp,
+            expiry_minutes=settings.OTP_EXPIRY_MINUTES,
         )
 
         logger.info("OTP generated successfully for %s", email)
@@ -37,7 +37,7 @@ class OTPService:
 
     def verify_otp(self, email: str, otp: str) -> bool:
         """
-        Verify a user's OTP.
+        Verify the OTP submitted by the user.
         """
 
         record = otp_repository.get_otp(email)
@@ -48,6 +48,9 @@ class OTPService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No OTP request found for this email.",
             )
+
+        logger.info("Stored OTP: %s", record["otp"])
+        logger.info("Received OTP: %s", otp)
 
         # Check expiry
         if datetime.utcnow() > record["expires_at"]:
@@ -71,9 +74,8 @@ class OTPService:
                 detail="Maximum OTP verification attempts exceeded.",
             )
 
-        # Invalid OTP
+        # Incorrect OTP
         if record["otp"] != otp:
-
             record["attempts"] += 1
 
             logger.warning(

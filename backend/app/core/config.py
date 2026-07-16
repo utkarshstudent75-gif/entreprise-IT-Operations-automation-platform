@@ -9,6 +9,11 @@ class Settings(BaseSettings):
     HOST: str
     PORT: int    
 
+    OTP_LENGTH: int = 6
+    OTP_EXPIRY_MINUTES: int = 5
+    OTP_MAX_ATTEMPTS: int = 3
+
+
 
     #OTP Configuration
     OTP_LENGTH: int = 6
