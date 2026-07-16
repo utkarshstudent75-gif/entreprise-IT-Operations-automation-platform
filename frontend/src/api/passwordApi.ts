@@ -40,10 +40,5 @@ export async function requestPasswordReset(email: string): Promise<PasswordApiRe
 }
 
 export async function verifyOtp(email: string, otp: string): Promise<PasswordApiResult> {
-  const result = await postPasswordRequest('/password/verify-otp', { email, otp }, 'Unable to verify the OTP. Please try again.')
-
-  return {
-    ...result,
-    success: result.success && result.message !== 'Invalid OTP.',
-  }
+  return postPasswordRequest('/password/verify-otp', { email, otp }, 'Unable to verify the OTP. Please try again.')
 }
