@@ -1,3 +1,6 @@
+from app.core.logging_config import logger
+from app.core.config import settings
+
 class NotificationService:
     """
     Responsible for sending notifications to users.
@@ -15,10 +18,10 @@ class NotificationService:
 
     def send_otp(self, email: str, otp: str) -> None:
        
-        print("=" * 60)
-        print("OTP Notification")
-        print(f"Recipient: {email}")
-        print(f"OTP : {otp}")
-        print("=" * 60)
+        
+        if settings.DEBUG:
+            logger.info("OTP for %s: %s", email, otp)
+        else:
+            logger.info("OTP generated for %s", email)
 
 notification_service = NotificationService()
