@@ -10,6 +10,7 @@ from app.schemas.password import (
     VerifyOtpRequest,
 )
 from app.services.password_reset_service import password_reset_service
+from app.core.rate_limiter import rate_limiter
 
 router = APIRouter(
     prefix="/password",
@@ -23,6 +24,11 @@ router = APIRouter(
     status_code=status.HTTP_200_OK,
 )
 async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    rate_limiter.check_limit(
+        key=f"forgot-password:{request.email}",
+        limit=5,
+        window_seconds=600,
+    )
     password_reset_service.request_password_reset(db, request.email)
 
     return StandardResponse(
@@ -38,8 +44,14 @@ async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(
     status_code=status.HTTP_200_OK,
 )
 async def verify_otp(request: VerifyOtpRequest, db: Session = Depends(get_db)):
+    rate_limiter.check_limit(
+        key=f"verify-otp:{request.email}",
+        limit=10,
+        window_seconds=600,
+    )
     password_reset_service.verify_otp(db, request.email, request.otp)
     return StandardResponse(data=PasswordResponse(message="OTP verified successfully."))
+
 
 
 @router.post(

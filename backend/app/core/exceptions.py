@@ -77,3 +77,13 @@ class PasswordResetException(BaseAppException):
 
     def __init__(self, message: str = "Password reset error."):
         super().__init__(message)
+
+
+class RateLimitExceededException(BaseAppException):
+    """Raised when rate limits are exceeded."""
+    status_code: int = status.HTTP_429_TOO_MANY_REQUESTS
+    error_code: str = "TOO_MANY_REQUESTS"
+
+    def __init__(self, message: str = "Rate limit exceeded. Please try again later."):
+        super().__init__(message)
+
