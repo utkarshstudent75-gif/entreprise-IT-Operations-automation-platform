@@ -1,8 +1,10 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.database.dependencies import get_db
+from app.core.exceptions import BaseAppException
+from app.schemas.response import StandardResponse
 from app.schemas.audit import AuditLogResponse
 from app.services.audit_service import audit_service
 
@@ -12,7 +14,7 @@ router = APIRouter(
 )
 
 
-@router.get("", response_model=list[AuditLogResponse], status_code=status.HTTP_200_OK)
+@router.get("", response_model=StandardResponse[list[AuditLogResponse]], status_code=status.HTTP_200_OK)
 def get_audit_logs(
     user_id: int | None = Query(None, description="Filter by user ID"),
     action: str | None = Query(None, description="Filter by audit action"),
@@ -24,7 +26,7 @@ def get_audit_logs(
     db: Session = Depends(get_db),
 ):
     """Retrieve audit logs with optional filtering by user ID, action, status, and date range."""
-    return audit_service.list_logs(
+    logs = audit_service.list_logs(
         db=db,
         user_id=user_id,
         action=action,
@@ -34,9 +36,10 @@ def get_audit_logs(
         skip=skip,
         limit=limit,
     )
+    return StandardResponse(data=logs)
 
 
-@router.get("/{audit_id}", response_model=AuditLogResponse, status_code=status.HTTP_200_OK)
+@router.get("/{audit_id}", response_model=StandardResponse[AuditLogResponse], status_code=status.HTTP_200_OK)
 def get_audit_log(
     audit_id: int,
     db: Session = Depends(get_db),
@@ -44,9 +47,11 @@ def get_audit_log(
     """Retrieve a single audit log entry by its ID."""
     log = audit_service.get_log_by_id(db, audit_id)
     if log is None:
-        raise HTTPException(
+        raise BaseAppException(
+            "Audit log not found.",
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Audit log not found.",
+            error_code="AUDIT_LOG_NOT_FOUND",
         )
-    return log
+    return StandardResponse(data=log)
+
 

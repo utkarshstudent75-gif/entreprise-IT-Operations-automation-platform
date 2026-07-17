@@ -1,8 +1,9 @@
 from passlib.context import CryptContext
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
+from fastapi import status
 
+from app.core.exceptions import DuplicateUserException
 from app.core.logging_config import logger
 from app.repositories.user_repository import user_repository
 from app.schemas.user import UserCreate, UserResponse
@@ -24,10 +25,7 @@ class UserService:
                 status="FAILED",
                 details={"username": request.username, "email": request.email, "reason": "Username already exists"},
             )
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Username already exists.",
-            )
+            raise DuplicateUserException("Username already exists.")
 
         if user_repository.get_by_email(db, request.email):
             logger.warning("Email %s already exists", request.email)
@@ -36,10 +34,7 @@ class UserService:
                 status="FAILED",
                 details={"username": request.username, "email": request.email, "reason": "Email already exists"},
             )
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Email already exists.",
-            )
+            raise DuplicateUserException("Email already exists.")
 
         hashed_password = self._hash_password(request.password)
 
@@ -61,10 +56,8 @@ class UserService:
                 status="FAILED",
                 details={"username": request.username, "email": request.email, "reason": "Unique constraint violation"},
             )
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Username or email already exists.",
-            )
+            raise DuplicateUserException("Username or email already exists.")
+
         except Exception as e:
             logger.error(
                 "Unexpected error while creating user %s: %s",
