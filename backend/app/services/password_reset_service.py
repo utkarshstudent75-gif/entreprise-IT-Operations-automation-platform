@@ -12,20 +12,43 @@ from app.services.notification_service import notification_service
 from app.services.audit_service import audit_service
 
 
-class PasswordResetError(Exception):
+from app.core.exceptions import (
+    PasswordResetException,
+    InvalidOTPException,
+    ExpiredOTPException,
+    OTPAlreadyUsedException,
+)
+
+
+class PasswordResetError(PasswordResetException):
     """Base exception for password reset business rules."""
+    def __init__(self, message: str = "Password reset error."):
+        super().__init__(message)
 
 
-class PasswordResetInvalidRequest(PasswordResetError):
+class PasswordResetInvalidRequest(PasswordResetError, InvalidOTPException):
     """Raised when the submitted OTP or email cannot be validated."""
+    def __init__(self, message: str = "Invalid email or OTP."):
+        super().__init__(message)
+        self.error_code = "INVALID_OTP"
+        self.status_code = 400
 
 
-class PasswordResetExpiredError(PasswordResetError):
+class PasswordResetExpiredError(PasswordResetError, ExpiredOTPException):
     """Raised when the OTP has expired."""
+    def __init__(self, message: str = "OTP has expired."):
+        super().__init__(message)
+        self.error_code = "EXPIRED_OTP"
+        self.status_code = 410
 
 
-class PasswordResetAlreadyUsedError(PasswordResetError):
+class PasswordResetAlreadyUsedError(PasswordResetError, OTPAlreadyUsedException):
     """Raised when the OTP has already been consumed."""
+    def __init__(self, message: str = "OTP has already been used."):
+        super().__init__(message)
+        self.error_code = "OTP_ALREADY_USED"
+        self.status_code = 400
+
 
 
 class PasswordResetService:

@@ -1,9 +1,10 @@
 import secrets
 from datetime import UTC, datetime
 
-from fastapi import HTTPException, status
+from fastapi import status
 
 from app.core.config import settings
+from app.core.exceptions import BaseAppException, InvalidOTPException, ExpiredOTPException
 from app.core.logging_config import logger
 from app.database.otp_repository import otp_repository
 
@@ -44,9 +45,10 @@ class OTPService:
 
         if record is None:
             logger.warning("No OTP request found for %s", email)
-            raise HTTPException(
+            raise InvalidOTPException(
+                "No OTP request found for this email.",
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="No OTP request found for this email.",
+                error_code="OTP_NOT_FOUND",
             )
 
         logger.info("Stored OTP: %s", record["otp"])
@@ -58,10 +60,7 @@ class OTPService:
 
             logger.warning("OTP expired for %s", email)
 
-            raise HTTPException(
-                status_code=status.HTTP_410_GONE,
-                detail="OTP has expired.",
-            )
+            raise ExpiredOTPException("OTP has expired.")
 
         # Check maximum attempts
         if record["attempts"] >= settings.OTP_MAX_ATTEMPTS:
@@ -69,9 +68,10 @@ class OTPService:
 
             logger.warning("Maximum OTP attempts exceeded for %s", email)
 
-            raise HTTPException(
+            raise BaseAppException(
+                "Maximum OTP verification attempts exceeded.",
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Maximum OTP verification attempts exceeded.",
+                error_code="TOO_MANY_ATTEMPTS",
             )
 
         # Incorrect OTP
@@ -92,10 +92,8 @@ class OTPService:
                     email,
                 )
 
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid OTP.",
-            )
+            raise InvalidOTPException("Invalid OTP.")
+
 
         # Success
         otp_repository.delete_otp(email)

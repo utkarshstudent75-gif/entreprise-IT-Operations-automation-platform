@@ -1,6 +1,6 @@
 from app.schemas.user import UserCreate
 from app.services.user_service import user_service
-from fastapi import HTTPException
+from app.core.exceptions import DuplicateUserException
 from sqlalchemy.orm import Session
 
 
@@ -52,8 +52,8 @@ def test_create_user_conflict_on_existing_username(monkeypatch):
 
     try:
         user_service.create_user(DummyDB(), request)
-        assert False, 'Expected HTTPException'
-    except HTTPException as exc:
+        assert False, 'Expected DuplicateUserException'
+    except DuplicateUserException as exc:
         assert exc.status_code == 409
         assert 'Username already exists' in str(exc.detail)
 
@@ -72,7 +72,8 @@ def test_create_user_conflict_on_existing_email(monkeypatch):
 
     try:
         user_service.create_user(DummyDB(), request)
-        assert False, 'Expected HTTPException'
-    except HTTPException as exc:
+        assert False, 'Expected DuplicateUserException'
+    except DuplicateUserException as exc:
         assert exc.status_code == 409
         assert 'Email already exists' in str(exc.detail)
+
