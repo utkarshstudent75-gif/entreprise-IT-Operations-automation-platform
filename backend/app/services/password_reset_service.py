@@ -132,7 +132,7 @@ class PasswordResetService:
                 )
                 raise PasswordResetInvalidRequest("Invalid email or OTP.")
 
-            reset_request = password_reset_repository.get_latest_valid_request(db, user.id)
+            reset_request = password_reset_repository.get_latest_request(db, user.id)
             if reset_request is None:
                 logger.warning("No password reset request found for user id %s", user.id)
                 audit_service.record_event(
