@@ -6,7 +6,8 @@ from sqlalchemy import text
 
 import app.services.audit_service as audit_service_mod
 from app.core.rate_limiter import rate_limiter
-from app.database.session import SessionLocal as RealSessionLocal
+from app.database.base import Base
+from app.database.session import engine as RealEngine, SessionLocal as RealSessionLocal
 from app.main import app
 from app.models.audit_log import AuditLog
 from app.models.password_reset_request import PasswordResetRequest
@@ -26,6 +27,8 @@ def restore_audit_session_local(monkeypatch):
 
 @pytest.fixture(scope="module", autouse=True)
 def clean_postgres():
+    # Ensure tables are created first
+    Base.metadata.create_all(bind=RealEngine)
     db = RealSessionLocal()
     try:
         # Cascade truncate to clean up all test tables in PostgreSQL
