@@ -1,13 +1,13 @@
 from datetime import datetime, timedelta
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.api.v1.audit import get_audit_log, get_audit_logs
+from app.core.exceptions import BaseAppException
 from app.database.base import Base
 from app.models.audit_log import AuditLog
-from app.core.exceptions import BaseAppException
-from app.api.v1.audit import get_audit_logs, get_audit_log
-
 
 # Setup sqlite database for router testing
 engine = create_engine("sqlite:///:memory:", echo=False, future=True)
@@ -32,7 +32,9 @@ def clean_db(sqlite_db):
 
 
 def call_get_audit_logs(db, **kwargs):
-    """Helper to call get_audit_logs directly with correct defaults, bypassing Query objects."""
+    """Helper to call get_audit_logs directly with correct defaults,
+    bypassing Query objects.
+    """
     defaults = {
         "user_id": None,
         "action": None,
@@ -125,4 +127,3 @@ def test_get_audit_logs_filtering(sqlite_db):
     logs = logs_res.data
     assert len(logs) == 1
     assert logs[0].action == "password_reset"
-

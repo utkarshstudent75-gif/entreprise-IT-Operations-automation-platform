@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.core.context import request_ip, request_user_agent, request_id
+from app.core.context import request_id, request_ip, request_user_agent
 from app.database.base import Base
 from app.models.audit_log import AuditLog
 from app.models.user import User
@@ -39,7 +40,9 @@ def test_record_event_success(sqlite_db):
 
     try:
         # Create a user to reference
-        user = User(username="audituser", email="audit@example.com", hashed_password="pwd")
+        user = User(
+            username="audituser", email="audit@example.com", hashed_password="pwd"
+        )
         sqlite_db.add(user)
         sqlite_db.commit()
         sqlite_db.refresh(user)
@@ -73,11 +76,14 @@ def test_record_event_success(sqlite_db):
 
 
 def test_record_event_resiliency(sqlite_db, monkeypatch):
-    # Test that exception in repository/db doesn't break the application, it returns None
+    # Test that exception in repository/db doesn't break the application, it
+    # returns None
     def mock_create_entry(*args, **kwargs):
         raise Exception("DB Error simulated")
 
-    monkeypatch.setattr("app.services.audit_service.audit_repository.create_entry", mock_create_entry)
+    monkeypatch.setattr(
+        "app.services.audit_service.audit_repository.create_entry", mock_create_entry
+    )
 
     log = audit_service.record_event(
         action="user_creation",

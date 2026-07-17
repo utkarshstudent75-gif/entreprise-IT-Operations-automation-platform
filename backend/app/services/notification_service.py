@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+
 from app.core.config import settings
 from app.core.logging_config import logger
 
@@ -6,7 +7,7 @@ from app.core.logging_config import logger
 class NotificationProvider(ABC):
     """
     Interface for notification providers.
-    
+
     Future providers like SendGrid, Twilio, or Azure Communication Services
     should subclass this and implement the methods.
     """
@@ -44,5 +45,6 @@ class NotificationService:
         self._provider.send_otp(email, otp)
 
 
-# Default instance initialized with ConsoleNotificationProvider for backward compatibility.
+# Default instance initialized with ConsoleNotificationProvider for backward
+# compatibility.
 notification_service = NotificationService(ConsoleNotificationProvider())

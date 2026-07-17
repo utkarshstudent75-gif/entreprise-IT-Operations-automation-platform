@@ -1,7 +1,9 @@
 from fastapi import status
 
+
 class BaseAppException(Exception):
     """Base exception for all application-specific errors."""
+
     status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
     error_code: str = "INTERNAL_SERVER_ERROR"
 
@@ -22,6 +24,7 @@ class BaseAppException(Exception):
 
 class UserNotFoundException(BaseAppException):
     """Raised when a requested user is not found."""
+
     status_code: int = status.HTTP_404_NOT_FOUND
     error_code: str = "USER_NOT_FOUND"
 
@@ -31,6 +34,7 @@ class UserNotFoundException(BaseAppException):
 
 class InvalidOTPException(BaseAppException):
     """Raised when the OTP is invalid or has failed validation."""
+
     status_code: int = status.HTTP_400_BAD_REQUEST
     error_code: str = "INVALID_OTP"
 
@@ -45,6 +49,7 @@ class InvalidOTPException(BaseAppException):
 
 class ExpiredOTPException(BaseAppException):
     """Raised when the OTP has expired."""
+
     status_code: int = status.HTTP_410_GONE
     error_code: str = "EXPIRED_OTP"
 
@@ -54,6 +59,7 @@ class ExpiredOTPException(BaseAppException):
 
 class OTPAlreadyUsedException(BaseAppException):
     """Raised when the OTP has already been consumed."""
+
     status_code: int = status.HTTP_400_BAD_REQUEST
     error_code: str = "OTP_ALREADY_USED"
 
@@ -63,6 +69,7 @@ class OTPAlreadyUsedException(BaseAppException):
 
 class DuplicateUserException(BaseAppException):
     """Raised when a user with the same username or email already exists."""
+
     status_code: int = status.HTTP_409_CONFLICT
     error_code: str = "DUPLICATE_USER"
 
@@ -72,6 +79,7 @@ class DuplicateUserException(BaseAppException):
 
 class PasswordResetException(BaseAppException):
     """Raised when there is an issue during the password reset process."""
+
     status_code: int = status.HTTP_400_BAD_REQUEST
     error_code: str = "PASSWORD_RESET_ERROR"
 
@@ -81,9 +89,9 @@ class PasswordResetException(BaseAppException):
 
 class RateLimitExceededException(BaseAppException):
     """Raised when rate limits are exceeded."""
+
     status_code: int = status.HTTP_429_TOO_MANY_REQUESTS
     error_code: str = "TOO_MANY_REQUESTS"
 
     def __init__(self, message: str = "Rate limit exceeded. Please try again later."):
         super().__init__(message)
-

@@ -4,17 +4,13 @@ from pydantic import BaseModel, EmailStr, Field
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr = Field(
         ...,
-        description="The email address associated with the account to reset the password.",
+        description=(
+            "The email address associated with the account to reset the password."
+        ),
         examples=["user@example.com"],
     )
 
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "email": "user@example.com"
-            }
-        }
-    }
+    model_config = {"json_schema_extra": {"example": {"email": "user@example.com"}}}
 
 
 class VerifyOtpRequest(BaseModel):
@@ -30,12 +26,7 @@ class VerifyOtpRequest(BaseModel):
     )
 
     model_config = {
-        "json_schema_extra": {
-            "example": {
-                "email": "user@example.com",
-                "otp": "123456"
-            }
-        }
+        "json_schema_extra": {"example": {"email": "user@example.com", "otp": "123456"}}
     }
 
 
@@ -61,7 +52,7 @@ class ResetPasswordRequest(BaseModel):
             "example": {
                 "email": "user@example.com",
                 "otp": "123456",
-                "new_password": "NewSecurePassword123!"
+                "new_password": "NewSecurePassword123!",
             }
         }
     }
@@ -70,15 +61,12 @@ class ResetPasswordRequest(BaseModel):
 class PasswordResponse(BaseModel):
     message: str = Field(
         ...,
-        description="A user-friendly status message describing the result of the operation.",
+        description=(
+            "A user-friendly status message describing the result of the operation."
+        ),
         examples=["OTP verified successfully."],
     )
 
     model_config = {
-        "json_schema_extra": {
-            "example": {
-                "message": "OTP verified successfully."
-            }
-        }
+        "json_schema_extra": {"example": {"message": "OTP verified successfully."}}
     }
-

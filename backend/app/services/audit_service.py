@@ -1,12 +1,13 @@
 from datetime import datetime
 from typing import Any
 
-from app.core.context import request_ip, request_user_agent, request_id
+from sqlalchemy.orm import Session
+
+from app.core.context import request_id, request_ip, request_user_agent
 from app.core.logging_config import logger
 from app.database.session import SessionLocal
 from app.models.audit_log import AuditLog
 from app.repositories.audit_repository import audit_repository
-from sqlalchemy.orm import Session
 
 
 class AuditService:

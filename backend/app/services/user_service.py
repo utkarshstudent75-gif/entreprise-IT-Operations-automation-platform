@@ -1,11 +1,10 @@
 from passlib.context import CryptContext
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from fastapi import status
 
+from app.core.context import logging_context, user_id
 from app.core.exceptions import DuplicateUserException
 from app.core.logging_config import logger
-from app.core.context import logging_context, user_id
 from app.repositories.user_repository import user_repository
 from app.schemas.user import UserCreate, UserResponse
 from app.services.audit_service import audit_service
@@ -25,7 +24,11 @@ class UserService:
                 audit_service.record_event(
                     action="user_creation",
                     status="FAILED",
-                    details={"username": request.username, "email": request.email, "reason": "Username already exists"},
+                    details={
+                        "username": request.username,
+                        "email": request.email,
+                        "reason": "Username already exists",
+                    },
                 )
                 raise DuplicateUserException("Username already exists.")
 
@@ -34,7 +37,11 @@ class UserService:
                 audit_service.record_event(
                     action="user_creation",
                     status="FAILED",
-                    details={"username": request.username, "email": request.email, "reason": "Email already exists"},
+                    details={
+                        "username": request.username,
+                        "email": request.email,
+                        "reason": "Email already exists",
+                    },
                 )
                 raise DuplicateUserException("Email already exists.")
 
@@ -56,7 +63,11 @@ class UserService:
                 audit_service.record_event(
                     action="user_creation",
                     status="FAILED",
-                    details={"username": request.username, "email": request.email, "reason": "Unique constraint violation"},
+                    details={
+                        "username": request.username,
+                        "email": request.email,
+                        "reason": "Unique constraint violation",
+                    },
                 )
                 raise DuplicateUserException("Username or email already exists.")
 
@@ -70,7 +81,11 @@ class UserService:
                 audit_service.record_event(
                     action="user_creation",
                     status="FAILED",
-                    details={"username": request.username, "email": request.email, "reason": str(e)},
+                    details={
+                        "username": request.username,
+                        "email": request.email,
+                        "reason": str(e),
+                    },
                 )
                 raise
 
@@ -86,10 +101,8 @@ class UserService:
 
             return UserResponse.model_validate(user)
 
-
     def _hash_password(self, password: str) -> str:
         return self.pwd_context.hash(password)
 
 
 user_service = UserService()
-

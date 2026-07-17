@@ -84,5 +84,3 @@ async def live_check():
             status="alive",
         )
     )
-
-

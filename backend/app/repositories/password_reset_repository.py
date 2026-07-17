@@ -82,9 +82,8 @@ class PasswordResetRepository:
 
     def delete_expired_requests(self, db: Session) -> None:
         """Delete requests that are past their expiry timestamp."""
-        statement = (
-            delete(PasswordResetRequest)
-            .where(PasswordResetRequest.expires_at < datetime.utcnow())
+        statement = delete(PasswordResetRequest).where(
+            PasswordResetRequest.expires_at < datetime.utcnow()
         )
         db.execute(statement)
         db.commit()

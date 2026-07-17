@@ -1,15 +1,18 @@
+# ruff: noqa: E402
 import uuid
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.logging_config import setup_logging
+
 # Initialize logging configuration immediately on import
 setup_logging()
 
-from app.api.v1.router import api_router
 from app.api.v1.health import router as health_router
+from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.context import request_ip, request_user_agent, request_id, user_id, action
+from app.core.context import action, request_id, request_ip, request_user_agent, user_id
 from app.core.exception_handlers import register_exception_handlers
 
 app = FastAPI(
@@ -49,7 +52,6 @@ async def add_audit_context_middleware(request: Request, call_next):
         action.reset(token_act)
 
 
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -60,5 +62,3 @@ app.add_middleware(
 
 app.include_router(health_router)
 app.include_router(api_router, prefix="/api/v1")
-
-
