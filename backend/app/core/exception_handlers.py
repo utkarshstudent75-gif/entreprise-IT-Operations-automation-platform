@@ -2,8 +2,8 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.core.exceptions import BaseAppException
 from app.core.context import request_id
+from app.core.exceptions import BaseAppException
 from app.core.logging_config import logger
 
 
@@ -66,7 +66,9 @@ def register_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(RequestValidationError)
-    async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    async def validation_exception_handler(
+        request: Request, exc: RequestValidationError
+    ):
         logger.warning(
             "Validation Error - %s (%s)",
             exc.errors(),

@@ -1,9 +1,13 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Integer, String, Boolean, ForeignKey
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class PasswordResetRequest(Base):
@@ -11,7 +15,9 @@ class PasswordResetRequest(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
 
     otp: Mapped[str] = mapped_column(String(6), nullable=False)
 

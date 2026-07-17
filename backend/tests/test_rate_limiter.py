@@ -20,9 +20,7 @@ def test_forgot_password_rate_limiting(mock_time):
     mock_time.return_value = 1000.0
 
     # Mock password reset service to prevent DB connections/raising errors
-    with patch(
-        "app.api.v1.password.password_reset_service.request_password_reset"
-    ) as mock_reset:
+    with patch("app.api.v1.password.password_reset_service.request_password_reset"):
         # First 5 requests should succeed
         for _ in range(5):
             response = client.post(
@@ -63,7 +61,7 @@ def test_forgot_password_rate_limiting(mock_time):
 def test_verify_otp_rate_limiting(mock_time):
     mock_time.return_value = 1000.0
 
-    with patch("app.api.v1.password.password_reset_service.verify_otp") as mock_verify:
+    with patch("app.api.v1.password.password_reset_service.verify_otp"):
         # First 10 requests should succeed
         for _ in range(10):
             response = client.post(

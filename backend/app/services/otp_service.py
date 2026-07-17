@@ -4,9 +4,13 @@ from datetime import UTC, datetime
 from fastapi import status
 
 from app.core.config import settings
-from app.core.exceptions import BaseAppException, InvalidOTPException, ExpiredOTPException
-from app.core.logging_config import logger
 from app.core.context import logging_context
+from app.core.exceptions import (
+    BaseAppException,
+    ExpiredOTPException,
+    InvalidOTPException,
+)
+from app.core.logging_config import logger
 from app.database.otp_repository import otp_repository
 
 
@@ -22,10 +26,7 @@ class OTPService:
 
         logger.info("Generating OTP for %s", email)
 
-        otp = "".join(
-            str(secrets.randbelow(10))
-            for _ in range(settings.OTP_LENGTH)
-        )
+        otp = "".join(str(secrets.randbelow(10)) for _ in range(settings.OTP_LENGTH))
 
         otp_repository.save_otp(
             email=email,
@@ -94,7 +95,6 @@ class OTPService:
                     )
 
                 raise InvalidOTPException("Invalid OTP.")
-
 
             # Success
             otp_repository.delete_otp(email)

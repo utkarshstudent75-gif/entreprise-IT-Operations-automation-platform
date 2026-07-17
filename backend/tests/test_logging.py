@@ -1,9 +1,10 @@
 import json
 import logging
-import pytest
 from unittest.mock import MagicMock
 
-from app.core.context import request_id, user_id, action, logging_context
+import pytest
+
+from app.core.context import action, logging_context, request_id, user_id
 from app.core.logging_config import StructuredJSONFormatter
 
 
@@ -20,7 +21,7 @@ def test_json_formatter_standard():
     )
     formatted = formatter.format(record)
     data = json.loads(formatted)
-    
+
     assert "timestamp" in data
     assert data["level"] == "INFO"
     assert data["module"] == "test_path"
@@ -90,7 +91,7 @@ def test_logging_failures_never_raise():
 @pytest.mark.anyio
 async def test_middleware_request_id_and_logs():
     from app.main import add_audit_context_middleware
-    
+
     # Mock FastAPI request
     request = MagicMock()
     request.headers = {}
@@ -106,7 +107,7 @@ async def test_middleware_request_id_and_logs():
         return response
 
     response = await add_audit_context_middleware(request, call_next)
-    
+
     # After middleware executes, it should set x-request-id on response
     assert "x-request-id" in response.headers
     # After request completes, context variables should be cleaned up

@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any
-from sqlalchemy import select, desc
+
+from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.models.audit_log import AuditLog
@@ -55,7 +56,9 @@ class AuditRepository:
         skip: int = 0,
         limit: int = 100,
     ) -> list[AuditLog]:
-        """Fetch audit logs matching the given filters, ordered by timestamp descending."""
+        """Fetch audit logs matching the given filters, ordered by
+        timestamp descending.
+        """
         statement = select(AuditLog)
 
         if user_id is not None:
@@ -69,7 +72,9 @@ class AuditRepository:
         if end_date is not None:
             statement = statement.where(AuditLog.timestamp <= end_date)
 
-        statement = statement.order_by(desc(AuditLog.timestamp)).offset(skip).limit(limit)
+        statement = (
+            statement.order_by(desc(AuditLog.timestamp)).offset(skip).limit(limit)
+        )
         return list(db.execute(statement).scalars().all())
 
 

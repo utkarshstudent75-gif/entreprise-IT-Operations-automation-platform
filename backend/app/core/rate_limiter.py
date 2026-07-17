@@ -15,14 +15,16 @@ class RateLimiterStorage(abc.ABC):
     def is_rate_limited(self, key: str, limit: int, window_seconds: int) -> bool:
         """
         Determine if the request for the given key is rate limited.
-        Increments the request count and returns True if limit is exceeded, False otherwise.
+        Increments the request count and returns True if limit is exceeded,
+        False otherwise.
         """
         pass
 
 
 class InMemoryRateLimiterStorage(RateLimiterStorage):
     """
-    Thread-safe In-Memory implementation of Rate Limiter Storage using sliding window log.
+    Thread-safe In-Memory implementation of Rate Limiter Storage using
+    sliding window log.
     """
 
     def __init__(self):
