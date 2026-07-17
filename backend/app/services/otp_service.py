@@ -6,6 +6,7 @@ from fastapi import status
 from app.core.config import settings
 from app.core.exceptions import BaseAppException, InvalidOTPException, ExpiredOTPException
 from app.core.logging_config import logger
+from app.core.context import logging_context
 from app.database.otp_repository import otp_repository
 
 
@@ -40,67 +41,67 @@ class OTPService:
         """
         Verify the OTP submitted by the user.
         """
+        with logging_context(act="otp_verification"):
+            record = otp_repository.get_otp(email)
 
-        record = otp_repository.get_otp(email)
+            if record is None:
+                logger.warning("No OTP request found for %s", email)
+                raise InvalidOTPException(
+                    "No OTP request found for this email.",
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    error_code="OTP_NOT_FOUND",
+                )
 
-        if record is None:
-            logger.warning("No OTP request found for %s", email)
-            raise InvalidOTPException(
-                "No OTP request found for this email.",
-                status_code=status.HTTP_404_NOT_FOUND,
-                error_code="OTP_NOT_FOUND",
-            )
+            logger.info("Stored OTP: %s", record["otp"])
+            logger.info("Received OTP: %s", otp)
 
-        logger.info("Stored OTP: %s", record["otp"])
-        logger.info("Received OTP: %s", otp)
+            # Check expiry
+            if datetime.now(UTC) > record["expires_at"]:
+                otp_repository.delete_otp(email)
 
-        # Check expiry
-        if datetime.now(UTC) > record["expires_at"]:
-            otp_repository.delete_otp(email)
+                logger.warning("OTP expired for %s", email)
 
-            logger.warning("OTP expired for %s", email)
+                raise ExpiredOTPException("OTP has expired.")
 
-            raise ExpiredOTPException("OTP has expired.")
-
-        # Check maximum attempts
-        if record["attempts"] >= settings.OTP_MAX_ATTEMPTS:
-            otp_repository.delete_otp(email)
-
-            logger.warning("Maximum OTP attempts exceeded for %s", email)
-
-            raise BaseAppException(
-                "Maximum OTP verification attempts exceeded.",
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                error_code="TOO_MANY_ATTEMPTS",
-            )
-
-        # Incorrect OTP
-        if record["otp"] != otp:
-            record["attempts"] += 1
-
-            logger.warning(
-                "Invalid OTP attempt %d for %s",
-                record["attempts"],
-                email,
-            )
-
+            # Check maximum attempts
             if record["attempts"] >= settings.OTP_MAX_ATTEMPTS:
                 otp_repository.delete_otp(email)
 
+                logger.warning("Maximum OTP attempts exceeded for %s", email)
+
+                raise BaseAppException(
+                    "Maximum OTP verification attempts exceeded.",
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    error_code="TOO_MANY_ATTEMPTS",
+                )
+
+            # Incorrect OTP
+            if record["otp"] != otp:
+                record["attempts"] += 1
+
                 logger.warning(
-                    "OTP deleted after maximum failed attempts for %s",
+                    "Invalid OTP attempt %d for %s",
+                    record["attempts"],
                     email,
                 )
 
-            raise InvalidOTPException("Invalid OTP.")
+                if record["attempts"] >= settings.OTP_MAX_ATTEMPTS:
+                    otp_repository.delete_otp(email)
+
+                    logger.warning(
+                        "OTP deleted after maximum failed attempts for %s",
+                        email,
+                    )
+
+                raise InvalidOTPException("Invalid OTP.")
 
 
-        # Success
-        otp_repository.delete_otp(email)
+            # Success
+            otp_repository.delete_otp(email)
 
-        logger.info("OTP verified successfully for %s", email)
+            logger.info("OTP verified successfully for %s", email)
 
-        return True
+            return True
 
 
 otp_service = OTPService()
