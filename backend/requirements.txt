@@ -8,6 +8,7 @@ fastapi==0.139.0
 h11==0.16.0
 idna==3.18
 passlib[bcrypt]==1.7.4
+bcrypt==4.0.1
 psycopg2-binary==2.9.10
 pydantic==2.13.4
 pydantic-settings==2.14.2
@@ -23,3 +24,7 @@ uvicorn==0.51.0
 email-validator==2.2.0
 ruff==0.15.21
 pytest==9.1.1
+SQLAlchemy==2.0.41
+alembic==1.16.4
+psycopg[binary]==3.2.9
+httpx==0.28.1

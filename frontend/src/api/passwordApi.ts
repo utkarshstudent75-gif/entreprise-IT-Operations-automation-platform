@@ -36,9 +36,13 @@ async function postPasswordRequest(
 }
 
 export async function requestPasswordReset(email: string): Promise<PasswordApiResult> {
-  return postPasswordRequest('/password/forgot-password', { email }, 'Unable to send an OTP. Please try again.')
+  return postPasswordRequest('/password/forgot-password', { email }, 'Unable to send a reset code. Please try again.')
 }
 
 export async function verifyOtp(email: string, otp: string): Promise<PasswordApiResult> {
-  return postPasswordRequest('/password/verify-otp', { email, otp }, 'Unable to verify the OTP. Please try again.')
+  return postPasswordRequest('/password/verify-otp', { email, otp }, 'Unable to verify the reset code. Please try again.')
+}
+
+export async function resetPassword(email: string, otp: string, new_password: string): Promise<PasswordApiResult> {
+  return postPasswordRequest('/password/reset-password', { email, otp, new_password }, 'Unable to reset your password. Please try again.')
 }
