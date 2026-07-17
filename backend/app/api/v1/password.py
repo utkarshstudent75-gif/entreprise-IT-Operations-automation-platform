@@ -1,11 +1,19 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
+from app.database.dependencies import get_db
 from app.schemas.password import (
     ForgotPasswordRequest,
+    PasswordResponse,
+    ResetPasswordRequest,
     VerifyOtpRequest,
 )
-from app.services.otp_service import otp_service
-from app.services.password_service import password_service
+from app.services.password_reset_service import (
+    PasswordResetAlreadyUsedError,
+    PasswordResetExpiredError,
+    PasswordResetInvalidRequest,
+    password_reset_service,
+)
 
 router = APIRouter(
     prefix="/password",
@@ -13,27 +21,57 @@ router = APIRouter(
 )
 
 
-@router.post("/forgot-password")
-async def forgot_password(request: ForgotPasswordRequest):
+@router.post(
+    "/forgot-password",
+    response_model=PasswordResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    password_reset_service.request_password_reset(db, request.email)
 
-    password_service.request_password_reset(request.email)
-
-    return {
-        "message": "If the account exists, a verification code has been sent."
-    }
-
-
-@router.post("/verify-otp")
-async def verify_otp(request: VerifyOtpRequest):
-
-    otp_service.verify_otp(
-        request.email,
-        request.otp,
+    return PasswordResponse(
+        message="If the account exists, a reset code has been sent."
     )
 
-    
-    return {
-            "message": "OTP verified successfully."
-        }
 
+@router.post(
+    "/verify-otp",
+    response_model=PasswordResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def verify_otp(request: VerifyOtpRequest, db: Session = Depends(get_db)):
+    try:
+        password_reset_service.verify_otp(db, request.email, request.otp)
+    except (
+        PasswordResetInvalidRequest,
+        PasswordResetExpiredError,
+        PasswordResetAlreadyUsedError,
+    ) as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+    return PasswordResponse(message="OTP verified successfully.")
+
+
+@router.post(
+    "/reset-password",
+    response_model=PasswordResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    try:
+        password_reset_service.reset_password(
+            db,
+            request.email,
+            request.otp,
+            request.new_password,
+        )
+    except PasswordResetExpiredError as exc:
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail=str(exc))
+    except (
+        PasswordResetInvalidRequest,
+        PasswordResetAlreadyUsedError,
+    ) as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+    return PasswordResponse(message="Password has been reset successfully.")
     
