@@ -7,7 +7,8 @@ from sqlalchemy import text
 import app.services.audit_service as audit_service_mod
 from app.core.rate_limiter import rate_limiter
 from app.database.base import Base
-from app.database.session import engine as RealEngine, SessionLocal as RealSessionLocal
+from app.database.session import SessionLocal as RealSessionLocal
+from app.database.session import engine as RealEngine
 from app.main import app
 from app.models.audit_log import AuditLog
 from app.models.password_reset_request import PasswordResetRequest
