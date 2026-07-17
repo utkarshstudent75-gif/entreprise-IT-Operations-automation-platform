@@ -79,7 +79,7 @@ def test_verify_otp_raises_when_no_user(monkeypatch):
 def test_verify_otp_raises_when_no_request(monkeypatch):
     user = DummyUser(id=1, email='test@example.com')
     monkeypatch.setattr(user_repository, 'get_by_email', lambda db, email: user)
-    monkeypatch.setattr(password_reset_repository, 'get_latest_valid_request', lambda db, user_id: None)
+    monkeypatch.setattr(password_reset_repository, 'get_latest_request', lambda db, user_id: None)
 
     with pytest.raises(PasswordResetInvalidRequest):
         password_reset_service.verify_otp(DummyDB(), user.email, '000000')
@@ -95,7 +95,7 @@ def test_verify_otp_raises_when_expired(monkeypatch):
     reset_request.is_used = False
 
     monkeypatch.setattr(user_repository, 'get_by_email', lambda db, email: user)
-    monkeypatch.setattr(password_reset_repository, 'get_latest_valid_request', lambda db, user_id: reset_request)
+    monkeypatch.setattr(password_reset_repository, 'get_latest_request', lambda db, user_id: reset_request)
 
     with pytest.raises(PasswordResetExpiredError):
         password_reset_service.verify_otp(DummyDB(), user.email, '123456')
@@ -111,7 +111,7 @@ def test_verify_otp_raises_when_mismatch(monkeypatch):
     reset_request.is_used = False
 
     monkeypatch.setattr(user_repository, 'get_by_email', lambda db, email: user)
-    monkeypatch.setattr(password_reset_repository, 'get_latest_valid_request', lambda db, user_id: reset_request)
+    monkeypatch.setattr(password_reset_repository, 'get_latest_request', lambda db, user_id: reset_request)
 
     with pytest.raises(PasswordResetInvalidRequest):
         password_reset_service.verify_otp(DummyDB(), user.email, '000000')
@@ -127,7 +127,7 @@ def test_verify_otp_returns_true_for_matching_otp(monkeypatch):
     reset_request.is_used = False
 
     monkeypatch.setattr(user_repository, 'get_by_email', lambda db, email: user)
-    monkeypatch.setattr(password_reset_repository, 'get_latest_valid_request', lambda db, user_id: reset_request)
+    monkeypatch.setattr(password_reset_repository, 'get_latest_request', lambda db, user_id: reset_request)
 
     assert password_reset_service.verify_otp(DummyDB(), user.email, '123456') is True
 
