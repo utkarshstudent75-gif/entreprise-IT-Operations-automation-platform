@@ -3,15 +3,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     # application configuration
-    APP_NAME: str = "Enterprise IT Operations Automation Platform"
-    APP_VERSION: str = "0.1.0"
-    ENVIRONMENT: str = "development"
-    DEBUG: bool = True
-    HOST: str = "0.0.0.0"
-    PORT: int = 8000
+    APP_NAME: str
+    APP_VERSION: str
+    ENVIRONMENT: str
+    DEBUG: bool
+    HOST: str
+    PORT: int
 
     # Database Configuration
-    DATABASE_URL: str = "postgresql://postgres:postgres@postgres:5432/eitoap"
+    DATABASE_URL: str
 
     # OTP Configuration
     OTP_LENGTH: int = 6
