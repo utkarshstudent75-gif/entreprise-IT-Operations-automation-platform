@@ -9,6 +9,7 @@ from app.core.logging_config import logger
 from app.repositories.password_reset_repository import password_reset_repository
 from app.repositories.user_repository import user_repository
 from app.services.notification_service import notification_service
+from app.services.audit_service import audit_service
 
 
 class PasswordResetError(Exception):
@@ -45,22 +46,43 @@ class PasswordResetService:
                 "Password reset requested for unknown email %s; returning success to avoid enumeration.",
                 email,
             )
+            audit_service.record_event(
+                action="forgot_password",
+                status="FAILED",
+                details={"email": email, "reason": "Unknown email"},
+            )
             return True
 
         otp = self._generate_otp()
         expires_at = datetime.utcnow() + timedelta(minutes=settings.OTP_EXPIRY_MINUTES)
 
-        password_reset_repository.create_reset_request(
-            db=db,
-            user_id=user.id,
-            otp=otp,
-            expires_at=expires_at,
-        )
+        try:
+            password_reset_repository.create_reset_request(
+                db=db,
+                user_id=user.id,
+                otp=otp,
+                expires_at=expires_at,
+            )
+        except Exception as e:
+            logger.error("Failed to create password reset request: %s", str(e))
+            audit_service.record_event(
+                action="forgot_password",
+                status="FAILED",
+                user_id=user.id,
+                details={"email": email, "reason": str(e)},
+            )
+            raise
 
         # TODO: replace this console-level notification with a real email/SMS provider.
         notification_service.send_otp(email, otp)
 
         logger.info("Password reset request created for user id %s", user.id)
+        audit_service.record_event(
+            action="forgot_password",
+            status="SUCCESS",
+            user_id=user.id,
+            details={"email": email},
+        )
         return True
 
     def verify_otp(self, db: Session, email: str, otp: str) -> bool:
@@ -72,26 +94,61 @@ class PasswordResetService:
         user = user_repository.get_by_email(db, email)
         if user is None:
             logger.warning("Password reset verify failed for unknown email %s", email)
+            audit_service.record_event(
+                action="otp_verification",
+                status="FAILED",
+                details={"email": email, "reason": "Invalid email or OTP"},
+            )
             raise PasswordResetInvalidRequest("Invalid email or OTP.")
 
         reset_request = password_reset_repository.get_latest_valid_request(db, user.id)
         if reset_request is None:
             logger.warning("No password reset request found for user id %s", user.id)
+            audit_service.record_event(
+                action="otp_verification",
+                status="FAILED",
+                user_id=user.id,
+                details={"email": email, "reason": "No valid request found"},
+            )
             raise PasswordResetInvalidRequest("Invalid email or OTP.")
 
         if reset_request.is_used:
             logger.warning("Password reset request already used for user id %s", user.id)
+            audit_service.record_event(
+                action="otp_verification",
+                status="FAILED",
+                user_id=user.id,
+                details={"email": email, "reason": "OTP already used"},
+            )
             raise PasswordResetAlreadyUsedError("OTP has already been used.")
 
         if datetime.utcnow() > reset_request.expires_at:
             logger.warning("Password reset OTP expired for user id %s", user.id)
+            audit_service.record_event(
+                action="otp_verification",
+                status="FAILED",
+                user_id=user.id,
+                details={"email": email, "reason": "OTP expired"},
+            )
             raise PasswordResetExpiredError("OTP has expired.")
 
         if reset_request.otp != otp:
             logger.warning("Password reset OTP mismatch for user id %s", user.id)
+            audit_service.record_event(
+                action="otp_verification",
+                status="FAILED",
+                user_id=user.id,
+                details={"email": email, "reason": "OTP mismatch"},
+            )
             raise PasswordResetInvalidRequest("Invalid email or OTP.")
 
         logger.info("Password reset OTP verified for user id %s", user.id)
+        audit_service.record_event(
+            action="otp_verification",
+            status="SUCCESS",
+            user_id=user.id,
+            details={"email": email},
+        )
         return True
 
     def reset_password(self, db: Session, email: str, otp: str, new_password: str) -> bool:
@@ -99,36 +156,82 @@ class PasswordResetService:
         user = user_repository.get_by_email(db, email)
         if user is None:
             logger.warning("Password reset failed for unknown email %s", email)
+            audit_service.record_event(
+                action="password_reset",
+                status="FAILED",
+                details={"email": email, "reason": "Invalid email or OTP"},
+            )
             raise PasswordResetInvalidRequest("Invalid email or OTP.")
 
         reset_request = password_reset_repository.get_latest_request(db, user.id)
         if reset_request is None:
             logger.warning("No password reset request found for reset on user id %s", user.id)
+            audit_service.record_event(
+                action="password_reset",
+                status="FAILED",
+                user_id=user.id,
+                details={"email": email, "reason": "No request found"},
+            )
             raise PasswordResetInvalidRequest("Invalid email or OTP.")
 
         if reset_request.is_used:
             logger.warning("Attempted password reset with used OTP for user id %s", user.id)
+            audit_service.record_event(
+                action="password_reset",
+                status="FAILED",
+                user_id=user.id,
+                details={"email": email, "reason": "OTP already used"},
+            )
             raise PasswordResetAlreadyUsedError("OTP has already been used.")
 
         if datetime.utcnow() > reset_request.expires_at:
             logger.warning("Attempted password reset with expired OTP for user id %s", user.id)
+            audit_service.record_event(
+                action="password_reset",
+                status="FAILED",
+                user_id=user.id,
+                details={"email": email, "reason": "OTP expired"},
+            )
             raise PasswordResetExpiredError("OTP has expired.")
 
         if reset_request.otp != otp:
             logger.warning("Password reset OTP mismatch for user id %s", user.id)
+            audit_service.record_event(
+                action="password_reset",
+                status="FAILED",
+                user_id=user.id,
+                details={"email": email, "reason": "OTP mismatch"},
+            )
             raise PasswordResetInvalidRequest("Invalid email or OTP.")
 
         hashed_password = self._hash_password(new_password)
 
         user.hashed_password = hashed_password
         reset_request.is_used = True
-        db.add(user)
-        db.add(reset_request)
-        db.commit()
-        db.refresh(user)
-        db.refresh(reset_request)
+
+        try:
+            db.add(user)
+            db.add(reset_request)
+            db.commit()
+            db.refresh(user)
+            db.refresh(reset_request)
+        except Exception as e:
+            logger.error("Failed database transaction for reset_password: %s", str(e))
+            audit_service.record_event(
+                action="password_reset",
+                status="FAILED",
+                user_id=user.id,
+                details={"email": email, "reason": f"Database error: {str(e)}"},
+            )
+            raise
 
         logger.info("Password reset completed for user id %s", user.id)
+        audit_service.record_event(
+            action="password_reset",
+            status="SUCCESS",
+            user_id=user.id,
+            details={"email": email},
+        )
         return True
 
     def _generate_otp(self) -> str:
@@ -139,3 +242,4 @@ class PasswordResetService:
 
 
 password_reset_service = PasswordResetService()
+
