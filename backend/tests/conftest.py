@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # 2. Intercept and override DATABASE_URL to use the isolated test database
-db_url = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/eitoap")
+db_url = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@127.0.0.1:5432/eitoap")
 parsed = urlparse(db_url)
 path = parsed.path
 if path and path != "/":
@@ -34,3 +34,12 @@ pytest_plugins = [
 def clear_otp_store():
     """Autouse fixture to reset internal state of OTP repository between tests."""
     otp_repository._otp_store.clear()
+
+
+# Speed up password hashing in tests by using a minimum work factor (rounds=4)
+from passlib.context import CryptContext
+from app.services.password_reset_service import password_reset_service
+from app.services.user_service import user_service
+
+password_reset_service.pwd_context = CryptContext(schemes=["bcrypt"], bcrypt__rounds=4)
+user_service.pwd_context = CryptContext(schemes=["bcrypt"], bcrypt__rounds=4)

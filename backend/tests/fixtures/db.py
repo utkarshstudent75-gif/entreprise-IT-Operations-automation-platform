@@ -55,7 +55,7 @@ def db_engine():
 
 
 @pytest.fixture
-def db(db_engine):
+def db(db_engine, clean_tables):
     """Function-scoped SQLAlchemy Session fixture.
     
     Yields an active database session and guarantees it is closed at the end of the test.
@@ -68,9 +68,9 @@ def db(db_engine):
         session.close()
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def clean_tables(db_engine):
-    """Automatically runs before every test to clean up database state.
+    """Runs before database tests to clean up database state.
     
     Truncates all tables in PostgreSQL with CASCADE to ensure test isolation.
     """
