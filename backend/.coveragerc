@@ -1,0 +1,27 @@
+[run]
+source =
+    app/services
+    app/repositories
+    app/api
+    app/models
+    app/core
+
+omit =
+    */migrations/*
+    */alembic/*
+    *__pycache__*
+    tests/*
+    */tests/*
+    *generated*
+
+[report]
+show_missing = True
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if self.debug:
+    if __name__ == .__main__.:
+    raise AssertionError
+    raise NotImplementedError
+    pass
+    class .*\(Protocol\):
