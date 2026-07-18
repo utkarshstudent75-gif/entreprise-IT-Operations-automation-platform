@@ -1,5 +1,4 @@
 from datetime import UTC, datetime, timedelta
-import pytest
 
 from app.core.rate_limiter import rate_limiter
 from app.models.audit_log import AuditLog
@@ -143,7 +142,9 @@ def test_complete_e2e_workflow_and_validations(client, db, caplog):
     expired_otp = expired_req.otp
 
     # Manually expire it in the database
-    expired_req.expires_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1)
+    expired_req.expires_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(
+        minutes=1
+    )
     db.commit()
 
     # Verify expired OTP is rejected on verify-otp
@@ -208,9 +209,7 @@ def test_complete_e2e_workflow_and_validations(client, db, caplog):
     validation_res = res.json()
     assert validation_res["success"] is False
     assert validation_res["error"]["code"] == "VALIDATION_ERROR"
-    assert (
-        "value is not a valid email address" in validation_res["error"]["message"]
-    )
+    assert "value is not a valid email address" in validation_res["error"]["message"]
 
     # 15. Rate limiting validation
     # forgot-password limit is 5 requests per 10 minutes.

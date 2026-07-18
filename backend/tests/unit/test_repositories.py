@@ -1,7 +1,6 @@
-from datetime import UTC, datetime
+from datetime import datetime
 from unittest.mock import MagicMock
 
-import pytest
 from sqlalchemy.sql.elements import BinaryExpression
 
 from app.models.audit_log import AuditLog
@@ -11,10 +10,10 @@ from app.repositories.audit_repository import audit_repository
 from app.repositories.password_reset_repository import password_reset_repository
 from app.repositories.user_repository import user_repository
 
-
 # ==============================================================================
 # USER REPOSITORY TESTS
 # ==============================================================================
+
 
 def test_user_repo_get_by_username():
     """
@@ -23,7 +22,7 @@ def test_user_repo_get_by_username():
     """
     mock_db = MagicMock()
     mock_user = User(id=1, username="testuser", email="test@example.com")
-    
+
     # Mock chain: db.query().filter().one_or_none()
     mock_query = mock_db.query.return_value
     mock_filter = mock_query.filter.return_value
@@ -34,13 +33,13 @@ def test_user_repo_get_by_username():
     # Assertions
     mock_db.query.assert_called_once_with(User)
     mock_query.filter.assert_called_once()
-    
+
     # Check that filter expression references username column
     expr = mock_query.filter.call_args[0][0]
     assert isinstance(expr, BinaryExpression)
     assert str(expr.left) == "users.username"
     assert expr.right.value == "testuser"
-    
+
     assert result == mock_user
 
 
@@ -50,7 +49,7 @@ def test_user_repo_get_by_email():
     """
     mock_db = MagicMock()
     mock_user = User(id=1, username="testuser", email="test@example.com")
-    
+
     # Mock chain
     mock_query = mock_db.query.return_value
     mock_filter = mock_query.filter.return_value
@@ -65,7 +64,7 @@ def test_user_repo_get_by_email():
     assert isinstance(expr, BinaryExpression)
     assert str(expr.left) == "users.email"
     assert expr.right.value == "test@example.com"
-    
+
     assert result == mock_user
 
 
@@ -75,7 +74,7 @@ def test_user_repo_get_by_id():
     """
     mock_db = MagicMock()
     mock_user = User(id=42, username="testuser", email="test@example.com")
-    
+
     # Mock chain
     mock_query = mock_db.query.return_value
     mock_filter = mock_query.filter.return_value
@@ -90,7 +89,7 @@ def test_user_repo_get_by_id():
     assert isinstance(expr, BinaryExpression)
     assert str(expr.left) == "users.id"
     assert expr.right.value == 42
-    
+
     assert result == mock_user
 
 
@@ -125,6 +124,7 @@ def test_user_repo_create_user():
 # ==============================================================================
 # AUDIT REPOSITORY TESTS
 # ==============================================================================
+
 
 def test_audit_repo_create_entry():
     """
@@ -171,7 +171,7 @@ def test_audit_repo_get_by_id():
     """
     mock_db = MagicMock()
     mock_log = AuditLog(id=99)
-    
+
     # Mock chain: db.execute().scalar_one_or_none()
     mock_execute_result = mock_db.execute.return_value
     mock_execute_result.scalar_one_or_none.return_value = mock_log
@@ -183,7 +183,7 @@ def test_audit_repo_get_by_id():
     executed_statement = mock_db.execute.call_args[0][0]
     assert str(executed_statement).startswith("SELECT")
     assert "WHERE audit_logs.id = :id" in str(executed_statement)
-    
+
     assert result == mock_log
 
 
@@ -200,7 +200,7 @@ def test_audit_repo_get_all_no_filters():
 
     mock_db.execute.assert_called_once()
     statement = str(mock_db.execute.call_args[0][0])
-    
+
     assert "SELECT" in statement
     assert "LIMIT :param_1 OFFSET :param_2" in statement
     assert result == []
@@ -218,7 +218,7 @@ def test_audit_repo_get_all_with_filters():
     start_date = datetime(2026, 7, 1)
     end_date = datetime(2026, 7, 10)
 
-    result = audit_repository.get_all(
+    audit_repository.get_all(
         mock_db,
         user_id=1,
         action="password_reset",
@@ -229,7 +229,7 @@ def test_audit_repo_get_all_with_filters():
 
     mock_db.execute.assert_called_once()
     statement = str(mock_db.execute.call_args[0][0])
-    
+
     # Verify that all filters are applied in SQL WHERE clause
     assert "WHERE audit_logs.user_id = :user_id" in statement
     assert "audit_logs.action = :action" in statement
@@ -241,6 +241,7 @@ def test_audit_repo_get_all_with_filters():
 # ==============================================================================
 # PASSWORD RESET REPOSITORY TESTS
 # ==============================================================================
+
 
 def test_pw_reset_repo_create_reset_request():
     """
@@ -285,7 +286,7 @@ def test_pw_reset_repo_get_latest_request():
 
     mock_db.execute.assert_called_once()
     statement = str(mock_db.execute.call_args[0][0])
-    
+
     assert "WHERE password_reset_requests.user_id = :user_id" in statement
     assert "ORDER BY password_reset_requests.created_at DESC" in statement
     assert "LIMIT :param_1" in statement
@@ -306,7 +307,7 @@ def test_pw_reset_repo_get_latest_valid_request():
 
     mock_db.execute.assert_called_once()
     statement = str(mock_db.execute.call_args[0][0])
-    
+
     assert "WHERE password_reset_requests.user_id = :user_id" in statement
     assert "password_reset_requests.is_used IS false" in statement
     assert result == mock_req

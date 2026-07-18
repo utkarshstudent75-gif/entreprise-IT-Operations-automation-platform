@@ -1,5 +1,4 @@
 from datetime import UTC, datetime, timedelta
-import pytest
 
 from app.core.context import request_id, request_ip, request_user_agent
 from app.models.audit_log import AuditLog

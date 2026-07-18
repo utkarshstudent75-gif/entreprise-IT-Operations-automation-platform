@@ -1,5 +1,5 @@
 from datetime import UTC, datetime, timedelta
-import pytest
+
 from app.models.audit_log import AuditLog
 from app.models.user import User
 
@@ -37,7 +37,7 @@ def test_get_audit_log_by_id(client, db):
     assert response.status_code == 200
     json_data = response.json()
     assert json_data["success"] is True
-    
+
     data = json_data["data"]
     assert data["id"] == log.id
     assert data["action"] == "user_creation"

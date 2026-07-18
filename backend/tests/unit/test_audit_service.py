@@ -1,8 +1,6 @@
 from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
-import pytest
-
 from app.core.context import request_id, request_ip, request_user_agent
 from app.models.audit_log import AuditLog
 from app.services.audit_service import audit_service
@@ -11,11 +9,11 @@ from app.services.audit_service import audit_service
 def test_record_event_success(monkeypatch):
     """
     Test that recording an audit log entry works correctly under normal conditions.
-    
+
     This test mocks:
       - SessionLocal: to return a dummy DB session mock.
       - audit_repository.create_entry: to return a dummy AuditLog.
-      
+
     It verifies that:
       - The event is created with the exact arguments passed.
       - The DB session is committed/closed.
@@ -70,7 +68,7 @@ def test_record_event_resolves_context(monkeypatch):
     """
     Test that record_event resolves ip_address, user_agent, and request_id from
     the request context variables when they are not explicitly provided.
-    
+
     This test verifies that context propagation works correctly.
     """
     mock_session = MagicMock()
@@ -107,7 +105,7 @@ def test_record_event_resolves_context(monkeypatch):
 def test_record_event_resilience_on_exception(monkeypatch):
     """
     Test the resiliency of record_event.
-    
+
     If the database session creation or repository insert throws an exception,
     the exception must be logged and swallowed, returning None instead of propagating
     the exception to the caller. This ensures audit failures do not break the main application flow.

@@ -18,6 +18,7 @@ class DummyDB:
     A lightweight mock of SQLAlchemy's DB session class used
     to isolate tests from real database connection calls.
     """
+
     def begin(self):
         return self
 
@@ -42,6 +43,7 @@ class DummyUser(User):
     A mock User model inheriting from the SQL Alchemy User model
     to bypass strict ORM constructors during unit testing.
     """
+
     def __init__(self, id: int, email: str):
         self.id = id
         self.email = email
@@ -52,6 +54,7 @@ class DummyResetRequest(PasswordResetRequest):
     """
     A mock PasswordResetRequest model used to represent a stored reset request record.
     """
+
     pass
 
 
@@ -59,7 +62,7 @@ def test_request_password_reset_returns_success_for_unknown_email(monkeypatch):
     """
     Test that request_password_reset returns True (indicating success) even if
     the requested email is not found in the database.
-    
+
     This acts as a security measure to prevent user enumeration attacks:
     an attacker shouldn't be able to guess registered emails by looking at response status.
     """
@@ -76,7 +79,7 @@ def test_request_password_reset_creates_request_and_sends_otp(monkeypatch):
     """
     Test that request_password_reset successfully creates a new reset request,
     generates a 6-digit OTP with an future expiry time, and triggers the notification service.
-    
+
     Verified outcomes:
       - Returns True.
       - Generated OTP contains 6 characters.
