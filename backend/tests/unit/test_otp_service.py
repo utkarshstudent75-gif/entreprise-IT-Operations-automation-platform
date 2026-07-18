@@ -47,7 +47,7 @@ def test_verify_otp_success(monkeypatch):
       - The OTP matches.
       - The OTP is not expired.
       - The maximum verification attempts are not exceeded.
-      
+
     Verifies that it deletes the OTP and returns True.
     """
     mock_record = {
@@ -58,7 +58,9 @@ def test_verify_otp_success(monkeypatch):
     mock_get = MagicMock(return_value=mock_record)
     mock_delete = MagicMock()
     monkeypatch.setattr("app.services.otp_service.otp_repository.get_otp", mock_get)
-    monkeypatch.setattr("app.services.otp_service.otp_repository.delete_otp", mock_delete)
+    monkeypatch.setattr(
+        "app.services.otp_service.otp_repository.delete_otp", mock_delete
+    )
 
     result = otp_service.verify_otp("user@example.com", "123456")
 
@@ -96,7 +98,9 @@ def test_verify_otp_expired(monkeypatch):
     mock_get = MagicMock(return_value=mock_record)
     mock_delete = MagicMock()
     monkeypatch.setattr("app.services.otp_service.otp_repository.get_otp", mock_get)
-    monkeypatch.setattr("app.services.otp_service.otp_repository.delete_otp", mock_delete)
+    monkeypatch.setattr(
+        "app.services.otp_service.otp_repository.delete_otp", mock_delete
+    )
 
     with pytest.raises(ExpiredOTPException) as exc_info:
         otp_service.verify_otp("expired@example.com", "123456")
@@ -121,7 +125,9 @@ def test_verify_otp_max_attempts_exceeded_initially(monkeypatch):
     mock_get = MagicMock(return_value=mock_record)
     mock_delete = MagicMock()
     monkeypatch.setattr("app.services.otp_service.otp_repository.get_otp", mock_get)
-    monkeypatch.setattr("app.services.otp_service.otp_repository.delete_otp", mock_delete)
+    monkeypatch.setattr(
+        "app.services.otp_service.otp_repository.delete_otp", mock_delete
+    )
 
     with pytest.raises(BaseAppException) as exc_info:
         otp_service.verify_otp("user@example.com", "123456")
@@ -146,7 +152,9 @@ def test_verify_otp_mismatch_increments_attempts(monkeypatch):
     mock_get = MagicMock(return_value=mock_record)
     mock_delete = MagicMock()
     monkeypatch.setattr("app.services.otp_service.otp_repository.get_otp", mock_get)
-    monkeypatch.setattr("app.services.otp_service.otp_repository.delete_otp", mock_delete)
+    monkeypatch.setattr(
+        "app.services.otp_service.otp_repository.delete_otp", mock_delete
+    )
 
     with pytest.raises(InvalidOTPException) as exc_info:
         otp_service.verify_otp("user@example.com", "000000")
@@ -171,7 +179,9 @@ def test_verify_otp_mismatch_triggers_deletion_on_max_attempts(monkeypatch):
     mock_get = MagicMock(return_value=mock_record)
     mock_delete = MagicMock()
     monkeypatch.setattr("app.services.otp_service.otp_repository.get_otp", mock_get)
-    monkeypatch.setattr("app.services.otp_service.otp_repository.delete_otp", mock_delete)
+    monkeypatch.setattr(
+        "app.services.otp_service.otp_repository.delete_otp", mock_delete
+    )
 
     with pytest.raises(InvalidOTPException) as exc_info:
         otp_service.verify_otp("user@example.com", "000000")

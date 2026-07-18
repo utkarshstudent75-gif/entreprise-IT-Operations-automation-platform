@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+
 import pytest
 
 from app.models.password_reset_request import PasswordResetRequest
@@ -35,9 +36,7 @@ def test_password_reset_flow_works_end_to_end(db, monkeypatch, caplog):
     assert sent_notifications[0][0] == user.email
     assert len(sent_notifications[0][1]) == 6
 
-    reset_request = (
-        db.query(PasswordResetRequest).filter_by(user_id=user.id).one()
-    )
+    reset_request = db.query(PasswordResetRequest).filter_by(user_id=user.id).one()
     assert reset_request.is_used is False
     assert reset_request.expires_at > datetime.now(UTC).replace(tzinfo=None)
     assert "Password reset request created for user id" in caplog.text
@@ -90,8 +89,7 @@ def test_expired_otp_is_rejected(db):
 
 def test_unknown_email_request_returns_success(db):
     assert (
-        password_reset_service.request_password_reset(db, "missing@example.com")
-        is True
+        password_reset_service.request_password_reset(db, "missing@example.com") is True
     )
 
 
