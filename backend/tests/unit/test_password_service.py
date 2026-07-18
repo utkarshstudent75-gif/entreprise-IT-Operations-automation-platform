@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -77,7 +77,7 @@ def test_request_password_reset_creates_request_and_sends_otp(monkeypatch):
     assert result is True
     assert created["user_id"] == user.id
     assert len(created["otp"]) == 6
-    assert created["expires_at"] > datetime.utcnow()
+    assert created["expires_at"] > datetime.now(UTC).replace(tzinfo=None)
 
 
 def test_verify_otp_raises_when_no_user(monkeypatch):
@@ -103,7 +103,7 @@ def test_verify_otp_raises_when_expired(monkeypatch):
     reset_request = PasswordResetRequest(
         user_id=1,
         otp="123456",
-        expires_at=datetime.utcnow() - timedelta(minutes=1),
+        expires_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1),
     )
     reset_request.is_used = False
 
@@ -123,7 +123,7 @@ def test_verify_otp_raises_when_mismatch(monkeypatch):
     reset_request = PasswordResetRequest(
         user_id=1,
         otp="123456",
-        expires_at=datetime.utcnow() + timedelta(minutes=5),
+        expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=5),
     )
     reset_request.is_used = False
 
@@ -143,7 +143,7 @@ def test_verify_otp_returns_true_for_matching_otp(monkeypatch):
     reset_request = PasswordResetRequest(
         user_id=1,
         otp="123456",
-        expires_at=datetime.utcnow() + timedelta(minutes=5),
+        expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=5),
     )
     reset_request.is_used = False
 
@@ -163,7 +163,7 @@ def test_reset_password_marks_request_used_and_updates_password(monkeypatch):
     reset_request = PasswordResetRequest(
         user_id=1,
         otp="123456",
-        expires_at=datetime.utcnow() + timedelta(minutes=5),
+        expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=5),
     )
     reset_request.is_used = False
 

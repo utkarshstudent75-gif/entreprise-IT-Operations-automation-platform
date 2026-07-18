@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
@@ -83,7 +83,7 @@ class PasswordResetService:
                 return True
 
             otp = self._generate_otp()
-            expires_at = datetime.utcnow() + timedelta(
+            expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(
                 minutes=settings.OTP_EXPIRY_MINUTES
             )
 
@@ -164,7 +164,7 @@ class PasswordResetService:
                 )
                 raise PasswordResetAlreadyUsedError("OTP has already been used.")
 
-            if datetime.utcnow() > reset_request.expires_at:
+            if datetime.now(UTC).replace(tzinfo=None) > reset_request.expires_at:
                 logger.warning("Password reset OTP expired for user id %s", user.id)
                 audit_service.record_event(
                     action="otp_verification",
@@ -236,7 +236,7 @@ class PasswordResetService:
                 )
                 raise PasswordResetAlreadyUsedError("OTP has already been used.")
 
-            if datetime.utcnow() > reset_request.expires_at:
+            if datetime.now(UTC).replace(tzinfo=None) > reset_request.expires_at:
                 logger.warning(
                     "Attempted password reset with expired OTP for user id %s", user.id
                 )
