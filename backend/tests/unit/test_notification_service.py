@@ -7,7 +7,8 @@ from app.services.notification_service import (
 
 class DummyProvider(NotificationProvider):
     """
-    A simple dummy provider for testing.
+    A dummy notification provider implementation for verifying that
+    NotificationService properly forwards requests to its provider.
     """
 
     def __init__(self):
@@ -18,6 +19,10 @@ class DummyProvider(NotificationProvider):
 
 
 def test_notification_service_delegates_to_provider():
+    """
+    Verify that NotificationService delegatory wrapper invokes the
+    underlying NotificationProvider's send_otp method with the given parameters.
+    """
     provider = DummyProvider()
     service = NotificationService(provider=provider)
 
@@ -28,6 +33,10 @@ def test_notification_service_delegates_to_provider():
 
 
 def test_console_notification_provider_debug_true(monkeypatch, caplog):
+    """
+    Verify that in DEBUG mode, the ConsoleNotificationProvider logs the
+    actual plain-text OTP code alongside the recipient email to the application log.
+    """
     from app.core.config import settings
 
     monkeypatch.setattr(settings, "DEBUG", True)
@@ -44,6 +53,11 @@ def test_console_notification_provider_debug_true(monkeypatch, caplog):
 
 
 def test_console_notification_provider_debug_false(monkeypatch, caplog):
+    """
+    Verify that in production (DEBUG=False) mode, the ConsoleNotificationProvider
+    logs a generic message that an OTP was generated for the recipient email,
+    but does NOT reveal the sensitive OTP code itself.
+    """
     from app.core.config import settings
 
     monkeypatch.setattr(settings, "DEBUG", False)
