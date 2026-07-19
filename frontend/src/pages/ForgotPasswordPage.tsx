@@ -15,6 +15,13 @@ export function ForgotPasswordPage() {
   const [severity, setSeverity] = useState<AlertSeverity>('info')
   const [step, setStep] = useState(0)
 
+  let stepTitle = 'You’re verified'
+  if (step === 0) {
+    stepTitle = 'Find your account'
+  } else if (step === 1) {
+    stepTitle = 'Enter your verification code'
+  }
+
   const showStatus = (nextMessage: string, nextSeverity: AlertSeverity) => {
     setMessage(nextMessage)
     setSeverity(nextSeverity)
@@ -92,7 +99,7 @@ export function ForgotPasswordPage() {
                 Account recovery
               </Typography>
               <Typography component="h2" sx={{ fontSize: { xs: 25, sm: 30 }, fontWeight: 750, letterSpacing: '-.025em', mt: 1 }}>
-                {step === 0 ? 'Find your account' : step === 1 ? 'Enter your verification code' : 'You’re verified'}
+                {stepTitle}
               </Typography>
               <Typography color="text.secondary" sx={{ lineHeight: 1.6, mt: 1 }}>
                 {step === 0 && 'Use the email address associated with your organization account.'}

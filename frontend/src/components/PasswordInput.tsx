@@ -7,7 +7,7 @@ interface PasswordInputProps extends Omit<TextFieldProps, 'type'> {
   helperText?: string
 }
 
-export function PasswordInput({ helperText, ...props }: PasswordInputProps) {
+export function PasswordInput({ helperText, ...props }: Readonly<PasswordInputProps>) {
   const [visible, setVisible] = useState(false)
 
   return (

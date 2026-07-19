@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
@@ -21,18 +22,18 @@ router = APIRouter(
     status_code=status.HTTP_200_OK,
 )
 def get_audit_logs(
-    user_id: int | None = Query(None, description="Filter by user ID"),
-    action: str | None = Query(None, description="Filter by audit action"),
-    status: str | None = Query(None, description="Filter by status (SUCCESS/FAILED)"),
-    start_date: datetime | None = Query(
-        None, description="Filter logs on or after this timestamp (UTC)"
-    ),
-    end_date: datetime | None = Query(
-        None, description="Filter logs on or before this timestamp (UTC)"
-    ),
-    skip: int = Query(0, ge=0, description="Number of logs to skip"),
-    limit: int = Query(100, ge=1, le=1000, description="Max number of logs to return"),
-    db: Session = Depends(get_db),
+    user_id: Annotated[int | None, Query(description="Filter by user ID")] = None,
+    action: Annotated[str | None, Query(description="Filter by audit action")] = None,
+    status: Annotated[str | None, Query(description="Filter by status (SUCCESS/FAILED)")] = None,
+    start_date: Annotated[
+        datetime | None, Query(description="Filter logs on or after this timestamp (UTC)")
+    ] = None,
+    end_date: Annotated[
+        datetime | None, Query(description="Filter logs on or before this timestamp (UTC)")
+    ] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of logs to skip")] = 0,
+    limit: Annotated[int, Query(ge=1, le=1000, description="Max number of logs to return")] = 100,
+    db: Annotated[Session, Depends(get_db)] = None,
 ):
     """Retrieve audit logs with optional filtering by user ID, action, status,
     and date range.
@@ -57,7 +58,7 @@ def get_audit_logs(
 )
 def get_audit_log(
     audit_id: int,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
 ):
     """Retrieve a single audit log entry by its ID."""
     log = audit_service.get_log_by_id(db, audit_id)

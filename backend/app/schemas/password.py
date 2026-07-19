@@ -2,6 +2,8 @@ import os
 
 from pydantic import BaseModel, EmailStr, Field
 
+EXAMPLE_EMAIL = "user@example.com"
+
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr = Field(
@@ -9,17 +11,17 @@ class ForgotPasswordRequest(BaseModel):
         description=(
             "The email address associated with the account to reset the password."
         ),
-        examples=["user@example.com"],
+        examples=[EXAMPLE_EMAIL],
     )
 
-    model_config = {"json_schema_extra": {"example": {"email": "user@example.com"}}}
+    model_config = {"json_schema_extra": {"example": {"email": EXAMPLE_EMAIL}}}
 
 
 class VerifyOtpRequest(BaseModel):
     email: EmailStr = Field(
         ...,
         description="The email address associated with the account.",
-        examples=["user@example.com"],
+        examples=[EXAMPLE_EMAIL],
     )
     otp: str = Field(
         ...,
@@ -28,7 +30,7 @@ class VerifyOtpRequest(BaseModel):
     )
 
     model_config = {
-        "json_schema_extra": {"example": {"email": "user@example.com", "otp": "123456"}}
+        "json_schema_extra": {"example": {"email": EXAMPLE_EMAIL, "otp": "123456"}}
     }
 
 
@@ -36,7 +38,7 @@ class ResetPasswordRequest(BaseModel):
     email: EmailStr = Field(
         ...,
         description="The email address associated with the account.",
-        examples=["user@example.com"],
+        examples=[EXAMPLE_EMAIL],
     )
     otp: str = Field(
         ...,
@@ -52,7 +54,7 @@ class ResetPasswordRequest(BaseModel):
     model_config = {
         "json_schema_extra": {
             "example": {
-                "email": "user@example.com",
+                "email": EXAMPLE_EMAIL,
                 "otp": "123456",
                 "new_password": os.getenv(
                     "NEW_P", "NewSecurePassword123!"

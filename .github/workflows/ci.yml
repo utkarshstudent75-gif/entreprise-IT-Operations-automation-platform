@@ -52,7 +52,7 @@ jobs:
     
         defaults:
             run:
-             working-directory: backend
+                working-directory: backend
 
         steps:
             - name: Checkout_code
@@ -125,27 +125,55 @@ jobs:
             - name: Build react app
               run: npm run build
 
+    Sonarcloud:
+        name: Sonarqube analysis
+        runs-on: ubuntu-latest
             
+        needs:
+            - backend
+            - frontend
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Setup Java
+              uses: actions/setup-java@v4
+              with:
+                  distribution: temurin
+                  java-version: "17"
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "22"
+
+            - name: Sonarqube cloud scan
+              uses: Sonarsource/sonarqube-scan-action@v5
+              env:
+                  SONAR_TOKEN: ${{secrets.SONAR_TOKEN}}
+    
+
     docker:
-       name: Docker build
-       runs-on: ubuntu-latest
-       
-       needs:
-          - backend
-          - frontend
+        name: Docker build
+        runs-on: ubuntu-latest
+        needs:
+            - backend
+            - frontend
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
 
-       steps:
-         - name: Checkout repository
-           uses: actions/checkout@v4
+            - name: Build back-end image
+              run: |
+                docker build \
+                -t entreprise-backend:latest \
+                ./backend
 
-         - name: Build back-end image
-           run:  |
-              docker build \
-              -t entreprise-backend:latest \
-              ./backend
-
-         - name: Build front-end image
-           run: |
-              docker build \
-              -t entreprise-frontend:latest \
-              ./frontend
+            - name: Build front-end image
+              run: |
+                docker build \
+                -t entreprise-frontend:latest \
+                ./frontend

@@ -6,7 +6,7 @@ interface ContentShellProps {
   children: ReactNode
 }
 
-export function ContentShell({ children }: ContentShellProps) {
+export function ContentShell({ children }: Readonly<ContentShellProps>) {
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f4f6fb' }}>
       <NavigationBar />

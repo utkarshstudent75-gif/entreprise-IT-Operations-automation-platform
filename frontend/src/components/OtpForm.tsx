@@ -10,7 +10,7 @@ interface OtpFormProps {
   onSubmit: () => void
 }
 
-export function OtpForm({ email, isSubmitting, otp, onOtpChange, onSubmit }: OtpFormProps) {
+export function OtpForm({ email, isSubmitting, otp, onOtpChange, onSubmit }: Readonly<OtpFormProps>) {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     onSubmit()

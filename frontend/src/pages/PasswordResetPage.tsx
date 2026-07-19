@@ -25,7 +25,7 @@ export function PasswordResetPage() {
   const canSubmitPassword = newPassword.length >= 8
 
   const passwordStrength = useMemo(() => {
-    if (newPassword.length >= 12 && /[A-Z]/.test(newPassword) && /[0-9]/.test(newPassword) && /[^A-Za-z0-9]/.test(newPassword)) {
+    if (newPassword.length >= 12 && /[A-Z]/.test(newPassword) && /\d/.test(newPassword) && /[^A-Za-z0-9]/.test(newPassword)) {
       return 'Strong'
     }
     if (newPassword.length >= 10) {
@@ -139,7 +139,7 @@ export function PasswordResetPage() {
                 <TextInput
                   label="Verification code"
                   value={otp}
-                  onChange={(event) => setOtp(event.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                  onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
                   helperText="Enter the 6-digit code sent to your email."
                   inputProps={{ inputMode: 'numeric', maxLength: 6 }}
                 />
@@ -161,7 +161,7 @@ export function PasswordResetPage() {
                 <TextInput
                   label="Verification code"
                   value={otp}
-                  onChange={(event) => setOtp(event.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                  onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
                   helperText="Enter the code you received by email."
                   inputProps={{ inputMode: 'numeric', maxLength: 6 }}
                 />
