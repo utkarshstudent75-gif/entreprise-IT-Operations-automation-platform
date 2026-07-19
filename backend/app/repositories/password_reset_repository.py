@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -83,7 +83,7 @@ class PasswordResetRepository:
     def delete_expired_requests(self, db: Session) -> None:
         """Delete requests that are past their expiry timestamp."""
         statement = delete(PasswordResetRequest).where(
-            PasswordResetRequest.expires_at < datetime.utcnow()
+            PasswordResetRequest.expires_at < datetime.now(UTC).replace(tzinfo=None)
         )
         db.execute(statement)
         db.commit()

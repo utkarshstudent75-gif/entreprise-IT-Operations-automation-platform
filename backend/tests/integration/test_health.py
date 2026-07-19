@@ -1,13 +1,7 @@
 from unittest.mock import patch
 
-from fastapi.testclient import TestClient
 
-from app.main import app
-
-client = TestClient(app)
-
-
-def test_health_endpoint():
+def test_health_endpoint(client):
     response = client.get("/health")
     assert response.status_code == 200
     json_data = response.json()
@@ -17,7 +11,7 @@ def test_health_endpoint():
     assert "version" in json_data["data"]
 
 
-def test_live_endpoint():
+def test_live_endpoint(client):
     response = client.get("/live")
     assert response.status_code == 200
     json_data = response.json()
@@ -26,7 +20,7 @@ def test_live_endpoint():
 
 
 @patch("app.api.v1.health.check_db_health")
-def test_ready_endpoint_healthy(mock_check):
+def test_ready_endpoint_healthy(mock_check, client):
     mock_check.return_value = True
     response = client.get("/ready")
     assert response.status_code == 200
@@ -37,7 +31,7 @@ def test_ready_endpoint_healthy(mock_check):
 
 
 @patch("app.api.v1.health.check_db_health")
-def test_ready_endpoint_unhealthy(mock_check):
+def test_ready_endpoint_unhealthy(mock_check, client):
     mock_check.return_value = False
     response = client.get("/ready")
     assert response.status_code == 503
@@ -47,14 +41,14 @@ def test_ready_endpoint_unhealthy(mock_check):
     assert "connection failed" in json_data["error"]["message"]
 
 
-def test_prefixed_health_endpoint():
+def test_prefixed_health_endpoint(client):
     response = client.get("/api/v1/health")
     assert response.status_code == 200
     json_data = response.json()
     assert json_data["success"] is True
 
 
-def test_prefixed_live_endpoint():
+def test_prefixed_live_endpoint(client):
     response = client.get("/api/v1/live")
     assert response.status_code == 200
     json_data = response.json()
@@ -62,7 +56,7 @@ def test_prefixed_live_endpoint():
 
 
 @patch("app.api.v1.health.check_db_health")
-def test_prefixed_ready_endpoint(mock_check):
+def test_prefixed_ready_endpoint(mock_check, client):
     mock_check.return_value = True
     response = client.get("/api/v1/ready")
     assert response.status_code == 200
