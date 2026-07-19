@@ -100,6 +100,8 @@ async def test_middleware_request_id_and_logs():
 
     # Mock call_next function that verifies request_id context is set during call
     async def call_next(req):
+        import asyncio
+        await asyncio.sleep(0)
         assert request_id.get() is not None
         assert len(request_id.get()) == 36
         response = MagicMock()

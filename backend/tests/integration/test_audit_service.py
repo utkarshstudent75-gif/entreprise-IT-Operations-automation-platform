@@ -53,7 +53,7 @@ def test_record_event_resiliency(db, monkeypatch):
     # Test that exception in repository/db doesn't break the application, it
     # returns None
     def mock_create_entry(*args, **kwargs):
-        raise Exception("DB Error simulated")
+        raise RuntimeError("DB Error simulated")
 
     monkeypatch.setattr(
         "app.services.audit_service.audit_repository.create_entry", mock_create_entry

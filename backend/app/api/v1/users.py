@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
@@ -17,6 +19,6 @@ router = APIRouter(
     status_code=status.HTTP_201_CREATED,
     response_model=StandardResponse[UserResponse],
 )
-async def create_user(request: UserCreate, db: Session = Depends(get_db)):
+async def create_user(request: UserCreate, db: Annotated[Session, Depends(get_db)]):
     user = user_service.create_user(db, request)
     return StandardResponse(data=user)

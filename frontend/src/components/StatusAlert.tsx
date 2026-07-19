@@ -7,7 +7,7 @@ interface StatusAlertProps {
   severity: AlertSeverity
 }
 
-export function StatusAlert({ message, severity }: StatusAlertProps) {
+export function StatusAlert({ message, severity }: Readonly<StatusAlertProps>) {
   return (
     <Collapse in={Boolean(message)}>
       <Alert severity={severity} sx={{ mt: 3 }}>

@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
@@ -92,7 +94,7 @@ DUMMY_REQUEST_ID_2 = "e4f8a9e8-cf7d-417d-815f-6a75a7c2be5f"
     },
 )
 async def forgot_password(
-    request: ForgotPasswordRequest, db: Session = Depends(get_db)
+    request: ForgotPasswordRequest, db: Annotated[Session, Depends(get_db)]
 ):
     rate_limiter.check_limit(
         key=f"forgot-password:{request.email}",
@@ -217,7 +219,7 @@ async def forgot_password(
         },
     },
 )
-async def verify_otp(request: VerifyOtpRequest, db: Session = Depends(get_db)):
+async def verify_otp(request: VerifyOtpRequest, db: Annotated[Session, Depends(get_db)]):
     rate_limiter.check_limit(
         key=f"verify-otp:{request.email}",
         limit=10,
@@ -317,7 +319,7 @@ async def verify_otp(request: VerifyOtpRequest, db: Session = Depends(get_db)):
         },
     },
 )
-async def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+async def reset_password(request: ResetPasswordRequest, db: Annotated[Session, Depends(get_db)]):
     password_reset_service.reset_password(
         db,
         request.email,

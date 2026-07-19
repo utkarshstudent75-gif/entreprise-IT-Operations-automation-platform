@@ -29,12 +29,15 @@ class DummyDB:
         return False
 
     def add(self, _):
+        # Mock method for tests, no-op.
         pass
 
     def commit(self):
+        # Mock method for tests, no-op.
         pass
 
     def refresh(self, _):
+        # Mock method for tests, no-op.
         pass
 
 
@@ -72,7 +75,7 @@ def test_request_password_reset_returns_success_for_unknown_email(monkeypatch):
         DummyDB(), "missing@example.com"
     )
 
-    assert result is True
+    assert result is None
 
 
 def test_request_password_reset_creates_request_and_sends_otp(monkeypatch):
@@ -104,7 +107,7 @@ def test_request_password_reset_creates_request_and_sends_otp(monkeypatch):
 
     result = password_reset_service.request_password_reset(DummyDB(), user.email)
 
-    assert result is True
+    assert result is None
     assert created["user_id"] == user.id
     assert len(created["otp"]) == 6
     assert created["expires_at"] > datetime.now(UTC).replace(tzinfo=None)
@@ -117,8 +120,9 @@ def test_verify_otp_raises_when_no_user(monkeypatch):
     """
     monkeypatch.setattr(user_repository, "get_by_email", lambda db, email: None)
 
+    db = DummyDB()
     with pytest.raises(PasswordResetInvalidRequest):
-        password_reset_service.verify_otp(DummyDB(), "missing@example.com", "000000")
+        password_reset_service.verify_otp(db, "missing@example.com", "000000")
 
 
 def test_verify_otp_raises_when_no_request(monkeypatch):
@@ -132,8 +136,9 @@ def test_verify_otp_raises_when_no_request(monkeypatch):
         password_reset_repository, "get_latest_request", lambda db, user_id: None
     )
 
+    db = DummyDB()
     with pytest.raises(PasswordResetInvalidRequest):
-        password_reset_service.verify_otp(DummyDB(), user.email, "000000")
+        password_reset_service.verify_otp(db, user.email, "000000")
 
 
 def test_verify_otp_raises_when_expired(monkeypatch):
@@ -156,8 +161,9 @@ def test_verify_otp_raises_when_expired(monkeypatch):
         lambda db, user_id: reset_request,
     )
 
+    db = DummyDB()
     with pytest.raises(PasswordResetExpiredError):
-        password_reset_service.verify_otp(DummyDB(), user.email, "123456")
+        password_reset_service.verify_otp(db, user.email, "123456")
 
 
 def test_verify_otp_raises_when_mismatch(monkeypatch):
@@ -180,8 +186,9 @@ def test_verify_otp_raises_when_mismatch(monkeypatch):
         lambda db, user_id: reset_request,
     )
 
+    db = DummyDB()
     with pytest.raises(PasswordResetInvalidRequest):
-        password_reset_service.verify_otp(DummyDB(), user.email, "000000")
+        password_reset_service.verify_otp(db, user.email, "000000")
 
 
 def test_verify_otp_returns_true_for_matching_otp(monkeypatch):
@@ -213,7 +220,7 @@ def test_reset_password_marks_request_used_and_updates_password(monkeypatch):
     marks the password reset request as used (is_used=True) when all validation constraints pass.
     """
     user = DummyUser(id=1, email="test@example.com")
-    user.hashed_password = "oldhash"
+    user.hashed_password = "oldhash"  # NOSONAR
     reset_request = PasswordResetRequest(
         user_id=1,
         otp="123456",

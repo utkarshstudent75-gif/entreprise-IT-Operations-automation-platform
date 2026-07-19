@@ -6,7 +6,7 @@ interface ProgressStepperProps {
   labels: string[]
 }
 
-export function ProgressStepper({ step, labels }: ProgressStepperProps) {
+export function ProgressStepper({ step, labels }: Readonly<ProgressStepperProps>) {
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
       {labels.map((label, index) => {
