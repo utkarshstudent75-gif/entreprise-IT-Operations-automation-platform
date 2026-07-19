@@ -5,7 +5,6 @@ from datetime import UTC, datetime
 
 from app.core.context import action, request_id, user_id
 
-
 UTC_TZ_SUFFIX = "+00:00"
 
 
