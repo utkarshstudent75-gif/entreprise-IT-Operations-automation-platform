@@ -9,7 +9,14 @@ on:
         branches:
             - master
             - feature/**
-            
+
+permissions:
+  contents: read
+
+concurrency: 
+  group: ci-${{ github.workflow }}-${{github.ref}}
+  cancel-in-progress: true
+
 jobs:
     backend:
         
