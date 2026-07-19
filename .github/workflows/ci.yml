@@ -74,23 +74,23 @@ jobs:
             - name: Run Ruff
               run: |
                     ruff check .    
-                
-                
-            - name: Run Pytest  
-              run: |
-                    pytest    
-            
-
+      
             - name: Check Formattting
               run: |
                     black --check .
-
-            
+           
             - name: Check Import Order (isort)
               run: |
                     isort --check .
 
-            
+            - name: Run Bandit Security scan
+              run: |
+                    bandit -r app
+               
+            - name: Run Backend tests (pytest) 
+              run: |
+                    pytest         
+
             - name: Validate FastAPI app
               run: |
                 python -c "from app.main import app"
@@ -119,5 +119,10 @@ jobs:
             - name: Install dependencies
               run: npm ci
 
+            - name: Audit frontend dependencies
+              run: npm audit
+
             - name: Build react app
               run: npm run build
+
+            
