@@ -54,7 +54,9 @@ class ResetPasswordRequest(BaseModel):
             "example": {
                 "email": "user@example.com",
                 "otp": "123456",
-                "new_password": os.getenv("NEW_P", "NewSecurePassword123!"),  # nosec B105
+                "new_password": os.getenv(
+                    "NEW_P", "NewSecurePassword123!"
+                ),  # nosec B105
             }
         }
     }
