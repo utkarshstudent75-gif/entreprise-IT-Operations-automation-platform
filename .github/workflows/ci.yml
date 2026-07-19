@@ -136,7 +136,7 @@ jobs:
 
        steps:
          - name: Checkout repository
-           uses: actions/checkout@4
+           uses: actions/checkout@v4
 
          - name: Build back-end image
            run:  |
