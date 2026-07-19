@@ -24,15 +24,21 @@ router = APIRouter(
 def get_audit_logs(
     user_id: Annotated[int | None, Query(description="Filter by user ID")] = None,
     action: Annotated[str | None, Query(description="Filter by audit action")] = None,
-    status: Annotated[str | None, Query(description="Filter by status (SUCCESS/FAILED)")] = None,
+    status: Annotated[
+        str | None, Query(description="Filter by status (SUCCESS/FAILED)")
+    ] = None,
     start_date: Annotated[
-        datetime | None, Query(description="Filter logs on or after this timestamp (UTC)")
+        datetime | None,
+        Query(description="Filter logs on or after this timestamp (UTC)"),
     ] = None,
     end_date: Annotated[
-        datetime | None, Query(description="Filter logs on or before this timestamp (UTC)")
+        datetime | None,
+        Query(description="Filter logs on or before this timestamp (UTC)"),
     ] = None,
     skip: Annotated[int, Query(ge=0, description="Number of logs to skip")] = 0,
-    limit: Annotated[int, Query(ge=1, le=1000, description="Max number of logs to return")] = 100,
+    limit: Annotated[
+        int, Query(ge=1, le=1000, description="Max number of logs to return")
+    ] = 100,
     db: Annotated[Session, Depends(get_db)] = None,
 ):
     """Retrieve audit logs with optional filtering by user ID, action, status,

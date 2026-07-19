@@ -137,7 +137,10 @@ class PasswordResetService:
                 audit_service.record_event(
                     action="otp_verification",
                     status="FAILED",
-                    details={"email": email, "reason": INVALID_EMAIL_OR_OTP.rstrip(".")},
+                    details={
+                        "email": email,
+                        "reason": INVALID_EMAIL_OR_OTP.rstrip("."),
+                    },
                 )
                 raise PasswordResetInvalidRequest(INVALID_EMAIL_OR_OTP)
 
@@ -209,7 +212,10 @@ class PasswordResetService:
                 audit_service.record_event(
                     action="password_reset",
                     status="FAILED",
-                    details={"email": email, "reason": INVALID_EMAIL_OR_OTP.rstrip(".")},
+                    details={
+                        "email": email,
+                        "reason": INVALID_EMAIL_OR_OTP.rstrip("."),
+                    },
                 )
                 raise PasswordResetInvalidRequest(INVALID_EMAIL_OR_OTP)
 

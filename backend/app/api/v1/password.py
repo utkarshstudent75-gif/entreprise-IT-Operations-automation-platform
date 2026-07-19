@@ -219,7 +219,9 @@ async def forgot_password(
         },
     },
 )
-async def verify_otp(request: VerifyOtpRequest, db: Annotated[Session, Depends(get_db)]):
+async def verify_otp(
+    request: VerifyOtpRequest, db: Annotated[Session, Depends(get_db)]
+):
     rate_limiter.check_limit(
         key=f"verify-otp:{request.email}",
         limit=10,
@@ -319,7 +321,9 @@ async def verify_otp(request: VerifyOtpRequest, db: Annotated[Session, Depends(g
         },
     },
 )
-async def reset_password(request: ResetPasswordRequest, db: Annotated[Session, Depends(get_db)]):
+async def reset_password(
+    request: ResetPasswordRequest, db: Annotated[Session, Depends(get_db)]
+):
     password_reset_service.reset_password(
         db,
         request.email,

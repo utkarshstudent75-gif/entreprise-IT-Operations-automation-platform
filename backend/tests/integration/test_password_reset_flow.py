@@ -15,7 +15,9 @@ from app.services.password_reset_service import (
 
 def test_password_reset_flow_works_end_to_end(db, monkeypatch, caplog):
     user = User(
-        username="ajay", email="ajaykumar@example.com", hashed_password="oldhash"  # NOSONAR
+        username="ajay",
+        email="ajaykumar@example.com",
+        hashed_password="oldhash",  # NOSONAR
     )
     db.add(user)
     db.commit()
@@ -65,7 +67,9 @@ def test_password_reset_flow_works_end_to_end(db, monkeypatch, caplog):
 
 def test_expired_otp_is_rejected(db):
     user = User(
-        username="ajay2", email="expired@example.com", hashed_password="oldhash2"  # NOSONAR
+        username="ajay2",
+        email="expired@example.com",
+        hashed_password="oldhash2",  # NOSONAR
     )
     db.add(user)
     db.commit()
@@ -95,7 +99,9 @@ def test_unknown_email_request_returns_success(db):
 
 def test_verify_otp_rejects_invalid_code(db):
     user = User(
-        username="ajay3", email="mismatch@example.com", hashed_password="oldhash3"  # NOSONAR
+        username="ajay3",
+        email="mismatch@example.com",
+        hashed_password="oldhash3",  # NOSONAR
     )
     db.add(user)
     db.commit()
