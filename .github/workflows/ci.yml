@@ -126,3 +126,26 @@ jobs:
               run: npm run build
 
             
+    docker:
+       name: Docker build
+       runs-on: ubuntu-latest
+       
+       needs:
+          - backend
+          - frontend
+
+       steps:
+         - name: Checkout repository
+           uses: actions/checkout@4
+
+         - name: Build back-end image
+           run:  |
+              docker build \
+              -t entreprise-backend:latest \
+              ./backend
+
+         - name: Build front-end image
+           run: |
+              docker build \
+              -t entreprise-frontend:latest \
+              ./frontend
