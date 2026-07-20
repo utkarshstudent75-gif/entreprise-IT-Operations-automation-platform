@@ -266,14 +266,8 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-            #download and cache trivy database  
-            - name: Cache Trivy Database
-              uses: actions/cache@v4
-              with:
-                path: ~/.cache/trivy
-                key: trivy-db-${{runner.os}}
-                restore-keys: |
-                  trivy-db-
+            - name: Checkout code
+              uses: actions/checkout@v4
 
             #download .tar artifacts 
             - name: Download back-end image
@@ -322,13 +316,13 @@ jobs:
 
             # Upload the backend sarif
             - name: Upload backend SARIF
-              uses: github/codeql-action/upload-sarif@v3
+              uses: github/codeql-action/upload-sarif@v4
               with:
                 sarif_file: backend-trivy-results.sarif
                 category: backend-trivy
 
             - name: Upload frontend SARIF
-              uses: github/codeql-action/upload-sarif@v3
+              uses: github/codeql-action/upload-sarif@v4
               with:
                 sarif_file: frontend-trivy-results.sarif
                 category: frontend-trivy
