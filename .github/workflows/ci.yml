@@ -233,14 +233,14 @@ jobs:
               run: |
                docker save \
                 -o backend-image.tar \
-                entreprise-backend:${{ github.sha }}
+                entreprise-backend:latest
               
 
             - name: Save frontend image
               run: |
                docker save \
                -o frontend-image.tar \
-               entreprise-frontend:${{ github.sha }}  
+               entreprise-frontend:latest 
 
             - name: Upload back-end image
               uses: actions/upload-artifact@v4
