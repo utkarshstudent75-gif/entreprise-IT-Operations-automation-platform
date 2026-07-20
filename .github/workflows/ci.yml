@@ -188,7 +188,7 @@ jobs:
                 images: entreprise-backend
                 tags: |
                   type=raw,value=latest
-                  type=raw,event=branch
+                  type=ref,event=branch
                   type=sha
 
 
@@ -211,7 +211,7 @@ jobs:
                 images: entreprise-frontend
                 tags: |
                   type=raw,value=latest
-                  type=raw,event=branch
+                  type=ref,event=branch
                   type=sha
             
             
