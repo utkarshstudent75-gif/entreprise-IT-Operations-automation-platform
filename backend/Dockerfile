@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt .
 
-RUN pip install --no-cache-dir pip==25.0.1 && \
+RUN pip install --no-cache-dir pip==26.1.2 && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy files with default root ownership (read-only for the non-root appuser)
