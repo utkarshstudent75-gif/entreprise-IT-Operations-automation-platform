@@ -317,12 +317,14 @@ jobs:
             # Upload the backend sarif
             - name: Upload backend SARIF
               uses: github/codeql-action/upload-sarif@v4
+              continue-on-error: true
               with:
                 sarif_file: backend-trivy-results.sarif
                 category: backend-trivy
 
             - name: Upload frontend SARIF
               uses: github/codeql-action/upload-sarif@v4
+              continue-on-error: true
               with:
                 sarif_file: frontend-trivy-results.sarif
                 category: frontend-trivy
@@ -334,6 +336,7 @@ jobs:
                 image-ref: entreprise-backend:latest
                 format: cyclonedx
                 output: backend-sbom.json
+                scanners: vuln
               
             #Generate Frontend SBOM     
             - name: Generate Frontend SBOM
@@ -342,6 +345,7 @@ jobs:
                 image-ref: entreprise-frontend:latest
                 format: cyclonedx
                 output: frontend-sbom.json
+                scanners: vuln
 
             #Upload Backend SBOM
             - name: Upload Backend SBOM
