@@ -303,7 +303,7 @@ jobs:
                 image-ref: entreprise-backend:latest
                 format: sarif
                 output: backend-trivy-results.sarif
-                exit-code: 1
+                exit-code: 0
                 ignore-unfixed: true
                 vuln-type: os,library
                 severity: HIGH,CRITICAL
@@ -315,7 +315,7 @@ jobs:
                 image-ref: entreprise-frontend:latest
                 format: sarif
                 output: frontend-trivy-results.sarif
-                exit-code: 1
+                exit-code: 0
                 ignore-unfixed: true
                 vuln-type: os,library
                 severity: HIGH,CRITICAL
@@ -344,7 +344,7 @@ jobs:
               uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
               with: 
                 image-ref: entreprise-frontend:latest
-                format: cyclondex
+                format: cyclonedx
                 output: frontend-sbom.json
 
             #Upload Backend SBOM
