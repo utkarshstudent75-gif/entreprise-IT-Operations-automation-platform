@@ -325,11 +325,13 @@ jobs:
               uses: github/codeql-action/upload-sarif@v3
               with:
                 sarif_file: backend-trivy-results.sarif
+                category: backend-trivy
 
             - name: Upload frontend SARIF
               uses: github/codeql-action/upload-sarif@v3
               with:
                 sarif_file: frontend-trivy-results.sarif
+                category: frontend-trivy
                 
             #Generate Backend SBOM
             - name: Generate Backend SBOM
