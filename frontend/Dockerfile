@@ -2,7 +2,8 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-RUN chown node:node /app
+RUN chown node:node /app && \
+    npm install -g npm@latest --ignore-scripts
 
 USER node
 
