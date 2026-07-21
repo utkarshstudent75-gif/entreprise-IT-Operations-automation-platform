@@ -9,16 +9,33 @@ from app.core.logging_config import setup_logging
 # Initialize logging configuration immediately on import
 setup_logging()
 
+from contextlib import asynccontextmanager
+
 from app.api.v1.health import router as health_router
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.context import action, request_id, request_ip, request_user_agent, user_id
 from app.core.exception_handlers import register_exception_handlers
+from app.core.logging_config import logger
+from app.core.redis import redis_manager
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    redis_manager.init_redis()
+    if await redis_manager.ping():
+        logger.info("Redis Connected")
+    else:
+        logger.error("Connection Failed")
+    yield
+    await redis_manager.close()
+
 
 app = FastAPI(
     title=settings.APP_NAME,
     description="Enterprise-grade IT Helpdesk Automation Platform",
     version=settings.APP_VERSION,
+    lifespan=lifespan,
 )
 register_exception_handlers(app)
 

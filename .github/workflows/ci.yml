@@ -133,6 +133,8 @@ jobs:
             contents: read
         name: Semgrep security scan
         runs-on: ubuntu-latest
+        container:
+            image: semgrep/semgrep
             
         needs:
             - backend
@@ -142,16 +144,12 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v4
 
-            - name: Set up Python
-              uses: actions/setup-python@v5
-              with:
-                  python-version: "3.12"
+            - name: Run Semgrep Scan
+              run: semgrep ci
+              env:
+                  SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
-            - name: Install Semgrep
-              run: pip install semgrep
 
-            - name: Run Semgrep scan
-              run: semgrep scan --config auto
 
     docker:
         permissions:

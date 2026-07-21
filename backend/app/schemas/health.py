@@ -10,6 +10,7 @@ class HealthResponse(BaseModel):
 class ReadyResponse(BaseModel):
     status: str
     database: str
+    redis: str
 
 
 class LiveResponse(BaseModel):
