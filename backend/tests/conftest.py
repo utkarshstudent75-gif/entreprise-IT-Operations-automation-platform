@@ -49,3 +49,15 @@ from app.services.user_service import user_service
 
 password_reset_service.pwd_context = CryptContext(schemes=["bcrypt"], bcrypt__rounds=4)
 user_service.pwd_context = CryptContext(schemes=["bcrypt"], bcrypt__rounds=4)
+
+
+from unittest.mock import patch
+
+
+@pytest.fixture(autouse=True)
+def mock_redis_ping(request):
+    if "test_redis" in request.node.nodeid:
+        yield
+        return
+    with patch("app.core.redis.RedisManager.ping", return_value=True) as mock:
+        yield mock

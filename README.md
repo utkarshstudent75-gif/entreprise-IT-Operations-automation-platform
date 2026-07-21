@@ -257,6 +257,39 @@ docker compose up --build
 | Backend API        | http://localhost:8000      |
 | FastAPI Swagger UI | http://localhost:8000/docs |
 
+## Redis Infrastructure
+
+The platform integrates **Redis 7** (using `redis:7-alpine`) to serve as the high-performance storage backend for future sprints (OTP storage, caching, and rate limiting).
+
+### Starting Redis Locally
+Redis starts automatically as part of the local Docker Compose stack:
+```bash
+docker compose up -d
+```
+
+### Environment Variables
+The application's Redis client is configured via the following environment variables (defined in `.env`):
+- `REDIS_URL`: Full Redis connection URL (e.g., `redis://redis:6379/0`). If provided, this URL overrides individual host/port configurations.
+- `REDIS_HOST`: Redis host name (defaults to `localhost`).
+- `REDIS_PORT`: Redis port (defaults to `6379`).
+- `REDIS_DB`: Redis database index (defaults to `0`).
+- `REDIS_PASSWORD`: Optional Redis password.
+
+### Readiness Health Check
+The application health check system has been updated. The `/ready` (and `/api/v1/ready`) endpoint checks the status of both **PostgreSQL** and **Redis**. It returns a `503 Service Unavailable` response if either service is unreachable:
+- Request: `GET /ready`
+- Success Response (200 OK):
+  ```json
+  {
+    "success": true,
+    "data": {
+      "status": "ready",
+      "database": "connected",
+      "redis": "connected"
+    }
+  }
+  ```
+
 ---
 
 # Development Workflow
