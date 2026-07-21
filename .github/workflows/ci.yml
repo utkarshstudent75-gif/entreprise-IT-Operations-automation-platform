@@ -10,15 +10,14 @@ on:
             - master
             - feature/**
 
-permissions:
-  contents: read
-
 concurrency: 
   group: ci-${{ github.workflow }}-${{github.ref}}
   cancel-in-progress: true
 
 jobs:
     backend:
+        permissions:
+            contents: read
         timeout-minutes: 20
         runs-on: ubuntu-latest
         services:
@@ -49,10 +48,10 @@ jobs:
 
         
         name: Backend Build
-        
+    
         defaults:
             run:
-             working-directory: backend
+                working-directory: backend
 
         steps:
             - name: Checkout_code
@@ -67,36 +66,37 @@ jobs:
                   
             - name: Install dependencies
               run: |
-                python -m pip install --upgrade pip
-                pip install -r requirements-test.txt
+                python -m pip install pip==26.1.2
+                pip install --only-binary :all: --require-hashes -r requirements-test.txt
                 
             
             - name: Run Ruff
               run: |
                     ruff check .    
-                
-                
-            - name: Run Pytest  
-              run: |
-                    pytest    
-            
-
+      
             - name: Check Formattting
               run: |
                     black --check .
-
-            
+           
             - name: Check Import Order (isort)
               run: |
                     isort --check .
 
-            
+            - name: Run Bandit Security scan
+              run: |
+                    bandit -r app
+               
+            - name: Run Backend tests (pytest) 
+              run: |
+                    pytest         
+
             - name: Validate FastAPI app
               run: |
                 python -c "from app.main import app"
 
     frontend:
-        
+        permissions:
+            contents: read
         name: Frontend Build
         timeout-minutes: 20
         runs-on: ubuntu-latest
@@ -117,7 +117,251 @@ jobs:
                   cache-dependency-path: frontend/package-lock.json
              
             - name: Install dependencies
-              run: npm ci
+              run: npm ci --ignore-scripts
+
+            - name: Audit frontend dependencies
+              run: npm audit
 
             - name: Build react app
               run: npm run build
+
+    Sonarcloud:
+        permissions:
+            contents: read
+        name: Sonarqube analysis
+        runs-on: ubuntu-latest
+            
+        needs:
+            - backend
+            - frontend
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Setup Java
+              uses: actions/setup-java@v4
+              with:
+                  distribution: temurin
+                  java-version: "17"
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "22"
+
+            - name: Sonarqube cloud scan
+              uses: Sonarsource/sonarqube-scan-action@2f77a1ec69fb1d595b06f35ab27e97605bdef703
+              env:
+                  SONAR_TOKEN: ${{secrets.SONAR_TOKEN}}
+    
+
+    docker:
+        permissions:
+            contents: read
+        name: Docker build
+        runs-on: ubuntu-latest
+        needs:
+            - backend
+            - frontend
+            - Sonarcloud
+        
+        steps:
+        
+          # steps for checkout
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+
+          #setting up docker buildx ( latest engine )
+            - name: Setup up Docker buildx
+              uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+
+
+          #Docker metadata setup
+            - name: Docker metadata (Back-end)
+              id: backend-meta
+              uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
+              with:
+                images: entreprise-backend
+                tags: |
+                  type=raw,value=latest
+                  type=ref,event=branch
+                  type=sha
+
+
+            #building back-end image
+            - name: Build back-end image
+              uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+              with: 
+                context: ./backend
+                push: false
+                load: true
+                tags: ${{ steps.backend-meta.outputs.tags }}
+                labels: ${{ steps.backend-meta.outputs.labels}}
+                cache-from: type=gha
+                cache-to: type=gha,mode=max
+
+            - name: Docker metadata (Front-end)
+              id: frontend-meta
+              uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
+              with:
+                images: entreprise-frontend
+                tags: |
+                  type=raw,value=latest
+                  type=ref,event=branch
+                  type=sha
+            
+            
+            
+            #building front-end image
+            - name: Build front-end image
+              uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+              with: 
+                context: ./frontend
+                push: false
+                load: true
+                tags: ${{steps.frontend-meta.outputs.tags}}
+                labels: ${{steps.frontend-meta.outputs.labels}}
+                cache-from: type=gha
+                cache-to: type=gha,mode=max
+
+
+            - name: Save backend image
+              run: |
+               docker save \
+                -o backend-image.tar \
+                entreprise-backend:latest
+              
+
+            - name: Save frontend image
+              run: |
+               docker save \
+               -o frontend-image.tar \
+               entreprise-frontend:latest 
+
+            - name: Upload back-end image
+              uses: actions/upload-artifact@v4
+              with: 
+                name: backend-image
+                path: backend-image.tar
+                retention-days: 7
+
+            - name: upload front-end image
+              uses: actions/upload-artifact@v4
+              with:
+                name: frontend-image
+                path: frontend-image.tar
+                retention-days: 7
+
+    trivy:
+        permissions:
+            contents: read
+            security-events: write
+            id-token: write
+        name: Trivy security scan
+        needs: docker
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            #download .tar artifacts 
+            - name: Download back-end image
+              uses: actions/download-artifact@v4 
+              with: 
+                name: backend-image
+            
+            - name: Download front-end image
+              uses: actions/download-artifact@v4
+              with: 
+                name: frontend-image
+
+            #Load docker images for trivy
+            - name: Load back-end image
+              run: docker load -i backend-image.tar
+
+            - name: Load front-end image
+              run: docker load -i frontend-image.tar
+
+            - name: verify images
+              run: docker images
+
+            #scan Backend image in trivy    
+            - name: Scan backend image
+              uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+              with:
+                image-ref: entreprise-backend:latest
+                format: sarif
+                output: backend-trivy-results.sarif
+                exit-code: 0
+                ignore-unfixed: true
+                vuln-type: os,library
+                severity: HIGH,CRITICAL
+
+            # Scan frontend image in trivy
+            - name: Scan frontend image
+              uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+              with:
+                image-ref: entreprise-frontend:latest
+                format: sarif
+                output: frontend-trivy-results.sarif
+                exit-code: 0
+                ignore-unfixed: true
+                vuln-type: os,library
+                severity: HIGH,CRITICAL
+
+            # Upload the backend sarif
+            - name: Upload backend SARIF
+              uses: github/codeql-action/upload-sarif@v4
+              continue-on-error: true
+              with:
+                sarif_file: backend-trivy-results.sarif
+                category: backend-trivy
+
+            - name: Upload frontend SARIF
+              uses: github/codeql-action/upload-sarif@v4
+              continue-on-error: true
+              with:
+                sarif_file: frontend-trivy-results.sarif
+                category: frontend-trivy
+                
+            #Generate Backend SBOM
+            - name: Generate Backend SBOM
+              uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+              with:
+                image-ref: entreprise-backend:latest
+                format: cyclonedx
+                output: backend-sbom.json
+                scanners: vuln
+              
+            #Generate Frontend SBOM     
+            - name: Generate Frontend SBOM
+              uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+              with: 
+                image-ref: entreprise-frontend:latest
+                format: cyclonedx
+                output: frontend-sbom.json
+                scanners: vuln
+
+            #Upload Backend SBOM
+            - name: Upload Backend SBOM
+              uses: actions/upload-artifact@v4
+              with: 
+                name: backend-sbom
+                path: backend-sbom.json
+                retention-days: 30
+
+            #Upload Frontend SBOM
+            - name: Upload Frontend SBOM
+              uses: actions/upload-artifact@v4
+              with: 
+                name: frontend-sbom
+                path: frontend-sbom.json
+                retention-days: 30
+
+            - name: Install cosign
+              uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac

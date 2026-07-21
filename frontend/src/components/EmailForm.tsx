@@ -9,7 +9,7 @@ interface EmailFormProps {
   onSubmit: () => void
 }
 
-export function EmailForm({ email, isSubmitting, onEmailChange, onSubmit }: EmailFormProps) {
+export function EmailForm({ email, isSubmitting, onEmailChange, onSubmit }: Readonly<EmailFormProps>) {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     onSubmit()

@@ -6,8 +6,12 @@ from alembic import context
 from app.core.config import settings
 from app.database.base import Base
 from app.models.audit_log import AuditLog  # noqa: F401
+from app.models.mfa_request import MFARequest  # noqa: F401
 from app.models.password_reset_request import PasswordResetRequest  # noqa: F401
+from app.models.software_request import SoftwareRequest  # noqa: F401
+from app.models.ticket import Ticket  # noqa: F401
 from app.models.user import User  # noqa: F401
+from app.models.workflow import Workflow  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

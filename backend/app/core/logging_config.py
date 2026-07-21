@@ -5,20 +5,57 @@ from datetime import UTC, datetime
 
 from app.core.context import action, request_id, user_id
 
+UTC_TZ_SUFFIX = "+00:00"
+
+
+def _format_timestamp(dt: datetime) -> str:
+    return dt.isoformat(timespec="milliseconds").replace(UTC_TZ_SUFFIX, "Z")
+
 
 class StructuredJSONFormatter(logging.Formatter):
     """
     Enterprise-grade JSON formatter for python logging.
     """
 
+    def _fallback_format(self, record: logging.LogRecord, e: Exception) -> str:
+        try:
+            level = getattr(record, "levelname", "ERROR")
+            module = getattr(record, "module", "unknown")
+            msg = "unknown message"
+            if record is not None:
+                try:
+                    msg = record.getMessage()
+                except Exception:
+                    msg = str(getattr(record, "msg", "unknown message"))
+
+            fallback_log = {
+                "timestamp": _format_timestamp(datetime.now(UTC)),
+                "level": level,
+                "request_id": request_id.get(),
+                "module": module,
+                "action": action.get(),
+                "user_id": user_id.get(),
+                "message": (
+                    f"Logging formatter failure: {str(e)}. Original message: {msg}"
+                ),
+            }
+            return json.dumps(fallback_log)
+        except Exception as inner_e:
+            try:
+                return json.dumps(
+                    {
+                        "timestamp": _format_timestamp(datetime.now(UTC)),
+                        "level": "ERROR",
+                        "message": f"Logging critical failure: {str(inner_e)}",
+                    }
+                )
+            except Exception:
+                return "Logging critical failure"
+
     def format(self, record: logging.LogRecord) -> str:
         try:
             # Format timestamp as ISO-8601 UTC string
-            timestamp = (
-                datetime.fromtimestamp(record.created, UTC)
-                .isoformat(timespec="milliseconds")
-                .replace("+00:00", "Z")
-            )
+            timestamp = _format_timestamp(datetime.fromtimestamp(record.created, UTC))
 
             # Resolve properties
             req_id = getattr(record, "request_id", None) or request_id.get()
@@ -74,43 +111,7 @@ class StructuredJSONFormatter(logging.Formatter):
             return json.dumps(log_data)
         except Exception as e:
             # Requirement 7: Logging failures must never interrupt business operations.
-            try:
-                level = getattr(record, "levelname", "ERROR")
-                module = getattr(record, "module", "unknown")
-                msg = "unknown message"
-                if record is not None:
-                    try:
-                        msg = record.getMessage()
-                    except Exception:
-                        msg = str(getattr(record, "msg", "unknown message"))
-
-                fallback_log = {
-                    "timestamp": datetime.now(UTC)
-                    .isoformat(timespec="milliseconds")
-                    .replace("+00:00", "Z"),
-                    "level": level,
-                    "request_id": request_id.get(),
-                    "module": module,
-                    "action": action.get(),
-                    "user_id": user_id.get(),
-                    "message": (
-                        f"Logging formatter failure: {str(e)}. Original message: {msg}"
-                    ),
-                }
-                return json.dumps(fallback_log)
-            except Exception as inner_e:
-                try:
-                    return json.dumps(
-                        {
-                            "timestamp": datetime.now(UTC)
-                            .isoformat(timespec="milliseconds")
-                            .replace("+00:00", "Z"),
-                            "level": "ERROR",
-                            "message": f"Logging critical failure: {str(inner_e)}",
-                        }
-                    )
-                except Exception:
-                    return "Logging critical failure"
+            return self._fallback_format(record, e)
 
 
 def setup_logging():
