@@ -8,7 +8,6 @@ import {
   ListItemIcon,
   ListItemText,
   ListSubheader,
-  Typography,
 } from '@mui/material'
 import {
   DashboardRounded,

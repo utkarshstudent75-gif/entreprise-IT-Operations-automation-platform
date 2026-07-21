@@ -1,5 +1,5 @@
-import { Box, Container, IconButton, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material'
-import { MenuRounded, DashboardRounded } from '@mui/icons-material'
+import { Box, Container, IconButton, Drawer } from '@mui/material'
+import { MenuRounded } from '@mui/icons-material'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Navbar } from '../components/Navbar'

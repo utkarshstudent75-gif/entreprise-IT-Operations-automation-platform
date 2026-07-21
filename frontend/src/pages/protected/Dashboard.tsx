@@ -27,8 +27,7 @@ import {
   SearchRounded,
   CloseRounded,
   SendRounded,
-  SmartToyRounded,
-  PersonRounded
+  SmartToyRounded
 } from '@mui/icons-material'
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
