@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 import os
 import sys
 
@@ -5,10 +6,10 @@ import sys
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(parent_dir)
 
+from app.core.exceptions import DuplicateUserException
 from app.database.session import SessionLocal
 from app.schemas.user import UserCreate
 from app.services.user_service import user_service
-from app.core.exceptions import DuplicateUserException
 
 
 def seed_users():
