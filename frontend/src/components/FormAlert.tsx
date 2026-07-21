@@ -7,7 +7,7 @@ interface FormAlertProps {
   open: boolean
 }
 
-export function FormAlert({ children, severity, open }: FormAlertProps) {
+export function FormAlert({ children, severity, open }: Readonly<FormAlertProps>) {
   return (
     <Collapse in={open} appear>
       <Alert severity={severity} sx={{ mt: 2 }}>

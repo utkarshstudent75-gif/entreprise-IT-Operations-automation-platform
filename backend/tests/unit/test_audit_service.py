@@ -36,7 +36,7 @@ def test_record_event_success(monkeypatch):
         action="test_action",
         status="SUCCESS",
         user_id=1,
-        ip_address="192.168.1.1",
+        ip_address="192.168.1.1",  # NOSONAR
         user_agent="Mozilla/5.0",
         request_id_val="req-abc",
         details=details_payload,
@@ -52,7 +52,7 @@ def test_record_event_success(monkeypatch):
         action="test_action",
         status="SUCCESS",
         user_id=1,
-        ip_address="192.168.1.1",
+        ip_address="192.168.1.1",  # NOSONAR
         user_agent="Mozilla/5.0",
         request_id="req-abc",
         details=details_payload,
@@ -82,7 +82,7 @@ def test_record_event_resolves_context(monkeypatch):
     )
 
     # Set context variables using contextvars tokens
-    ip_token = request_ip.set("10.0.0.5")
+    ip_token = request_ip.set("10.0.0.5")  # NOSONAR
     ua_token = request_user_agent.set("ContextAgent")
     rid_token = request_id.set("ctx-req-id")
 
@@ -92,7 +92,7 @@ def test_record_event_resolves_context(monkeypatch):
         # Verify resolved values were passed to repository
         mock_create_entry.assert_called_once()
         kwargs = mock_create_entry.call_args[1]
-        assert kwargs["ip_address"] == "10.0.0.5"
+        assert kwargs["ip_address"] == "10.0.0.5"  # NOSONAR
         assert kwargs["user_agent"] == "ContextAgent"
         assert kwargs["request_id"] == "ctx-req-id"
     finally:
@@ -117,7 +117,7 @@ def test_record_event_resilience_on_exception(monkeypatch):
 
     # Repository throws an database operational/connection error
     def raise_db_error(*args, **kwargs):
-        raise Exception("Database connection failure")
+        raise RuntimeError("Database connection failure")
 
     monkeypatch.setattr(
         "app.services.audit_service.audit_repository.create_entry", raise_db_error
