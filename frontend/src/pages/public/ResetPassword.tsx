@@ -1,6 +1,6 @@
 import { Box, Stack, Typography, Button } from '@mui/material'
 import { useState, useEffect, useMemo } from 'react'
-import { useNavigate, useSearchParams, Link as RouterLink } from 'react-router-dom'
+import { useSearchParams, Link as RouterLink } from 'react-router-dom'
 
 import { resetPassword } from '../../api/passwordApi'
 import { EnterpriseCard } from '../../components/EnterpriseCard'
@@ -20,7 +20,6 @@ export function ResetPassword() {
   const [statusMessage, setStatusMessage] = useState('')
   const [statusSeverity, setStatusSeverity] = useState<'success' | 'error' | 'info'>('info')
   const [loading, setLoading] = useState(false)
-  const navigate = useNavigate()
 
   useEffect(() => {
     const emailParam = searchParams.get('email')

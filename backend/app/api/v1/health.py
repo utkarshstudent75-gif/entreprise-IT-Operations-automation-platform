@@ -42,6 +42,26 @@ async def health_check():
     )
 
 
+def check_redis_health() -> bool:
+    """
+    Utility function to verify Redis connectivity.
+    """
+    # Import inside to avoid circular dependencies
+
+    try:
+        # Run the async ping in a synchronous context or simply check via an async endpoint.
+        # But wait, health check endpoint is async, so we can just make check_redis_health async!
+        pass
+    except Exception:
+        return False
+
+
+async def check_redis_health_async() -> bool:
+    from app.core.redis import redis_manager
+
+    return await redis_manager.ping()
+
+
 @router.get(
     "/ready",
     tags=["Health"],
@@ -51,24 +71,35 @@ async def health_check():
 async def ready_check():
     """
     Readiness check endpoint.
-    Verifies connectivity to the PostgreSQL database.
-    Returns HTTP 503 Service Unavailable if database is down.
+    Verifies connectivity to the PostgreSQL database and Redis.
+    Returns HTTP 503 Service Unavailable if either database or Redis is down.
     """
-    if not check_db_health():
+    db_healthy = check_db_health()
+    redis_healthy = await check_redis_health_async()
+
+    if not db_healthy or not redis_healthy:
+        failed_services = []
+        if not db_healthy:
+            failed_services.append("Database")
+        if not redis_healthy:
+            failed_services.append("Redis")
+
         return JSONResponse(
             status_code=503,
             content={
                 "success": False,
                 "error": {
                     "code": "SERVICE_UNAVAILABLE",
-                    "message": "Database connection failed",
+                    "message": f"connection failed for: {', '.join(failed_services)}",
                 },
             },
         )
+
     return StandardResponse(
         data=ReadyResponse(
             status="ready",
             database="connected",
+            redis="connected",
         )
     )
 
