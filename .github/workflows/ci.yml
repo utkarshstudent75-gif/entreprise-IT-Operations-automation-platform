@@ -1,14 +1,15 @@
 name: Enterprise IT Operations Automation Platform CI
 
 on:
-    push:
-        branches:
-            - master
-            - feature/**
-    pull_request:
-        branches:
-            - master
-            - feature/**
+  push:
+    branches:
+      - master
+      - 'feature/**'
+  pull_request:
+    branches:
+      - master
+      - 'feature/**'
+  workflow_dispatch:
 
 concurrency: 
   group: ci-${{ github.workflow }}-${{github.ref}}
