@@ -185,3 +185,14 @@ class SMSRateLimitError(SMSProviderError):
 
     def __init__(self, message: str = "SMS provider rate limit exceeded."):
         super().__init__(message)
+
+
+class AuthenticationException(BaseAppException):
+    """Raised when authentication fails."""
+
+    status_code: int = status.HTTP_401_UNAUTHORIZED
+    error_code: str = "UNAUTHORIZED"
+
+    def __init__(self, message: str = "Could not validate credentials."):
+        super().__init__(message)
+

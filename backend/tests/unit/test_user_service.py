@@ -6,10 +6,11 @@ from app.services.user_service import user_service
 
 
 class DummyUser:
-    def __init__(self, id: int, username: str, email: str):
+    def __init__(self, id: int, username: str, email: str, roles: str = "HelpDesk"):
         self.id = id
         self.username = username
         self.email = email
+        self.roles = roles
 
 
 class DummyDB(Session):

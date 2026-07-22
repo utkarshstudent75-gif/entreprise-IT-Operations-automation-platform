@@ -1,7 +1,23 @@
+import pytest
 from datetime import UTC, datetime, timedelta
-
-from app.models.audit_log import AuditLog
+from app.auth.dependencies import get_current_user
 from app.models.user import User
+from app.models.audit_log import AuditLog
+
+
+@pytest.fixture(autouse=True)
+def override_auth(client):
+    mock_user = User(
+        id=999,
+        username="admin_test",
+        email="admin@example.com",
+        roles="Admin",
+    )
+    from app.main import app
+
+    app.dependency_overrides[get_current_user] = lambda: mock_user
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
 
 
 def test_get_audit_logs_empty(client):

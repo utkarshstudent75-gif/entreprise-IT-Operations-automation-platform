@@ -1,14 +1,17 @@
 import { Box, Button, Card, Stack, TextField, Typography, Link, Alert } from '@mui/material'
 import { useState } from 'react'
 import { useNavigate, Link as RouterLink } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 
 export function Login() {
+  const { authProvider, login, loginWithMicrosoft } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
@@ -17,10 +20,24 @@ export function Login() {
       return
     }
 
-    // Mock Login Success
-    localStorage.setItem('isAuthenticated', 'true')
-    localStorage.setItem('userEmail', email.trim())
-    navigate('/dashboard')
+    setLoading(true)
+    try {
+      await login(email.trim(), password)
+      navigate('/dashboard')
+    } catch (err: any) {
+      setError(err.message || 'Invalid email or password.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleMicrosoftLogin = async () => {
+    setError('')
+    try {
+      await loginWithMicrosoft()
+    } catch (err) {
+      setError('Microsoft sign in failed. Please try again.')
+    }
   }
 
   return (
@@ -42,47 +59,83 @@ export function Login() {
               Portal Sign In
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Use your corporate credentials to sign in
+              {authProvider === 'local'
+                ? 'Use your corporate credentials to sign in'
+                : 'Sign in using your Enterprise Identity provider'}
             </Typography>
           </Box>
 
           {error && <Alert severity="error">{error}</Alert>}
 
-          <TextField
-            label="Corporate Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            fullWidth
-            required
-            autoComplete="email"
-            autoFocus
-          />
+          {authProvider === 'local' ? (
+            <>
+              <TextField
+                label="Corporate Email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                fullWidth
+                required
+                autoComplete="email"
+                autoFocus
+                disabled={loading}
+              />
 
-          <TextField
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            fullWidth
-            required
-            autoComplete="current-password"
-          />
+              <TextField
+                label="Password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                fullWidth
+                required
+                autoComplete="current-password"
+                disabled={loading}
+              />
 
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Link
-              component={RouterLink}
-              to="/password-reset"
-              variant="body2"
-              sx={{ fontWeight: 600 }}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Link
+                  component={RouterLink}
+                  to="/password-reset"
+                  variant="body2"
+                  sx={{ fontWeight: 600 }}
+                >
+                  Forgot Password?
+                </Link>
+              </Box>
+
+              <Button type="submit" variant="contained" size="large" fullWidth sx={{ py: 1.25 }} disabled={loading}>
+                {loading ? 'Signing In...' : 'Sign In'}
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="contained"
+              size="large"
+              fullWidth
+              onClick={handleMicrosoftLogin}
+              sx={{
+                py: 1.5,
+                bgcolor: '#2f2f2f',
+                color: '#fff',
+                '&:hover': { bgcolor: '#000' },
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 1.5,
+                borderRadius: 2,
+                boxShadow: 2,
+              }}
             >
-              Forgot Password?
-            </Link>
-          </Box>
-
-          <Button type="submit" variant="contained" size="large" fullWidth sx={{ py: 1.25 }}>
-            Sign In
-          </Button>
+              <svg width="20" height="20" viewBox="0 0 21 21" style={{ marginRight: 8 }}>
+                <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+                <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+                <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+                <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+              </svg>
+              Sign in with Microsoft
+            </Button>
+          )}
 
           <Box sx={{ textAlign: 'center' }}>
             <Link component={RouterLink} to="/" variant="body2" sx={{ fontWeight: 600 }}>
@@ -94,3 +147,4 @@ export function Login() {
     </Box>
   )
 }
+

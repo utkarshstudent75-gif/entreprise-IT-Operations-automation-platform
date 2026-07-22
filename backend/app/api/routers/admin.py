@@ -9,6 +9,8 @@ from app.database.dependencies import get_db
 from app.schemas.audit import AuditLogResponse
 from app.schemas.response import StandardResponse
 from app.services.audit_service import audit_service
+from app.auth.dependencies import require_roles
+from app.models.user import User
 
 router = APIRouter(
     tags=["Admin & Audit Logs"],
@@ -19,7 +21,7 @@ router = APIRouter(
     "/admin",
     status_code=status.HTTP_200_OK,
 )
-async def get_admin():
+async def get_admin(current_user: Annotated[User, Depends(require_roles("Admin"))]):
     return {"status": "coming soon"}
 
 
@@ -47,6 +49,7 @@ def get_audit_logs(
         int, Query(ge=1, le=1000, description="Max number of logs to return")
     ] = 100,
     db: Annotated[Session, Depends(get_db)] = None,
+    current_user: User = Depends(require_roles("Admin", "Auditor")),
 ):
     """Retrieve audit logs with optional filtering by user ID, action, status,
     and date range.
@@ -72,6 +75,7 @@ def get_audit_logs(
 def get_audit_log(
     audit_id: int,
     db: Annotated[Session, Depends(get_db)],
+    current_user: User = Depends(require_roles("Admin", "Auditor")),
 ):
     """Retrieve a single audit log entry by its ID."""
     log = audit_service.get_log_by_id(db, audit_id)

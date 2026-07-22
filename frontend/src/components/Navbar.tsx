@@ -1,13 +1,14 @@
 import { AppBar, Box, Button, Toolbar, Typography, Chip } from '@mui/material'
 import { LogoutRounded, FiberManualRecordRounded } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 export function Navbar() {
   const navigate = useNavigate()
+  const { logout } = useAuth()
 
-  const handleLogout = () => {
-    localStorage.setItem('isAuthenticated', 'false')
-    localStorage.removeItem('userEmail')
+  const handleLogout = async () => {
+    await logout()
     navigate('/')
   }
 

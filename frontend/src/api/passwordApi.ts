@@ -1,9 +1,5 @@
 import axios from 'axios'
-
-const passwordApiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1',
-  headers: { 'Content-Type': 'application/json' },
-})
+import { apiClient } from './apiClient'
 
 export interface PasswordApiResponse {
   message: string
@@ -28,7 +24,7 @@ async function postPasswordRequest(
   fallbackMessage: string,
 ): Promise<PasswordApiResult> {
   try {
-    const { data } = await passwordApiClient.post<PasswordApiResponse>(path, payload)
+    const { data } = await apiClient.post<PasswordApiResponse>(path, payload)
     return { message: data.message, success: true }
   } catch (error) {
     return { message: getErrorMessage(error, fallbackMessage), success: false }

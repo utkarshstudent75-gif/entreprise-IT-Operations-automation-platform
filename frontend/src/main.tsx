@@ -1,6 +1,8 @@
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { MsalProvider } from '@azure/msal-react'
+import { AuthProvider, msalInstance } from './context/AuthContext'
 import App from './App'
 
 const theme = createTheme({
@@ -21,9 +23,14 @@ const theme = createTheme({
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <App />
-    </ThemeProvider>
+    <MsalProvider instance={msalInstance}>
+      <AuthProvider>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <App />
+        </ThemeProvider>
+      </AuthProvider>
+    </MsalProvider>
   </StrictMode>,
 )
+

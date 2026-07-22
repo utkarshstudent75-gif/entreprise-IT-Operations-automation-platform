@@ -40,6 +40,17 @@ class Settings(BaseSettings):
     SMS_RETRY_COUNT: int = 3
     SMS_TEST_RECIPIENT: str | None = None
 
+    # Authentication Configuration
+    AUTH_PROVIDER: str = "local"
+    ENTRA_TENANT_ID: str | None = None
+    ENTRA_CLIENT_ID: str | None = None
+    ENTRA_REDIRECT_URI: str | None = None
+
+    # Local JWT configuration
+    JWT_SECRET_KEY: str = "secret-key-change-in-production"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+
 
 settings = Settings()
 

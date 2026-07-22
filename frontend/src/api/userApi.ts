@@ -1,9 +1,5 @@
 import axios from 'axios'
-
-const userApiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1',
-  headers: { 'Content-Type': 'application/json' },
-})
+import { apiClient } from './apiClient'
 
 export interface CreateUserPayload {
   username: string
@@ -33,7 +29,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 
 export async function createUser(payload: CreateUserPayload): Promise<UserApiResult> {
   try {
-    const { data } = await userApiClient.post<CreateUserResponse>('/users', payload)
+    const { data } = await apiClient.post<CreateUserResponse>('/users', payload)
 
     return {
       success: true,

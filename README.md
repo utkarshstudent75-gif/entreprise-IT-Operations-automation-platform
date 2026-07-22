@@ -311,6 +311,13 @@ The following table documents all environment variables used by the application 
 | `SMS_TIMEOUT_SECONDS` | HTTP request timeout for SMS delivery requests | `5.0` | `5.0` |
 | `SMS_RETRY_COUNT` | Number of times to retry transient SMS API failures | `3` | `3` |
 | `SMS_TEST_RECIPIENT` | Fallback phone number used for OTP delivery when email is used | `""` | `+911800123456` |
+| **Authentication & Entra ID** | | | |
+| `AUTH_PROVIDER` | Authentication provider mode (`local` or `entra`) | `local` | `entra` |
+| `JWT_SECRET_KEY` | Secret key used for signing local authentication JWTs | `secret-key-change-in-production` | `supersecretkey` |
+| `JWT_ALGORITHM` | Algorithm used for signing local authentication JWTs | `HS256` | `HS256` |
+| `ENTRA_CLIENT_ID` | Application (client) ID registered in Microsoft Entra | `""` | `4321abcd-1234-...` |
+| `ENTRA_TENANT_ID` | Tenant ID or name (e.g. `common`) of Microsoft Entra ID | `""` | `common` |
+| `ENTRA_REDIRECT_URI` | Redirect URI configured in Microsoft Entra app registration | `""` | `http://localhost:5173` |
 
 ---
 
@@ -532,12 +539,14 @@ This project demonstrates practical experience with:
 * ✅ Dockerized backend
 * ✅ Docker Compose development environment
 * ✅ End-to-end application successfully running inside Docker containers
+* ✅ PostgreSQL database integration & SQLAlchemy ORM
+* ✅ Redis-backed password reset cache integration
+* ✅ Pluggable Authentication Providers (Local & Microsoft Entra ID OIDC)
+* ✅ Role-Based Access Control (Admin, HelpDesk, HR, Auditor)
 
 ### Currently Working On
 
-* PostgreSQL integration
-* SQLAlchemy ORM
-* Alembic migrations
+* Microsoft Graph operations integration (Sprint 4)
 
 ---
 
