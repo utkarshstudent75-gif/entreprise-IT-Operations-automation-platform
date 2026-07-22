@@ -95,3 +95,93 @@ class RateLimitExceededException(BaseAppException):
 
     def __init__(self, message: str = "Rate limit exceeded. Please try again later."):
         super().__init__(message)
+
+
+class NotificationException(BaseAppException):
+    """Base exception for notification errors."""
+
+    status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
+    error_code: str = "NOTIFICATION_ERROR"
+
+    def __init__(
+        self,
+        message: str = "Notification delivery error.",
+        status_code: int | None = None,
+        error_code: str | None = None,
+    ):
+        super().__init__(message, status_code=status_code, error_code=error_code)
+
+
+class SMSProviderError(NotificationException):
+    """Raised when an SMS notification provider encounters an unrecoverable failure."""
+
+    status_code: int = status.HTTP_502_BAD_GATEWAY
+    error_code: str = "SMS_PROVIDER_ERROR"
+
+    def __init__(
+        self,
+        message: str = "SMS provider error.",
+        status_code: int | None = None,
+        error_code: str | None = None,
+    ):
+        super().__init__(message, status_code=status_code, error_code=error_code)
+
+
+class SMSConfigurationError(SMSProviderError):
+    """Raised when SMS provider configuration parameters are missing or invalid."""
+
+    status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
+    error_code: str = "SMS_CONFIGURATION_ERROR"
+
+    def __init__(self, message: str = "Invalid SMS provider configuration."):
+        super().__init__(message)
+
+
+class SMSAuthenticationError(SMSProviderError):
+    """Raised when SMS provider authentication credentials fail (401/403)."""
+
+    status_code: int = status.HTTP_502_BAD_GATEWAY
+    error_code: str = "SMS_AUTHENTICATION_ERROR"
+
+    def __init__(self, message: str = "SMS provider authentication failed."):
+        super().__init__(message)
+
+
+class SMSTimeoutError(SMSProviderError):
+    """Raised when SMS provider request times out."""
+
+    status_code: int = status.HTTP_504_GATEWAY_TIMEOUT
+    error_code: str = "SMS_TIMEOUT"
+
+    def __init__(self, message: str = "SMS provider request timed out."):
+        super().__init__(message)
+
+
+class SMSDeliveryError(SMSProviderError):
+    """Raised when SMS delivery fails."""
+
+    status_code: int = status.HTTP_502_BAD_GATEWAY
+    error_code: str = "SMS_DELIVERY_ERROR"
+
+    def __init__(self, message: str = "Failed to deliver SMS."):
+        super().__init__(message)
+
+
+class SMSInvalidPhoneNumberError(SMSProviderError):
+    """Raised when destination phone number is malformed or rejected."""
+
+    status_code: int = status.HTTP_400_BAD_REQUEST
+    error_code: str = "INVALID_PHONE_NUMBER"
+
+    def __init__(self, message: str = "Invalid destination phone number."):
+        super().__init__(message)
+
+
+class SMSRateLimitError(SMSProviderError):
+    """Raised when provider rate limit is exceeded."""
+
+    status_code: int = status.HTTP_429_TOO_MANY_REQUESTS
+    error_code: str = "SMS_RATE_LIMIT_EXCEEDED"
+
+    def __init__(self, message: str = "SMS provider rate limit exceeded."):
+        super().__init__(message)

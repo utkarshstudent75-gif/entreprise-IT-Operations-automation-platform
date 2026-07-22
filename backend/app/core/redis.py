@@ -37,11 +37,13 @@ class RedisManager:
         Ping Redis to check connectivity.
         """
         if not self.client:
+            logger.error("Redis client is not initialized")
             return False
         try:
             await self.client.ping()
             return True
-        except Exception:
+        except Exception as e:
+            logger.error("Redis unavailable: %s", str(e))
             return False
 
     async def check_health_and_reconnect(self) -> bool:
@@ -85,4 +87,6 @@ redis_manager = RedisManager()
 async def get_redis() -> Redis:
     if redis_manager.client is None:
         redis_manager.init_redis()
+        if await redis_manager.ping():
+            logger.info("Redis connection established")
     return redis_manager.client

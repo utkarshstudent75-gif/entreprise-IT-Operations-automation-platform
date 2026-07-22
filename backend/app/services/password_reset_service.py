@@ -1,5 +1,4 @@
 import secrets
-from datetime import UTC, datetime, timedelta
 
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
@@ -13,10 +12,10 @@ from app.core.exceptions import (
     PasswordResetException,
 )
 from app.core.logging_config import logger
-from app.repositories.password_reset_repository import password_reset_repository
 from app.repositories.user_repository import user_repository
 from app.services.audit_service import audit_service
 from app.services.notification_service import notification_service
+from app.services.redis_service import redis_service
 
 INVALID_EMAIL_OR_OTP = "Invalid email or OTP."
 OTP_EXPIRED = "OTP has expired."
@@ -62,7 +61,7 @@ class PasswordResetService:
 
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-    def request_password_reset(self, db: Session, email: str) -> None:
+    async def request_password_reset(self, db: Session, email: str) -> None:
         """Create a reset request and send the OTP.
 
         If the user does not exist, complete the call successfully anyway to prevent
@@ -87,16 +86,12 @@ class PasswordResetService:
                 return
 
             otp = self._generate_otp()
-            expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(
-                minutes=settings.OTP_EXPIRY_MINUTES
-            )
 
             try:
-                password_reset_repository.create_reset_request(
-                    db=db,
-                    user_id=user.id,
+                await redis_service.store_otp(
+                    email=email,
                     otp=otp,
-                    expires_at=expires_at,
+                    expires_in_seconds=settings.OTP_EXPIRY_MINUTES * 60,
                 )
             except Exception as e:
                 logger.error("Failed to create password reset request: %s", str(e))
@@ -119,11 +114,11 @@ class PasswordResetService:
                 details={"email": email},
             )
 
-    def verify_otp(self, db: Session, email: str, otp: str) -> bool:
+    async def verify_otp(self, db: Session, email: str, otp: str) -> bool:
         """Verify a submitted OTP without consuming it.
 
         This method validates existence, usage state, expiry, and OTP match.
-        Business rules stay in the service layer; the repository only fetches data.
+        Business rules stay in the service layer; Redis stores the state.
         """
         with logging_context(act="otp_verification"):
             user = user_repository.get_by_email(db, email)
@@ -144,48 +139,48 @@ class PasswordResetService:
                 )
                 raise PasswordResetInvalidRequest(INVALID_EMAIL_OR_OTP)
 
-            reset_request = password_reset_repository.get_latest_request(db, user.id)
-            if reset_request is None:
+            try:
+                await redis_service.verify_otp(
+                    email=email,
+                    otp=otp,
+                    consume=False,
+                    max_attempts=settings.OTP_MAX_ATTEMPTS,
+                    expires_in_seconds=settings.OTP_EXPIRY_MINUTES * 60,
+                )
+            except Exception as e:
                 logger.warning(
-                    "No password reset request found for user id %s", user.id
+                    "OTP verification failed for user id %s: %s", user.id, str(e)
                 )
-                audit_service.record_event(
-                    action="otp_verification",
-                    status="FAILED",
-                    user_id=user.id,
-                    details={"email": email, "reason": "No valid request found"},
+                from app.core.exceptions import (
+                    ExpiredOTPException,
+                    OTPAlreadyUsedException,
                 )
-                raise PasswordResetInvalidRequest(INVALID_EMAIL_OR_OTP)
 
-            if reset_request.is_used:
-                logger.warning(
-                    "Password reset request already used for user id %s", user.id
-                )
-                audit_service.record_event(
-                    action="otp_verification",
-                    status="FAILED",
-                    user_id=user.id,
-                    details={"email": email, "reason": "OTP already used"},
-                )
-                raise PasswordResetAlreadyUsedError(OTP_ALREADY_USED_MSG)
+                if isinstance(e, ExpiredOTPException):
+                    reason = "OTP expired"
+                    audit_service.record_event(
+                        action="otp_verification",
+                        status="FAILED",
+                        user_id=user.id,
+                        details={"email": email, "reason": reason},
+                    )
+                    raise PasswordResetExpiredError(OTP_EXPIRED)
+                elif isinstance(e, OTPAlreadyUsedException):
+                    reason = "OTP already used"
+                    audit_service.record_event(
+                        action="otp_verification",
+                        status="FAILED",
+                        user_id=user.id,
+                        details={"email": email, "reason": reason},
+                    )
+                    raise PasswordResetAlreadyUsedError(OTP_ALREADY_USED_MSG)
 
-            if datetime.now(UTC).replace(tzinfo=None) > reset_request.expires_at:
-                logger.warning("Password reset OTP expired for user id %s", user.id)
+                reason = "OTP mismatch"
                 audit_service.record_event(
                     action="otp_verification",
                     status="FAILED",
                     user_id=user.id,
-                    details={"email": email, "reason": "OTP expired"},
-                )
-                raise PasswordResetExpiredError(OTP_EXPIRED)
-
-            if reset_request.otp != otp:
-                logger.warning("Password reset OTP mismatch for user id %s", user.id)
-                audit_service.record_event(
-                    action="otp_verification",
-                    status="FAILED",
-                    user_id=user.id,
-                    details={"email": email, "reason": "OTP mismatch"},
+                    details={"email": email, "reason": reason},
                 )
                 raise PasswordResetInvalidRequest(INVALID_EMAIL_OR_OTP)
 
@@ -198,7 +193,7 @@ class PasswordResetService:
             )
             return True
 
-    def reset_password(
+    async def reset_password(
         self, db: Session, email: str, otp: str, new_password: str
     ) -> bool:
         """Reset a user's password in a single transactional operation."""
@@ -219,64 +214,61 @@ class PasswordResetService:
                 )
                 raise PasswordResetInvalidRequest(INVALID_EMAIL_OR_OTP)
 
-            reset_request = password_reset_repository.get_latest_request(db, user.id)
-            if reset_request is None:
+            try:
+                await redis_service.verify_otp(
+                    email=email,
+                    otp=otp,
+                    consume=True,
+                    max_attempts=settings.OTP_MAX_ATTEMPTS,
+                    expires_in_seconds=settings.OTP_EXPIRY_MINUTES * 60,
+                )
+            except Exception as e:
                 logger.warning(
-                    "No password reset request found for reset on user id %s", user.id
+                    "OTP verification for reset failed for user id %s: %s",
+                    user.id,
+                    str(e),
                 )
-                audit_service.record_event(
-                    action="password_reset",
-                    status="FAILED",
-                    user_id=user.id,
-                    details={"email": email, "reason": "No request found"},
+                from app.core.exceptions import (
+                    ExpiredOTPException,
+                    OTPAlreadyUsedException,
                 )
-                raise PasswordResetInvalidRequest(INVALID_EMAIL_OR_OTP)
 
-            if reset_request.is_used:
-                logger.warning(
-                    "Attempted password reset with used OTP for user id %s", user.id
-                )
-                audit_service.record_event(
-                    action="password_reset",
-                    status="FAILED",
-                    user_id=user.id,
-                    details={"email": email, "reason": "OTP already used"},
-                )
-                raise PasswordResetAlreadyUsedError(OTP_ALREADY_USED_MSG)
+                if isinstance(e, ExpiredOTPException):
+                    reason = "OTP expired"
+                    audit_service.record_event(
+                        action="password_reset",
+                        status="FAILED",
+                        user_id=user.id,
+                        details={"email": email, "reason": reason},
+                    )
+                    raise PasswordResetExpiredError(OTP_EXPIRED)
+                elif isinstance(e, OTPAlreadyUsedException):
+                    reason = "OTP already used"
+                    audit_service.record_event(
+                        action="password_reset",
+                        status="FAILED",
+                        user_id=user.id,
+                        details={"email": email, "reason": reason},
+                    )
+                    raise PasswordResetAlreadyUsedError(OTP_ALREADY_USED_MSG)
 
-            if datetime.now(UTC).replace(tzinfo=None) > reset_request.expires_at:
-                logger.warning(
-                    "Attempted password reset with expired OTP for user id %s", user.id
-                )
+                reason = "OTP mismatch"
                 audit_service.record_event(
                     action="password_reset",
                     status="FAILED",
                     user_id=user.id,
-                    details={"email": email, "reason": "OTP expired"},
-                )
-                raise PasswordResetExpiredError(OTP_EXPIRED)
-
-            if reset_request.otp != otp:
-                logger.warning("Password reset OTP mismatch for user id %s", user.id)
-                audit_service.record_event(
-                    action="password_reset",
-                    status="FAILED",
-                    user_id=user.id,
-                    details={"email": email, "reason": "OTP mismatch"},
+                    details={"email": email, "reason": reason},
                 )
                 raise PasswordResetInvalidRequest(INVALID_EMAIL_OR_OTP)
 
             hashed_password = self._hash_password(new_password)
 
             user.hashed_password = hashed_password
-            reset_request.is_used = True
 
             try:
                 db.add(user)
-                db.add(reset_request)
                 db.commit()
                 db.refresh(user)
-                db.refresh(reset_request)
             except Exception as e:
                 logger.error(
                     "Failed database transaction for reset_password: %s", str(e)

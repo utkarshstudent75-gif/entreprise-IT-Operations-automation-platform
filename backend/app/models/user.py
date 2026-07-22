@@ -1,13 +1,9 @@
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
-
-if TYPE_CHECKING:
-    from app.models.password_reset_request import PasswordResetRequest
 
 
 class User(Base):
@@ -32,11 +28,4 @@ class User(Base):
         DateTime,
         default=lambda: datetime.now(UTC).replace(tzinfo=None),
         onupdate=lambda: datetime.now(UTC).replace(tzinfo=None),
-    )
-
-    # Relationship to password reset requests (one-to-many)
-    reset_requests: Mapped[list["PasswordResetRequest"]] = relationship(
-        "PasswordResetRequest",
-        back_populates="user",
-        cascade="all, delete-orphan",
     )
