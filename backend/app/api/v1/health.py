@@ -42,7 +42,6 @@ async def health_check():
     )
 
 
-
 async def check_redis_health_async() -> bool:
     from app.core.redis import redis_manager
 
