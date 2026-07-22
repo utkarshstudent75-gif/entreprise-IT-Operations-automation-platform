@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { PublicClientApplication, Configuration, InteractionRequiredAuthError } from '@azure/msal-browser'
 import { useMsal, useAccount } from '@azure/msal-react'

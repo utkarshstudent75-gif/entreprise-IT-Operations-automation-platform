@@ -24,8 +24,9 @@ export function Login() {
     try {
       await login(email.trim(), password)
       navigate('/dashboard')
-    } catch (err: any) {
-      setError(err.message || 'Invalid email or password.')
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Invalid email or password.'
+      setError(errorMsg)
     } finally {
       setLoading(false)
     }
@@ -35,7 +36,7 @@ export function Login() {
     setError('')
     try {
       await loginWithMicrosoft()
-    } catch (err) {
+    } catch {
       setError('Microsoft sign in failed. Please try again.')
     }
   }
