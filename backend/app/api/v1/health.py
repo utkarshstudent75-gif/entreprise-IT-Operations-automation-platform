@@ -42,24 +42,25 @@ async def health_check():
     )
 
 
-def check_redis_health() -> bool:
-    """
-    Utility function to verify Redis connectivity.
-    """
-    # Import inside to avoid circular dependencies
-
-    try:
-        # Run the async ping in a synchronous context or simply check via an async endpoint.
-        # But wait, health check endpoint is async, so we can just make check_redis_health async!
-        pass
-    except Exception:
-        return False
-
 
 async def check_redis_health_async() -> bool:
     from app.core.redis import redis_manager
 
     return await redis_manager.ping()
+
+
+def check_sms_health() -> bool:
+    """
+    Utility function to verify SMS notification provider readiness.
+    Does not send real SMS messages during health checks.
+    """
+    from app.services.notification_service import notification_service
+
+    try:
+        return notification_service.is_ready()
+    except Exception as e:
+        logger.error("SMS provider health check failed: %s", str(e), exc_info=True)
+        return False
 
 
 @router.get(
@@ -71,18 +72,21 @@ async def check_redis_health_async() -> bool:
 async def ready_check():
     """
     Readiness check endpoint.
-    Verifies connectivity to the PostgreSQL database and Redis.
-    Returns HTTP 503 Service Unavailable if either database or Redis is down.
+    Verifies connectivity to PostgreSQL database, Redis, and SMS Provider readiness.
+    Returns HTTP 503 Service Unavailable if any dependent service is unhealthy.
     """
     db_healthy = check_db_health()
     redis_healthy = await check_redis_health_async()
+    sms_healthy = check_sms_health()
 
-    if not db_healthy or not redis_healthy:
+    if not db_healthy or not redis_healthy or not sms_healthy:
         failed_services = []
         if not db_healthy:
             failed_services.append("Database")
         if not redis_healthy:
             failed_services.append("Redis")
+        if not sms_healthy:
+            failed_services.append("SMS Provider")
 
         return JSONResponse(
             status_code=503,
@@ -100,6 +104,8 @@ async def ready_check():
             status="ready",
             database="connected",
             redis="connected",
+            application="healthy",
+            sms_provider="connected",
         )
     )
 

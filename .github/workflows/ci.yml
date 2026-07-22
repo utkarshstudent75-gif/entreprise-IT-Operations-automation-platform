@@ -24,9 +24,9 @@ jobs:
             postgres:
                 image: postgres:17-alpine
                 env:
-                    POSTGRES_USER: ${{vars.PS_USER}}
-                    POSTGRES_PASSWORD: ${{vars.PS_PWD}}
-                    POSTGRES_DB: ${{vars.DB_NAME}}
+                    POSTGRES_USER: ${{ vars.PS_USER || 'postgres' }}
+                    POSTGRES_PASSWORD: ${{ vars.PS_PWD || 'postgres' }}
+                    POSTGRES_DB: ${{ vars.DB_NAME || 'eitoap' }}
                 ports:
                     - 5432:5432
                 options: >-
@@ -34,17 +34,30 @@ jobs:
                     --health-interval 10s
                     --health-timeout 5s
                     --health-retries 5
+            redis:
+                image: redis:7-alpine
+                ports:
+                    - 6379:6379
+                options: >-
+                    --health-cmd "redis-cli ping"
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
         env:
-            APP_NAME: ${{ vars.APP_NAME }}
-            APP_VERSION: ${{ vars.APP_VERSION }}
+            APP_NAME: ${{ vars.APP_NAME || 'Enterprise IT Operations Automation Platform' }}
+            APP_VERSION: ${{ vars.APP_VERSION || '0.1.0' }}
             ENVIRONMENT: ci
-            DEBUG: ${{ vars.DEBUG }}
-            HOST: ${{ vars.HOST }}
-            PORT: ${{ vars.PORT }}
-            OTP_LENGTH: ${{ vars.OTP_LENGTH }}
-            OTP_EXPIRY_MINUTES: ${{ vars.OTP_EXPIRY_MINUTES }}
-            OTP_MAX_ATTEMPTS: ${{ vars.OTP_MAX_ATTEMPTS }}
-            DATABASE_URL: postgresql://${{vars.PS_USER}}:${{vars.PS_PWD}}@localhost:5432/${{vars.DB_NAME}}
+            DEBUG: ${{ vars.DEBUG || 'true' }}
+            HOST: ${{ vars.HOST || '0.0.0.0' }}
+            PORT: ${{ vars.PORT || '8000' }}
+            OTP_LENGTH: ${{ vars.OTP_LENGTH || '6' }}
+            OTP_EXPIRY_MINUTES: ${{ vars.OTP_EXPIRY_MINUTES || '5' }}
+            OTP_MAX_ATTEMPTS: ${{ vars.OTP_MAX_ATTEMPTS || '3' }}
+            DATABASE_URL: postgresql://${{ vars.PS_USER || 'postgres' }}:${{ vars.PS_PWD || 'postgres' }}@localhost:5432/${{ vars.DB_NAME || 'eitoap' }}
+            REDIS_HOST: localhost
+            REDIS_PORT: 6379
+            REDIS_DB: 0
+            REDIS_PASSWORD: ""
 
         
         name: Backend Build
@@ -84,15 +97,47 @@ jobs:
 
             - name: Run Bandit Security scan
               run: |
-                    bandit -r app
+                    bandit -r app -f json -o bandit-report.json
                
+            - name: Verify Service Connectivity (Postgres & Redis)
+              run: |
+                    PYTHONPATH=. python scripts/wait_for_services.py
+
             - name: Run Backend tests (pytest) 
               run: |
-                    pytest         
+                    pytest --junitxml=junit.xml
 
             - name: Validate FastAPI app
               run: |
                 python -c "from app.main import app"
+
+            - name: Upload Pytest JUnit XML Report
+              uses: actions/upload-artifact@v4
+              with:
+                name: pytest-junit-xml
+                path: backend/junit.xml
+              if: always()
+
+            - name: Upload Coverage XML Report
+              uses: actions/upload-artifact@v4
+              with:
+                name: coverage-xml
+                path: backend/coverage/coverage.xml
+              if: always()
+
+            - name: Upload Coverage HTML Report
+              uses: actions/upload-artifact@v4
+              with:
+                name: coverage-html
+                path: backend/coverage/html/
+              if: always()
+
+            - name: Upload Bandit Report
+              uses: actions/upload-artifact@v4
+              with:
+                name: bandit-report
+                path: backend/bandit-report.json
+              if: always()
 
     frontend:
         permissions:
@@ -355,6 +400,15 @@ jobs:
                 name: frontend-sbom
                 path: frontend-sbom.json
                 retention-days: 30
+
+            - name: Upload Trivy SARIF Reports
+              uses: actions/upload-artifact@v4
+              with:
+                name: trivy-sarif-reports
+                path: |
+                  backend-trivy-results.sarif
+                  frontend-trivy-results.sarif
+              if: always()
 
             - name: Install cosign
               uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac

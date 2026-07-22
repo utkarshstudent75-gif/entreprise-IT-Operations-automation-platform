@@ -1,5 +1,5 @@
 import { Box } from '@mui/material'
-import { PasswordResetPage } from '../PasswordResetPage'
+import { PasswordReset } from '../public/PasswordReset'
 import { Header } from '../../components/Header'
 
 export function ProtectedPasswordReset() {
@@ -9,7 +9,8 @@ export function ProtectedPasswordReset() {
         title="Password Reset Service"
         breadcrumbs={[{ label: 'Password Reset' }]}
       />
-      <PasswordResetPage />
+      <PasswordReset />
     </Box>
   )
 }
+

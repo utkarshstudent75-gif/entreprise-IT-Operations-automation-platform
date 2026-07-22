@@ -101,7 +101,7 @@ async def forgot_password(
         limit=5,
         window_seconds=600,
     )
-    password_reset_service.request_password_reset(db, request.email)
+    await password_reset_service.request_password_reset(db, request.email)
 
     return StandardResponse(
         data=PasswordResponse(
@@ -227,7 +227,7 @@ async def verify_otp(
         limit=10,
         window_seconds=600,
     )
-    password_reset_service.verify_otp(db, request.email, request.otp)
+    await password_reset_service.verify_otp(db, request.email, request.otp)
     return StandardResponse(data=PasswordResponse(message="OTP verified successfully."))
 
 
@@ -324,7 +324,7 @@ async def verify_otp(
 async def reset_password(
     request: ResetPasswordRequest, db: Annotated[Session, Depends(get_db)]
 ):
-    password_reset_service.reset_password(
+    await password_reset_service.reset_password(
         db,
         request.email,
         request.otp,

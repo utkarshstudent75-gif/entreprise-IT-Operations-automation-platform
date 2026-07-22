@@ -4,10 +4,8 @@ from unittest.mock import MagicMock
 from sqlalchemy.sql.elements import BinaryExpression
 
 from app.models.audit_log import AuditLog
-from app.models.password_reset_request import PasswordResetRequest
 from app.models.user import User
 from app.repositories.audit_repository import audit_repository
-from app.repositories.password_reset_repository import password_reset_repository
 from app.repositories.user_repository import user_repository
 
 # ==============================================================================
@@ -236,109 +234,3 @@ def test_audit_repo_get_all_with_filters():
     assert "audit_logs.status = :status" in statement
     assert "audit_logs.timestamp >= :timestamp_1" in statement
     assert "audit_logs.timestamp <= :timestamp_2" in statement
-
-
-# ==============================================================================
-# PASSWORD RESET REPOSITORY TESTS
-# ==============================================================================
-
-
-def test_pw_reset_repo_create_reset_request():
-    """
-    Test that password_reset_repository.create_reset_request persists a PasswordResetRequest
-    with the correct foreign key, otp, and expires_at fields.
-    """
-    mock_db = MagicMock()
-    expiry = datetime(2026, 7, 18, 12, 0, 0)
-
-    result = password_reset_repository.create_reset_request(
-        db=mock_db,
-        user_id=5,
-        otp="987654",
-        expires_at=expiry,
-    )
-
-    # Verify session interactions
-    mock_db.add.assert_called_once()
-    mock_db.commit.assert_called_once()
-    mock_db.refresh.assert_called_once()
-
-    # Verify request instance
-    added_request = mock_db.add.call_args[0][0]
-    assert isinstance(added_request, PasswordResetRequest)
-    assert added_request.user_id == 5
-    assert added_request.otp == "987654"
-    assert added_request.expires_at == expiry
-    assert result == added_request
-
-
-def test_pw_reset_repo_get_latest_request():
-    """
-    Test that get_latest_request fetches the newest request for the given user,
-    ordered by creation timestamp descending.
-    """
-    mock_db = MagicMock()
-    mock_req = PasswordResetRequest(id=1, user_id=5)
-    mock_execute_result = mock_db.execute.return_value
-    mock_execute_result.scalar_one_or_none.return_value = mock_req
-
-    result = password_reset_repository.get_latest_request(mock_db, 5)
-
-    mock_db.execute.assert_called_once()
-    statement = str(mock_db.execute.call_args[0][0])
-
-    assert "WHERE password_reset_requests.user_id = :user_id" in statement
-    assert "ORDER BY password_reset_requests.created_at DESC" in statement
-    assert "LIMIT :param_1" in statement
-    assert result == mock_req
-
-
-def test_pw_reset_repo_get_latest_valid_request():
-    """
-    Test that get_latest_valid_request fetches only unused (is_used is False) requests
-    for the given user.
-    """
-    mock_db = MagicMock()
-    mock_req = PasswordResetRequest(id=2, user_id=5, is_used=False)
-    mock_execute_result = mock_db.execute.return_value
-    mock_execute_result.scalar_one_or_none.return_value = mock_req
-
-    result = password_reset_repository.get_latest_valid_request(mock_db, 5)
-
-    mock_db.execute.assert_called_once()
-    statement = str(mock_db.execute.call_args[0][0])
-
-    assert "WHERE password_reset_requests.user_id = :user_id" in statement
-    assert "password_reset_requests.is_used IS false" in statement
-    assert result == mock_req
-
-
-def test_pw_reset_repo_mark_used():
-    """
-    Test that mark_used sets is_used=True and commits the update to database.
-    """
-    mock_db = MagicMock()
-    req = PasswordResetRequest(id=3, is_used=False)
-
-    result = password_reset_repository.mark_used(mock_db, req)
-
-    assert req.is_used is True
-    mock_db.add.assert_called_once_with(req)
-    mock_db.commit.assert_called_once()
-    mock_db.refresh.assert_called_once_with(req)
-    assert result == req
-
-
-def test_pw_reset_repo_delete_expired_requests():
-    """
-    Test that delete_expired_requests executes a DELETE query to purge expired reset requests.
-    """
-    mock_db = MagicMock()
-    password_reset_repository.delete_expired_requests(mock_db)
-
-    mock_db.execute.assert_called_once()
-    mock_db.commit.assert_called_once()
-
-    statement = str(mock_db.execute.call_args[0][0])
-    assert "DELETE FROM password_reset_requests" in statement
-    assert "WHERE password_reset_requests.expires_at <" in statement

@@ -1,0 +1,59 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/utkarsh/projects/entreprise-IT-Operations-automation-platform/backend
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+plugins: anyio-4.14.2, asyncio-1.4.0, cov-7.1.0, mock-3.15.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 7 items
+
+tests/integration/test_health.py .......                                 [100%]
+
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.3-final-0 ________________
+
+Name                                     Stmts   Miss  Cover   Missing
+----------------------------------------------------------------------
+app/api/__init__.py                          0      0   100%
+app/api/routers/admin.py                    23      7    70%   23, 54-64, 77-84
+app/api/routers/auth.py                     12      2    83%   23-24
+app/api/routers/metrics.py                   5      1    80%   11
+app/api/routers/mfa.py                       8      2    75%   11, 16
+app/api/routers/password_reset.py            8      0   100%
+app/api/routers/software.py                  8      2    75%   11, 16
+app/api/routers/tickets.py                   5      1    80%   11
+app/api/routers/workflows.py                 5      1    80%   11
+app/api/v1/__init__.py                       0      0   100%
+app/api/v1/audit.py                          1      1     0%   1
+app/api/v1/health.py                        53     16    70%   19-27, 51-56, 74-76, 100, 102
+app/api/v1/password.py                       0      0   100%
+app/api/v1/router.py                        18      0   100%
+app/api/v1/users.py                          1      1     0%   1
+app/core/__init__.py                         0      0   100%
+app/core/config.py                          40      5    88%   52, 56, 62, 66, 68
+app/core/context.py                         19     10    47%   27-37
+app/core/exception_handlers.py              32     16    50%   11-23, 29-36, 50-56, 72-85, 99-100
+app/core/exceptions.py                      87     22    75%   16-22, 32, 47, 57, 67, 77, 87, 97, 112, 127, 137, 147, 157, 167, 177, 187
+app/core/logging_config.py                  54     19    65%   21-53, 76, 112-114
+app/core/rate_limiter.py                    30     13    57%   35-51, 67-68
+app/core/redis.py                           50     24    52%   20, 39-45, 51-67, 86-88
+app/models/__init__.py                       7      0   100%
+app/models/audit_log.py                     19      1    95%   10
+app/models/mfa_request.py                   12      0   100%
+app/models/software_request.py              13      0   100%
+app/models/ticket.py                        13      0   100%
+app/models/user.py                          11      0   100%
+app/models/workflow.py                      12      0   100%
+app/repositories/audit_repository.py        32     22    31%   26-41, 45-46, 62-78
+app/repositories/user_repository.py         10      3    70%   10, 13, 16
+app/services/__init__.py                     0      0   100%
+app/services/audit_service.py               26     13    50%   35-65, 69, 83
+app/services/notification_service.py       145     76    48%   24-32, 55-64, 88-92, 99, 154, 156, 160, 162, 165-169, 182-185, 191-307, 327, 345, 351
+app/services/password_reset_service.py      63     38    40%   29, 36-38, 45-47, 54-56, 123-194, 294
+app/services/password_service.py             0      0   100%
+app/services/redis_service.py               73     55    25%   17, 20, 23, 26, 29, 37-47, 53-58, 64-66, 72-74, 80-82, 101-149
+app/services/user_service.py                34     22    35%   21-102
+----------------------------------------------------------------------
+TOTAL                                      929    373    60%
+Coverage HTML written to dir coverage/html
+Coverage XML written to file coverage/coverage.xml
+============================== 7 passed in 4.19s ===============================

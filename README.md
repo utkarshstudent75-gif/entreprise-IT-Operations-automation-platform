@@ -257,38 +257,151 @@ docker compose up --build
 | Backend API        | http://localhost:8000      |
 | FastAPI Swagger UI | http://localhost:8000/docs |
 
-## Redis Infrastructure
+## Redis & Password Reset Architecture
 
-The platform integrates **Redis 7** (using `redis:7-alpine`) to serve as the high-performance storage backend for future sprints (OTP storage, caching, and rate limiting).
+The platform integrates **Redis 7** (using `redis:7-alpine`) to serve as the high-performance storage backend for the password reset workflow. Redis serves as the single source of truth for all temporary OTP states.
 
-### Starting Redis Locally
-Redis starts automatically as part of the local Docker Compose stack:
+### Redis Key Design & Lifecycle
+All Redis keys are centrally namespaced to prevent key collisions:
+1. **Active OTP Hash (`otp:<email>`)**:
+   - **Type**: Redis Hash
+   - **Fields**: `otp_hash` (SHA-256 hash of the 6-digit OTP code) and `attempts` (count of failed verification attempts).
+   - **TTL**: `settings.OTP_EXPIRY_MINUTES * 60` seconds (defaults to 5 minutes).
+2. **Expiry Metadata Tracker (`otp:meta:<email>`)**:
+   - **Type**: Redis String (`"1"`)
+   - **TTL**: `settings.OTP_EXPIRY_MINUTES * 60 * 24` seconds (24 hours).
+   - **Purpose**: Distinguishes between an expired OTP (meta key present, active key expired) and an invalid/non-existent request (neither key present).
+3. **Consumed Anti-Replay Guard (`otp:used:<email>`)**:
+   - **Type**: Redis String (`otp_hash`)
+   - **TTL**: `settings.OTP_EXPIRY_MINUTES * 60` seconds.
+   - **Purpose**: Prevents replay attacks by rejecting attempts to reuse a consumed OTP within the original expiration window.
+
+### Security Controls
+- **One-Way Hashing**: OTP values are never stored or logged in plaintext. They are hashed using SHA-256 before storing.
+- **Secure Comparison**: OTP hashes are compared using constant-time string comparison (`secrets.compare_digest`) to prevent timing attacks.
+- **Attempts Counter & Lockout**: Atomic increments (`hincrby`) track failed verification attempts. If `attempts >= settings.OTP_MAX_ATTEMPTS`, the OTP is immediately deleted from Redis and the user is locked out.
+- **Immediate Consumption**: Upon successful password reset, the active OTP key is deleted immediately and marked in the anti-replay tracker.
+
+---
+
+## Environment Variables Configuration
+
+The following table documents all environment variables used by the application backend. These are configured in the `backend/.env` file (copied from `backend/.env.example`).
+
+| Variable Name | Description | Default Value | Example Value |
+| --- | --- | --- | --- |
+| **Database** | | | |
+| `DATABASE_URL` | SQLAlchemy PostgreSQL connection URL | N/A | `postgresql://postgres:postgres@localhost:5432/eitoap` |
+| **Redis** | | | |
+| `REDIS_URL` | Full Redis connection URL (overrides individual options if set) | N/A | `redis://localhost:6379/0` |
+| `REDIS_HOST` | Hostname of the Redis server | `localhost` | `redis` |
+| `REDIS_PORT` | Port of the Redis server | `6379` | `6379` |
+| `REDIS_DB` | Redis database index | `0` | `0` |
+| `REDIS_PASSWORD` | Optional password for Redis authentication | `""` | `mysecretpassword` |
+| **OTP Settings** | | | |
+| `OTP_LENGTH` | Length of generated OTP code | `6` | `6` |
+| `OTP_EXPIRY_MINUTES` | Time limit in minutes for active OTP verification | `5` | `5` |
+| `OTP_MAX_ATTEMPTS` | Maximum allowed failed attempts before OTP deletion | `3` | `3` |
+| **SMS Notification** | | | |
+| `NOTIFICATION_PROVIDER`| Notification dispatch provider (`console` or `sms`) | `console` | `sms` |
+| `SMS_API_KEY` | Authentication API key for the third-party SMS provider | `""` | `sk_sms_0e3d6...` |
+| `SMS_ACCOUNT_SID` | Twilio-style Account SID for the third-party SMS provider | `""` | `AC555682c8...` |
+| `SMS_BASE_URL` | Endpoint URL of the third-party SMS API | `https://api.sms-provider.com/v1` | `https://od2.in/api/sms/send` |
+| `SMS_SENDER_ID` | Sender name/number for dispatched SMS messages | `IT-OPS` | `+1234567890` |
+| `SMS_TIMEOUT_SECONDS` | HTTP request timeout for SMS delivery requests | `5.0` | `5.0` |
+| `SMS_RETRY_COUNT` | Number of times to retry transient SMS API failures | `3` | `3` |
+| `SMS_TEST_RECIPIENT` | Fallback phone number used for OTP delivery when email is used | `""` | `+911800123456` |
+
+---
+
+## Testing Guide
+
+The codebase enforces strict test coverage and static analysis verification. 
+
+### Running Tests Locally
+Ensure that the PostgreSQL and Redis containers are running:
 ```bash
-docker compose up -d
+docker compose up -d postgres redis
 ```
 
-### Environment Variables
-The application's Redis client is configured via the following environment variables (defined in `.env`):
-- `REDIS_URL`: Full Redis connection URL (e.g., `redis://redis:6379/0`). If provided, this URL overrides individual host/port configurations.
-- `REDIS_HOST`: Redis host name (defaults to `localhost`).
-- `REDIS_PORT`: Redis port (defaults to `6379`).
-- `REDIS_DB`: Redis database index (defaults to `0`).
-- `REDIS_PASSWORD`: Optional Redis password.
+Navigate to the `backend` directory and run the test suite using pytest:
+```bash
+cd backend
+.venv/bin/pytest --cov=app --cov-report=xml --cov-report=html --junitxml=junit.xml
+```
 
-### Readiness Health Check
-The application health check system has been updated. The `/ready` (and `/api/v1/ready`) endpoint checks the status of both **PostgreSQL** and **Redis**. It returns a `503 Service Unavailable` response if either service is unreachable:
-- Request: `GET /ready`
-- Success Response (200 OK):
-  ```json
-  {
-    "success": true,
-    "data": {
-      "status": "ready",
-      "database": "connected",
-      "redis": "connected"
-    }
-  }
-  ```
+This command runs the full test suite and automatically generates:
+1. **Console Report**: Printed directly in the shell terminal.
+2. **JUnit XML Report**: Created at `junit.xml` (useful for CI/CD integrations).
+3. **Coverage XML**: Created at `coverage/coverage.xml`.
+4. **Coverage HTML**: Generated in the `coverage/html/` directory (open `coverage/html/index.html` in a web browser to view).
+
+### Security Analysis Scan
+Run Bandit to check for common security bugs:
+```bash
+.venv/bin/bandit -r app -f json -o bandit-report.json
+```
+This generates a `bandit-report.json` detailing any identified vulnerabilities or security alerts.
+
+---
+
+## CI/CD Pipeline & GitHub Actions Strategy
+
+The project utilizes GitHub Actions for continuous integration. The pipeline configuration is located in `.github/workflows/ci.yml`.
+
+### Workflow Services
+For the backend test job, the workflow automatically runs containerized service dependencies:
+- **PostgreSQL**: Starts `postgres:17-alpine` database.
+- **Redis**: Starts `redis:7-alpine` caching database.
+
+### Workflow Steps
+1. **Formatting & Linting**: Runs `ruff check .`, `black --check .`, and `isort --check .`.
+2. **Security Scan**: Runs `bandit -r app` to find security vulnerabilities.
+3. **Connectivity Wait**: Executes `python scripts/wait_for_services.py` to block until PostgreSQL and Redis are fully online, failing immediately if they are unreachable.
+4. **Pytest Run**: Executes the test suite and generates `junit.xml` and coverage files.
+5. **App Validation**: Validates the application imports cleanly via `python -c "from app.main import app"`.
+6. **Docker Build & Trivy Scan**: Builds frontend and backend Docker images, saves them to `.tar` files, and scans them using `trivy` for high and critical OS/library vulnerabilities.
+
+### Published CI Artifacts
+Upon workflow completion, the following artifacts are uploaded to the Actions run:
+- `pytest-junit-xml`: JUnit XML test report.
+- `coverage-xml`: Coverage XML document.
+- `coverage-html`: Full interactive coverage HTML report.
+- `bandit-report`: JSON-formatted Bandit vulnerability scan report.
+- `trivy-sarif-reports`: Trivy vulnerability SARIF documents (also uploaded to GitHub Security center).
+- `backend-sbom` / `frontend-sbom`: CycloneDX-formatted Software Bill of Materials (SBOM).
+
+---
+
+## SMS Notification Integration
+
+The platform features an Enterprise SMS Notification delivery integration designed with strict **Clean Architecture**, **Dependency Inversion**, and **Data Privacy Guarantees**.
+
+```text
+PasswordResetService
+        │
+        ▼
+NotificationService
+        │
+        ▼
+NotificationProvider (Interface)
+   ┌────┴───────────────────────────┐
+   ▼                                ▼
+ConsoleNotificationProvider     ThirdPartySmsNotificationProvider
+                                    │
+                                    ▼ (SmsRequest DTO ONLY)
+                                Third-Party SMS API
+```
+
+### Architecture & Data Privacy Guarantees
+- **Strict Dependency Inversion**: `PasswordResetService` only depends on `NotificationService`, which delegates to `NotificationProvider`. The core application has ZERO knowledge of SMS vendor HTTP payloads, authentication, or headers.
+- **DTO Enforcement**: The SMS provider ONLY receives a minimal `SmsRequest` DTO containing `phone_number` and `message`. No domain objects (`User`, `Ticket`, `AuditLog`), Entra ID claims, emails, or credentials leave the application.
+- **Minimal SMS Message Content**: Contains ONLY the OTP code and expiration notice.
+- **Log Security & Masking**: Destination phone numbers are masked in logs (e.g. `+1*****4567`). API keys, Account SIDs, authorization headers, and raw credentials are NEVER logged.
+- **Configuration & Fast Fail**: Configuration parameters (`NOTIFICATION_PROVIDER`, `SMS_API_KEY`, `SMS_ACCOUNT_SID`, `SMS_BASE_URL`, `SMS_TIMEOUT_SECONDS`, `SMS_RETRY_COUNT`) are validated during application initialization.
+- **Transient Retry Policy**: Retries transient failures (HTTP 5xx, timeouts, 429 rate limit) with exponential backoff up to `SMS_RETRY_COUNT`. Non-transient errors (HTTP 400, 401, 403) fail fast without retrying.
+- **Extensible**: Designed for future seamless migration to Azure Communication Services, Twilio, or AWS SNS without altering core application logic.
+
 
 ---
 

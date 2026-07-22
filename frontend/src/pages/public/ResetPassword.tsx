@@ -1,6 +1,6 @@
 import { Box, Stack, Typography, Button } from '@mui/material'
 import { useState, useEffect, useMemo } from 'react'
-import { useSearchParams, Link as RouterLink } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link as RouterLink } from 'react-router-dom'
 
 import { resetPassword } from '../../api/passwordApi'
 import { EnterpriseCard } from '../../components/EnterpriseCard'
@@ -13,6 +13,7 @@ import { TextInput } from '../../components/TextInput'
 const stepLabels = ['Forgot Password', 'Verify OTP', 'Reset Password']
 
 export function ResetPassword() {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [email, setEmail] = useState('')
   const [otp, setOtp] = useState('')
@@ -49,6 +50,9 @@ export function ResetPassword() {
       if (response.success) {
         setStatusMessage(response.message)
         setStatusSeverity('success')
+        setTimeout(() => {
+          navigate('/login')
+        }, 2000)
       } else {
         setStatusMessage(response.message)
         setStatusSeverity('error')
@@ -57,6 +61,7 @@ export function ResetPassword() {
       setLoading(false)
     }
   }
+
 
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center' }}>

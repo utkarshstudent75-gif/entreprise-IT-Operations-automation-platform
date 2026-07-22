@@ -1,0 +1,319 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/utkarsh/projects/entreprise-IT-Operations-automation-platform/backend
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+testpaths: tests
+plugins: anyio-4.14.2, asyncio-1.4.0, cov-7.1.0, mock-3.15.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 115 items
+
+tests/integration/test_audit_api.py ....                                 [  3%]
+tests/integration/test_audit_service.py ...                              [  6%]
+tests/integration/test_e2e_workflow.py .                                 [  6%]
+tests/integration/test_edge_cases.py ........                            [ 13%]
+tests/integration/test_health.py .......                                 [ 20%]
+tests/integration/test_password_reset_flow.py ....F..F                   [ 26%]
+tests/integration/test_redis_health.py ......                            [ 32%]
+tests/integration/test_sms_integration.py ss                             [ 33%]
+tests/unit/test_audit_service.py .....                                   [ 38%]
+tests/unit/test_logging.py .....                                         [ 42%]
+tests/unit/test_notification_service.py ....                             [ 46%]
+tests/unit/test_password_service.py ........                             [ 53%]
+tests/unit/test_rate_limiter.py ..                                       [ 54%]
+tests/unit/test_redis.py ......F                                         [ 60%]
+tests/unit/test_redis_service.py .............                           [ 72%]
+tests/unit/test_repositories.py ........                                 [ 79%]
+tests/unit/test_sms_notification_provider.py .............               [ 90%]
+tests/unit/test_user_service.py ...                                      [ 93%]
+tests/unit/test_validation.py ........                                   [100%]
+
+=================================== FAILURES ===================================
+________________________ test_otp_expiration_real_redis ________________________
+
+db = <sqlalchemy.orm.session.Session object at 0x7be4a73ebf50>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7be4a73e99a0>
+
+    async def test_otp_expiration_real_redis(db, monkeypatch):
+        user = User(
+            username="expire_test",
+            email="expire@example.com",
+            hashed_password="oldhash",
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    
+        # Monkeypatch settings to expire in 1 second
+        monkeypatch.setattr(settings, "OTP_EXPIRY_MINUTES", 1 / 60)
+    
+        # Request password reset
+>       await password_reset_service.request_password_reset(db, user.email)
+
+tests/integration/test_password_reset_flow.py:161: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/services/password_reset_service.py:91: in request_password_reset
+    await redis_service.store_otp(
+app/services/redis_service.py:44: in store_otp
+    await client.expire(key, expires_in_seconds)
+.venv/lib/python3.12/site-packages/redis/asyncio/client.py:677: in execute_command
+    return await conn.retry.call_with_retry(
+.venv/lib/python3.12/site-packages/redis/asyncio/retry.py:71: in call_with_retry
+    return await do()
+           ^^^^^^^^^^
+.venv/lib/python3.12/site-packages/redis/asyncio/client.py:652: in _send_command_parse_response
+    return await self.parse_response(conn, command_name, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/redis/asyncio/client.py:698: in parse_response
+    response = await connection.read_response()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <redis.asyncio.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+disable_decoding = False, timeout = None, disconnect_on_error = True
+push_request = False
+
+    async def read_response(
+        self,
+        disable_decoding: bool = False,
+        timeout: Optional[float] = None,
+        *,
+        disconnect_on_error: bool = True,
+        push_request: Optional[bool] = False,
+    ):
+        """Read the response from a previously sent command"""
+        read_timeout = timeout if timeout is not None else self.socket_timeout
+        host_error = self._host_error()
+        try:
+            if read_timeout is not None and self.protocol in ["3", 3]:
+                async with async_timeout(read_timeout):
+                    response = await self._parser.read_response(
+                        disable_decoding=disable_decoding, push_request=push_request
+                    )
+            elif read_timeout is not None:
+                async with async_timeout(read_timeout):
+                    response = await self._parser.read_response(
+                        disable_decoding=disable_decoding
+                    )
+            elif self.protocol in ["3", 3]:
+                response = await self._parser.read_response(
+                    disable_decoding=disable_decoding, push_request=push_request
+                )
+            else:
+                response = await self._parser.read_response(
+                    disable_decoding=disable_decoding
+                )
+        except asyncio.TimeoutError:
+            if timeout is not None:
+                # user requested timeout, return None. Operation can be retried
+                return None
+            # it was a self.socket_timeout error.
+            if disconnect_on_error:
+                await self.disconnect(nowait=True)
+            raise TimeoutError(f"Timeout reading from {host_error}")
+        except OSError as e:
+            if disconnect_on_error:
+                await self.disconnect(nowait=True)
+            raise ConnectionError(f"Error while reading from {host_error} : {e.args}")
+        except BaseException:
+            # Also by default close in case of BaseException.  A lot of code
+            # relies on this behaviour when doing Command/Response pairs.
+            # See #1128.
+            if disconnect_on_error:
+                await self.disconnect(nowait=True)
+            raise
+    
+        if self.health_check_interval:
+            next_time = asyncio.get_running_loop().time() + self.health_check_interval
+            self.next_health_check = next_time
+    
+        if isinstance(response, ResponseError):
+>           raise response from None
+E           redis.exceptions.ResponseError: value is not an integer or out of range
+
+.venv/lib/python3.12/site-packages/redis/asyncio/connection.py:622: ResponseError
+----------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-07-22T05:21:06.509Z", "level": "INFO", "request_id": null, "module": "redis", "action": "password_reset_requested", "user_id": 15, "message": "Redis connection established", "extra": {"taskName": "Task-231"}}
+{"timestamp": "2026-07-22T05:21:06.511Z", "level": "ERROR", "request_id": null, "module": "password_reset_service", "action": "password_reset_requested", "user_id": 15, "message": "Failed to create password reset request: value is not an integer or out of range", "extra": {"taskName": "Task-231"}}
+2026-07-22 05:21:06,512 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+{"timestamp": "2026-07-22T05:21:06.512Z", "level": "INFO", "request_id": null, "module": "base", "action": "password_reset_requested", "user_id": 15, "message": "BEGIN (implicit)", "extra": {"taskName": "Task-231", "asctime": "2026-07-22 05:21:06,512"}}
+2026-07-22 05:21:06,513 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (timestamp, user_id, action, status, ip_address, user_agent, request_id, details) VALUES (%(timestamp)s, %(user_id)s, %(action)s, %(status)s, %(ip_address)s, %(user_agent)s, %(request_id)s, %(details)s::JSON) RETURNING audit_logs.id
+{"timestamp": "2026-07-22T05:21:06.513Z", "level": "INFO", "request_id": null, "module": "base", "action": "password_reset_requested", "user_id": 15, "message": "INSERT INTO audit_logs (timestamp, user_id, action, status, ip_address, user_agent, request_id, details) VALUES (%(timestamp)s, %(user_id)s, %(action)s, %(status)s, %(ip_address)s, %(user_agent)s, %(request_id)s, %(details)s::JSON) RETURNING audit_logs.id", "extra": {"taskName": "Task-231", "asctime": "2026-07-22 05:21:06,513"}}
+2026-07-22 05:21:06,513 INFO sqlalchemy.engine.Engine [cached since 7.955s ago] {'timestamp': datetime.datetime(2026, 7, 22, 5, 21, 6, 513433), 'user_id': 15, 'action': 'forgot_password', 'status': 'FAILED', 'ip_address': None, 'user_agent': None, 'request_id': None, 'details': '{"email": "expire@example.com", "reason": "value is not an integer or out of range"}'}
+{"timestamp": "2026-07-22T05:21:06.513Z", "level": "INFO", "request_id": null, "module": "base", "action": "password_reset_requested", "user_id": 15, "message": "[cached since 7.955s ago] {'timestamp': datetime.datetime(2026, 7, 22, 5, 21, 6, 513433), 'user_id': 15, 'action': 'forgot_password', 'status': 'FAILED', 'ip_address': None, 'user_agent': None, 'request_id': None, 'details': '{\"email\": \"expire@example.com\", \"reason\": \"value is not an integer or out of range\"}'}", "extra": {"taskName": "Task-231", "asctime": "2026-07-22 05:21:06,513"}}
+2026-07-22 05:21:06,516 INFO sqlalchemy.engine.Engine COMMIT
+{"timestamp": "2026-07-22T05:21:06.516Z", "level": "INFO", "request_id": null, "module": "base", "action": "password_reset_requested", "user_id": 15, "message": "COMMIT", "extra": {"taskName": "Task-231", "asctime": "2026-07-22 05:21:06,516"}}
+2026-07-22 05:21:06,519 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+{"timestamp": "2026-07-22T05:21:06.519Z", "level": "INFO", "request_id": null, "module": "base", "action": "password_reset_requested", "user_id": 15, "message": "BEGIN (implicit)", "extra": {"taskName": "Task-231", "asctime": "2026-07-22 05:21:06,519"}}
+2026-07-22 05:21:06,520 INFO sqlalchemy.engine.Engine SELECT audit_logs.id, audit_logs.timestamp, audit_logs.user_id, audit_logs.action, audit_logs.status, audit_logs.ip_address, audit_logs.user_agent, audit_logs.request_id, audit_logs.details 
+FROM audit_logs 
+WHERE audit_logs.id = %(pk_1)s
+{"timestamp": "2026-07-22T05:21:06.520Z", "level": "INFO", "request_id": null, "module": "base", "action": "password_reset_requested", "user_id": 15, "message": "SELECT audit_logs.id, audit_logs.timestamp, audit_logs.user_id, audit_logs.action, audit_logs.status, audit_logs.ip_address, audit_logs.user_agent, audit_logs.request_id, audit_logs.details \nFROM audit_logs \nWHERE audit_logs.id = %(pk_1)s", "extra": {"taskName": "Task-231", "asctime": "2026-07-22 05:21:06,520"}}
+2026-07-22 05:21:06,520 INFO sqlalchemy.engine.Engine [cached since 7.877s ago] {'pk_1': 37}
+{"timestamp": "2026-07-22T05:21:06.520Z", "level": "INFO", "request_id": null, "module": "base", "action": "password_reset_requested", "user_id": 15, "message": "[cached since 7.877s ago] {'pk_1': 37}", "extra": {"taskName": "Task-231", "asctime": "2026-07-22 05:21:06,520"}}
+2026-07-22 05:21:06,522 INFO sqlalchemy.engine.Engine ROLLBACK
+{"timestamp": "2026-07-22T05:21:06.522Z", "level": "INFO", "request_id": null, "module": "base", "action": "password_reset_requested", "user_id": 15, "message": "ROLLBACK", "extra": {"taskName": "Task-231", "asctime": "2026-07-22 05:21:06,522"}}
+------------------------------ Captured log call -------------------------------
+INFO     itpa:redis.py:91 Redis connection established
+ERROR    itpa:password_reset_service.py:97 Failed to create password reset request: value is not an integer or out of range
+INFO     sqlalchemy.engine.Engine:base.py:2698 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1842 INSERT INTO audit_logs (timestamp, user_id, action, status, ip_address, user_agent, request_id, details) VALUES (%(timestamp)s, %(user_id)s, %(action)s, %(status)s, %(ip_address)s, %(user_agent)s, %(request_id)s, %(details)s::JSON) RETURNING audit_logs.id
+INFO     sqlalchemy.engine.Engine:base.py:1842 [cached since 7.955s ago] {'timestamp': datetime.datetime(2026, 7, 22, 5, 21, 6, 513433), 'user_id': 15, 'action': 'forgot_password', 'status': 'FAILED', 'ip_address': None, 'user_agent': None, 'request_id': None, 'details': '{"email": "expire@example.com", "reason": "value is not an integer or out of range"}'}
+INFO     sqlalchemy.engine.Engine:base.py:2704 COMMIT
+INFO     sqlalchemy.engine.Engine:base.py:2698 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1842 SELECT audit_logs.id, audit_logs.timestamp, audit_logs.user_id, audit_logs.action, audit_logs.status, audit_logs.ip_address, audit_logs.user_agent, audit_logs.request_id, audit_logs.details 
+FROM audit_logs 
+WHERE audit_logs.id = %(pk_1)s
+INFO     sqlalchemy.engine.Engine:base.py:1842 [cached since 7.877s ago] {'pk_1': 37}
+INFO     sqlalchemy.engine.Engine:base.py:2701 ROLLBACK
+--------------------------- Captured stdout teardown ---------------------------
+{"timestamp": "2026-07-22T05:21:06.822Z", "level": "INFO", "request_id": null, "module": "redis", "action": null, "user_id": null, "message": "Redis Disconnected", "extra": {"taskName": "Task-232"}}
+---------------------------- Captured log teardown -----------------------------
+INFO     itpa:redis.py:79 Redis Disconnected
+__________________ test_redis_unavailable_during_verification __________________
+
+client = <starlette.testclient.TestClient object at 0x7be4a7250bc0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7be4a73abec0>
+
+    def test_redis_unavailable_during_verification(client, monkeypatch):
+        # Mock get_redis to raise an error
+        async def mock_get_redis_raise():
+            raise Exception("Redis connection lost")
+    
+        monkeypatch.setattr("app.services.redis_service.get_redis", mock_get_redis_raise)
+        monkeypatch.setattr("app.core.redis.get_redis", mock_get_redis_raise)
+    
+        # Try to verify OTP
+        response = client.post(
+            "/api/v1/password/verify-otp",
+            json={"email": "test@example.com", "otp": "123456"},
+        )
+>       assert response.status_code == 500
+E       assert 400 == 500
+E        +  where 400 = <Response [400 Bad Request]>.status_code
+
+tests/integration/test_password_reset_flow.py:269: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+{"timestamp": "2026-07-22T05:21:17.042Z", "level": "INFO", "request_id": null, "module": "main", "action": null, "user_id": null, "message": "Redis Connected", "extra": {"taskName": "anyio.from_thread.BlockingPortal._call_func"}}
+------------------------------ Captured log setup ------------------------------
+INFO     itpa:main.py:27 Redis Connected
+----------------------------- Captured stdout call -----------------------------
+{"timestamp": "2026-07-22T05:21:17.054Z", "level": "WARNING", "request_id": "16cc4a5c-83a4-4d78-a063-a9d34de68238", "module": "password_reset_service", "action": "otp_verification", "user_id": null, "message": "Password reset verify failed for unknown email test@example.com", "extra": {"taskName": "starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro"}}
+2026-07-22 05:21:17,056 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+{"timestamp": "2026-07-22T05:21:17.056Z", "level": "INFO", "request_id": "16cc4a5c-83a4-4d78-a063-a9d34de68238", "module": "base", "action": "otp_verification", "user_id": null, "message": "BEGIN (implicit)", "extra": {"taskName": "starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro", "asctime": "2026-07-22 05:21:17,056"}}
+2026-07-22 05:21:17,057 INFO sqlalchemy.engine.Engine INSERT INTO audit_logs (timestamp, user_id, action, status, ip_address, user_agent, request_id, details) VALUES (%(timestamp)s, %(user_id)s, %(action)s, %(status)s, %(ip_address)s, %(user_agent)s, %(request_id)s, %(details)s::JSON) RETURNING audit_logs.id
+{"timestamp": "2026-07-22T05:21:17.057Z", "level": "INFO", "request_id": "16cc4a5c-83a4-4d78-a063-a9d34de68238", "module": "base", "action": "otp_verification", "user_id": null, "message": "INSERT INTO audit_logs (timestamp, user_id, action, status, ip_address, user_agent, request_id, details) VALUES (%(timestamp)s, %(user_id)s, %(action)s, %(status)s, %(ip_address)s, %(user_agent)s, %(request_id)s, %(details)s::JSON) RETURNING audit_logs.id", "extra": {"taskName": "starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro", "asctime": "2026-07-22 05:21:17,057"}}
+2026-07-22 05:21:17,058 INFO sqlalchemy.engine.Engine [cached since 18.5s ago] {'timestamp': datetime.datetime(2026, 7, 22, 5, 21, 17, 57685), 'user_id': None, 'action': 'otp_verification', 'status': 'FAILED', 'ip_address': 'testclient', 'user_agent': 'testclient', 'request_id': '16cc4a5c-83a4-4d78-a063-a9d34de68238', 'details': '{"email": "test@example.com", "reason": "Invalid email or OTP"}'}
+{"timestamp": "2026-07-22T05:21:17.058Z", "level": "INFO", "request_id": "16cc4a5c-83a4-4d78-a063-a9d34de68238", "module": "base", "action": "otp_verification", "user_id": null, "message": "[cached since 18.5s ago] {'timestamp': datetime.datetime(2026, 7, 22, 5, 21, 17, 57685), 'user_id': None, 'action': 'otp_verification', 'status': 'FAILED', 'ip_address': 'testclient', 'user_agent': 'testclient', 'request_id': '16cc4a5c-83a4-4d78-a063-a9d34de68238', 'details': '{\"email\": \"test@example.com\", \"reason\": \"Invalid email or OTP\"}'}", "extra": {"taskName": "starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro", "asctime": "2026-07-22 05:21:17,058"}}
+2026-07-22 05:21:17,062 INFO sqlalchemy.engine.Engine COMMIT
+{"timestamp": "2026-07-22T05:21:17.062Z", "level": "INFO", "request_id": "16cc4a5c-83a4-4d78-a063-a9d34de68238", "module": "base", "action": "otp_verification", "user_id": null, "message": "COMMIT", "extra": {"taskName": "starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro", "asctime": "2026-07-22 05:21:17,062"}}
+2026-07-22 05:21:17,066 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+{"timestamp": "2026-07-22T05:21:17.066Z", "level": "INFO", "request_id": "16cc4a5c-83a4-4d78-a063-a9d34de68238", "module": "base", "action": "otp_verification", "user_id": null, "message": "BEGIN (implicit)", "extra": {"taskName": "starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro", "asctime": "2026-07-22 05:21:17,066"}}
+2026-07-22 05:21:17,067 INFO sqlalchemy.engine.Engine SELECT audit_logs.id, audit_logs.timestamp, audit_logs.user_id, audit_logs.action, audit_logs.status, audit_logs.ip_address, audit_logs.user_agent, audit_logs.request_id, audit_logs.details 
+FROM audit_logs 
+WHERE audit_logs.id = %(pk_1)s
+{"timestamp": "2026-07-22T05:21:17.067Z", "level": "INFO", "request_id": "16cc4a5c-83a4-4d78-a063-a9d34de68238", "module": "base", "action": "otp_verification", "user_id": null, "message": "SELECT audit_logs.id, audit_logs.timestamp, audit_logs.user_id, audit_logs.action, audit_logs.status, audit_logs.ip_address, audit_logs.user_agent, audit_logs.request_id, audit_logs.details \nFROM audit_logs \nWHERE audit_logs.id = %(pk_1)s", "extra": {"taskName": "starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro", "asctime": "2026-07-22 05:21:17,067"}}
+2026-07-22 05:21:17,068 INFO sqlalchemy.engine.Engine [cached since 18.42s ago] {'pk_1': 42}
+{"timestamp": "2026-07-22T05:21:17.068Z", "level": "INFO", "request_id": "16cc4a5c-83a4-4d78-a063-a9d34de68238", "module": "base", "action": "otp_verification", "user_id": null, "message": "[cached since 18.42s ago] {'pk_1': 42}", "extra": {"taskName": "starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro", "asctime": "2026-07-22 05:21:17,068"}}
+2026-07-22 05:21:17,070 INFO sqlalchemy.engine.Engine ROLLBACK
+{"timestamp": "2026-07-22T05:21:17.070Z", "level": "INFO", "request_id": "16cc4a5c-83a4-4d78-a063-a9d34de68238", "module": "base", "action": "otp_verification", "user_id": null, "message": "ROLLBACK", "extra": {"taskName": "starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro", "asctime": "2026-07-22 05:21:17,070"}}
+{"timestamp": "2026-07-22T05:21:17.073Z", "level": "WARNING", "request_id": "16cc4a5c-83a4-4d78-a063-a9d34de68238", "module": "exception_handlers", "action": null, "user_id": null, "message": "App Exception INVALID_OTP: 400 - Invalid email or OTP. (/api/v1/password/verify-otp)", "extra": {"taskName": "starlette.middleware.base.BaseHTTPMiddleware.__call__.<locals>.call_next.<locals>.coro"}}
+{"timestamp": "2026-07-22T05:21:17.074Z", "level": "INFO", "request_id": null, "module": "_client", "action": null, "user_id": null, "message": "HTTP Request: POST http://testserver/api/v1/password/verify-otp \"HTTP/1.1 400 Bad Request\"", "extra": {"taskName": null}}
+------------------------------ Captured log call -------------------------------
+WARNING  itpa:password_reset_service.py:129 Password reset verify failed for unknown email test@example.com
+INFO     sqlalchemy.engine.Engine:base.py:2698 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1842 INSERT INTO audit_logs (timestamp, user_id, action, status, ip_address, user_agent, request_id, details) VALUES (%(timestamp)s, %(user_id)s, %(action)s, %(status)s, %(ip_address)s, %(user_agent)s, %(request_id)s, %(details)s::JSON) RETURNING audit_logs.id
+INFO     sqlalchemy.engine.Engine:base.py:1842 [cached since 18.5s ago] {'timestamp': datetime.datetime(2026, 7, 22, 5, 21, 17, 57685), 'user_id': None, 'action': 'otp_verification', 'status': 'FAILED', 'ip_address': 'testclient', 'user_agent': 'testclient', 'request_id': '16cc4a5c-83a4-4d78-a063-a9d34de68238', 'details': '{"email": "test@example.com", "reason": "Invalid email or OTP"}'}
+INFO     sqlalchemy.engine.Engine:base.py:2704 COMMIT
+INFO     sqlalchemy.engine.Engine:base.py:2698 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1842 SELECT audit_logs.id, audit_logs.timestamp, audit_logs.user_id, audit_logs.action, audit_logs.status, audit_logs.ip_address, audit_logs.user_agent, audit_logs.request_id, audit_logs.details 
+FROM audit_logs 
+WHERE audit_logs.id = %(pk_1)s
+INFO     sqlalchemy.engine.Engine:base.py:1842 [cached since 18.42s ago] {'pk_1': 42}
+INFO     sqlalchemy.engine.Engine:base.py:2701 ROLLBACK
+WARNING  itpa:exception_handlers.py:29 App Exception INVALID_OTP: 400 - Invalid email or OTP. (/api/v1/password/verify-otp)
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/v1/password/verify-otp "HTTP/1.1 400 Bad Request"
+--------------------------- Captured stdout teardown ---------------------------
+{"timestamp": "2026-07-22T05:21:17.091Z", "level": "INFO", "request_id": null, "module": "redis", "action": null, "user_id": null, "message": "Redis Disconnected", "extra": {"taskName": "anyio.from_thread.BlockingPortal._call_func"}}
+---------------------------- Captured log teardown -----------------------------
+INFO     itpa:redis.py:79 Redis Disconnected
+________________________________ test_get_redis ________________________________
+
+    @pytest.mark.asyncio
+    async def test_get_redis():
+        with patch("app.core.redis.redis_manager") as mock_manager:
+            mock_manager.client = None
+            mock_manager.init_redis = MagicMock()
+            mock_client = MagicMock()
+    
+            def set_client():
+                mock_manager.client = mock_client
+    
+            mock_manager.init_redis.side_effect = set_client
+    
+>           client = await get_redis()
+                     ^^^^^^^^^^^^^^^^^
+
+tests/unit/test_redis.py:112: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def get_redis() -> Redis:
+        if redis_manager.client is None:
+            redis_manager.init_redis()
+>           if await redis_manager.ping():
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           TypeError: object MagicMock can't be used in 'await' expression
+
+app/core/redis.py:90: TypeError
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.3-final-0 ________________
+
+Name                                     Stmts   Miss  Cover   Missing
+----------------------------------------------------------------------
+app/api/__init__.py                          0      0   100%
+app/api/routers/admin.py                    23      1    96%   23
+app/api/routers/auth.py                     12      0   100%
+app/api/routers/metrics.py                   5      1    80%   11
+app/api/routers/mfa.py                       8      2    75%   11, 16
+app/api/routers/password_reset.py            8      0   100%
+app/api/routers/software.py                  8      2    75%   11, 16
+app/api/routers/tickets.py                   5      1    80%   11
+app/api/routers/workflows.py                 5      1    80%   11
+app/api/v1/__init__.py                       0      0   100%
+app/api/v1/audit.py                          1      1     0%   1
+app/api/v1/health.py                        53      9    83%   23-25, 51-56, 74-76
+app/api/v1/password.py                       0      0   100%
+app/api/v1/router.py                        18      0   100%
+app/api/v1/users.py                          1      1     0%   1
+app/core/__init__.py                         0      0   100%
+app/core/config.py                          40      5    88%   48, 52, 58, 62, 64
+app/core/context.py                         19      0   100%
+app/core/exception_handlers.py              32      6    81%   11-23, 50-56, 99-100
+app/core/exceptions.py                      87      1    99%   32
+app/core/logging_config.py                  54      9    83%   26-29, 43-53
+app/core/rate_limiter.py                    30      0   100%
+app/core/redis.py                           54      6    89%   20, 40-41, 54, 59-60
+app/models/__init__.py                       7      0   100%
+app/models/audit_log.py                     19      1    95%   10
+app/models/mfa_request.py                   12      0   100%
+app/models/software_request.py              13      0   100%
+app/models/ticket.py                        13      0   100%
+app/models/user.py                          11      0   100%
+app/models/workflow.py                      12      0   100%
+app/repositories/audit_repository.py        32      0   100%
+app/repositories/user_repository.py         10      0   100%
+app/services/__init__.py                     0      0   100%
+app/services/audit_service.py               26      0   100%
+app/services/notification_service.py       145      7    95%   98, 178, 188, 211, 284, 323, 347
+app/services/password_reset_service.py      63      0   100%
+app/services/password_service.py             0      0   100%
+app/services/redis_service.py               75      0   100%
+app/services/user_service.py                34      8    76%   57-90
+----------------------------------------------------------------------
+TOTAL                                      935     62    93%
+Coverage HTML written to dir coverage/html
+Coverage XML written to file coverage/coverage.xml
+=========================== short test summary info ============================
+FAILED tests/integration/test_password_reset_flow.py::test_otp_expiration_real_redis
+FAILED tests/integration/test_password_reset_flow.py::test_redis_unavailable_during_verification
+FAILED tests/unit/test_redis.py::test_get_redis - TypeError: object MagicMock...
+================== 3 failed, 110 passed, 2 skipped in 27.27s ===================

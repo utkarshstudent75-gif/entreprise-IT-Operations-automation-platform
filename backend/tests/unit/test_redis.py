@@ -102,6 +102,7 @@ async def test_get_redis():
     with patch("app.core.redis.redis_manager") as mock_manager:
         mock_manager.client = None
         mock_manager.init_redis = MagicMock()
+        mock_manager.ping = AsyncMock(return_value=True)
         mock_client = MagicMock()
 
         def set_client():
