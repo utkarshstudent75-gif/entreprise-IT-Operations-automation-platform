@@ -195,4 +195,3 @@ class AuthenticationException(BaseAppException):
 
     def __init__(self, message: str = "Could not validate credentials."):
         super().__init__(message)
-

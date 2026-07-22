@@ -4,11 +4,11 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.exceptions import BaseAppException, AuthenticationException
+from app.core.exceptions import AuthenticationException, BaseAppException
 from app.database.dependencies import get_db
 from app.repositories.user_repository import user_repository
 from app.schemas.response import StandardResponse
-from app.schemas.user import UserCreate, UserResponse, UserLogin, TokenResponse
+from app.schemas.user import TokenResponse, UserCreate, UserLogin, UserResponse
 from app.services.user_service import user_service
 
 router = APIRouter(
@@ -54,8 +54,8 @@ async def login_user(
     if not user_service.pwd_context.verify(request.password, user.hashed_password):
         raise AuthenticationException("Invalid username or password.")
 
-    from app.auth.service import auth_service
     from app.auth.providers.local import LocalAuthenticationProvider
+    from app.auth.service import auth_service
 
     if not isinstance(auth_service, LocalAuthenticationProvider):
         raise BaseAppException(
@@ -66,8 +66,8 @@ async def login_user(
 
     access_token = auth_service.create_access_token(user_id=user.id)
 
-    from app.services.audit_service import audit_service
     from app.core.context import user_id as ctx_user_id
+    from app.services.audit_service import audit_service
 
     ctx_user_id.set(user.id)
     audit_service.record_event(
@@ -83,4 +83,3 @@ async def login_user(
             user=UserResponse.model_validate(user),
         )
     )
-

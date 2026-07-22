@@ -11,7 +11,9 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
-    username: Mapped[str | None] = mapped_column(String(100), unique=True, nullable=True)
+    username: Mapped[str | None] = mapped_column(
+        String(100), unique=True, nullable=True
+    )
 
     email: Mapped[str] = mapped_column(
         String(255), unique=True, nullable=False, index=True
@@ -19,7 +21,9 @@ class User(Base):
 
     hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    entra_oid: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+    entra_oid: Mapped[str | None] = mapped_column(
+        String(255), unique=True, nullable=True
+    )
 
     display_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 

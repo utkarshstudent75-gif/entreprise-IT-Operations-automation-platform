@@ -158,8 +158,9 @@ def test_send_sms_transient_5xx_retry_and_fail():
     mock_response = MagicMock()
     mock_response.status_code = 503
 
-    with patch("httpx.Client.post", return_value=mock_response) as mock_post, patch(
-        "time.sleep"
+    with (
+        patch("httpx.Client.post", return_value=mock_response) as mock_post,
+        patch("time.sleep"),
     ):
         with pytest.raises(SMSDeliveryError):
             provider.send_sms(sms_req)
@@ -179,8 +180,9 @@ def test_send_sms_rate_limit_429_retry():
     mock_response = MagicMock()
     mock_response.status_code = 429
 
-    with patch("httpx.Client.post", return_value=mock_response) as mock_post, patch(
-        "time.sleep"
+    with (
+        patch("httpx.Client.post", return_value=mock_response) as mock_post,
+        patch("time.sleep"),
     ):
         with pytest.raises(SMSRateLimitError):
             provider.send_sms(sms_req)
@@ -197,9 +199,12 @@ def test_send_sms_network_timeout_retry():
     )
     sms_req = SmsRequest(phone_number="+911800123456", message="Code: 123456")
 
-    with patch(
-        "httpx.Client.post", side_effect=httpx.TimeoutException("Timeout")
-    ) as mock_post, patch("time.sleep"):
+    with (
+        patch(
+            "httpx.Client.post", side_effect=httpx.TimeoutException("Timeout")
+        ) as mock_post,
+        patch("time.sleep"),
+    ):
         with pytest.raises(SMSTimeoutError):
             provider.send_sms(sms_req)
         assert mock_post.call_count == 2
@@ -219,8 +224,9 @@ def test_privacy_and_logging_masking(caplog):
     mock_response.status_code = 200
 
     caplog.clear()
-    with caplog.at_level(logging.INFO), patch(
-        "httpx.Client.post", return_value=mock_response
+    with (
+        caplog.at_level(logging.INFO),
+        patch("httpx.Client.post", return_value=mock_response),
     ):
         provider.send_sms(sms_req)
 

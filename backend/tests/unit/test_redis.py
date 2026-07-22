@@ -11,9 +11,10 @@ async def test_redis_manager_init():
     assert manager.pool is None
     assert manager.client is None
 
-    with patch("app.core.redis.ConnectionPool.from_url") as mock_pool, patch(
-        "app.core.redis.Redis"
-    ) as mock_redis:
+    with (
+        patch("app.core.redis.ConnectionPool.from_url") as mock_pool,
+        patch("app.core.redis.Redis") as mock_redis,
+    ):
         mock_pool_instance = MagicMock()
         mock_pool.return_value = mock_pool_instance
         mock_redis_instance = MagicMock()

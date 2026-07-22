@@ -4,13 +4,13 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from app.auth.dependencies import require_roles
 from app.core.exceptions import BaseAppException
 from app.database.dependencies import get_db
+from app.models.user import User
 from app.schemas.audit import AuditLogResponse
 from app.schemas.response import StandardResponse
 from app.services.audit_service import audit_service
-from app.auth.dependencies import require_roles
-from app.models.user import User
 
 router = APIRouter(
     tags=["Admin & Audit Logs"],

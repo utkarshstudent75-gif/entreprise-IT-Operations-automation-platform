@@ -1,8 +1,10 @@
-import pytest
 from datetime import UTC, datetime, timedelta
+
+import pytest
+
 from app.auth.dependencies import get_current_user
-from app.models.user import User
 from app.models.audit_log import AuditLog
+from app.models.user import User
 
 
 @pytest.fixture(autouse=True)

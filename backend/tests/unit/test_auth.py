@@ -1,30 +1,35 @@
-import pytest
-import jwt
-from datetime import datetime, timedelta, UTC
-from unittest.mock import MagicMock, patch
-from fastapi import status
+from datetime import timedelta
+from unittest.mock import patch
 
+import jwt
+import pytest
+
+from app.auth.jwt_validator import EntraJWTValidator
+from app.auth.providers.entra import EntraAuthenticationProvider
+from app.auth.providers.local import LocalAuthenticationProvider
 from app.core.config import settings
 from app.core.exceptions import BaseAppException
 from app.models.user import User
-from app.auth.providers.local import LocalAuthenticationProvider
-from app.auth.providers.entra import EntraAuthenticationProvider
-from app.auth.jwt_validator import EntraJWTValidator
 
 
 def test_local_provider_token_flow(db):
     provider = LocalAuthenticationProvider()
-    
+
     # Create test user
-    user = User(username="test_local", email="local@example.com", hashed_password="pwd", roles="HelpDesk")
+    user = User(
+        username="test_local",
+        email="local@example.com",
+        hashed_password="pwd",
+        roles="HelpDesk",
+    )
     db.add(user)
     db.commit()
     db.refresh(user)
-    
+
     # Create token
     token = provider.create_access_token(user_id=user.id)
     assert token is not None
-    
+
     # Verify token
     verified_user = provider.verify_token(db, token)
     assert verified_user is not None
@@ -34,12 +39,14 @@ def test_local_provider_token_flow(db):
 
 def test_local_provider_invalid_token(db):
     provider = LocalAuthenticationProvider()
-    
+
     # Verify mock/garbage token
     assert provider.verify_token(db, "garbage_token") is None
-    
+
     # Expired token
-    expired_token = provider.create_access_token(user_id=999, expires_delta=timedelta(seconds=-10))
+    expired_token = provider.create_access_token(
+        user_id=999, expires_delta=timedelta(seconds=-10)
+    )
     assert provider.verify_token(db, expired_token) is None
 
 
@@ -51,13 +58,15 @@ def test_entra_provider_user_mapping_new(mock_validate, db):
         "name": "New Entra User",
         "tid": "tenant-456",
     }
-    
+
     provider = EntraAuthenticationProvider()
-    
+
     # Ensure user doesn't exist initially
-    user_in_db = db.query(User).filter(User.email == "entra_new@example.com").one_or_none()
+    user_in_db = (
+        db.query(User).filter(User.email == "entra_new@example.com").one_or_none()
+    )
     assert user_in_db is None
-    
+
     # Verify and map token
     user = provider.verify_token(db, "valid_entra_token")
     assert user is not None
@@ -76,21 +85,21 @@ def test_entra_provider_user_mapping_existing_link(mock_validate, db):
         username="existing_local",
         email="entra_existing@example.com",
         hashed_password="pwd",
-        roles="Admin"
+        roles="Admin",
     )
     db.add(existing_user)
     db.commit()
     db.refresh(existing_user)
-    
+
     mock_validate.return_value = {
         "oid": "entra-oid-789",
         "email": "entra_existing@example.com",
         "name": "Updated Display Name",
         "tid": "tenant-456",
     }
-    
+
     provider = EntraAuthenticationProvider()
-    
+
     # Verify and map token (should link instead of creating)
     user = provider.verify_token(db, "valid_entra_token")
     assert user is not None
@@ -102,7 +111,7 @@ def test_entra_provider_user_mapping_existing_link(mock_validate, db):
 
 def test_entra_jwt_validator_failures():
     validator = EntraJWTValidator()
-    
+
     # 1. Invalid token format
     with pytest.raises(BaseAppException) as exc:
         validator.validate_token("not-a-jwt")
@@ -118,7 +127,9 @@ def test_entra_jwt_validator_failures():
 
     # 3. Tenant mismatch (Tenant lock check)
     settings.ENTRA_TENANT_ID = "tenant-xyz"
-    token_wrong_tenant = jwt.encode({"sub": "123", "tid": "tenant-wrong"}, "secret", algorithm="HS256")
+    token_wrong_tenant = jwt.encode(
+        {"sub": "123", "tid": "tenant-wrong"}, "secret", algorithm="HS256"
+    )
     with pytest.raises(BaseAppException) as exc:
         validator.validate_token(token_wrong_tenant)
     assert exc.value.status_code == 401

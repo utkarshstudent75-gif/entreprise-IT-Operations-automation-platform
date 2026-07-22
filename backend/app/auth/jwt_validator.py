@@ -1,8 +1,10 @@
 import jwt
+from fastapi import status
 from jwt import PyJWKClient
+
 from app.core.config import settings
 from app.core.exceptions import BaseAppException
-from fastapi import status
+
 
 class EntraJWTValidator:
     """Validator for Microsoft Entra ID JWT tokens using JWKS."""
@@ -14,7 +16,7 @@ class EntraJWTValidator:
 
     def validate_token(self, token: str) -> dict:
         """Decode and validate a Microsoft Entra ID token.
-        
+
         Returns the decoded token claims if valid, raises an exception otherwise.
         """
         try:
@@ -59,7 +61,7 @@ class EntraJWTValidator:
         # 3. Define allowed issuers
         allowed_issuers = [
             f"https://login.microsoftonline.com/{tenant_id}/v2.0",
-            f"https://sts.windows.net/{tenant_id}/"
+            f"https://sts.windows.net/{tenant_id}/",
         ]
 
         # 4. Decode and verify signature, audience, expiration
@@ -71,14 +73,14 @@ class EntraJWTValidator:
                 audience=settings.ENTRA_CLIENT_ID,
                 options={"verify_exp": True, "verify_iss": True, "verify_aud": True},
             )
-            
+
             # Additional check: verify issuer matches one of the allowed issuers
             iss = claims.get("iss")
             if iss not in allowed_issuers:
                 raise jwt.InvalidIssuerError(f"Issuer {iss} not in allowed issuers.")
-                
+
             return claims
-            
+
         except jwt.ExpiredSignatureError:
             raise BaseAppException(
                 "Token has expired.",
