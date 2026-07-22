@@ -9,6 +9,8 @@ import { Login } from './pages/public/Login'
 import { PasswordReset } from './pages/public/PasswordReset'
 import { VerifyOTP } from './pages/public/VerifyOTP'
 import { ResetPassword } from './pages/public/ResetPassword'
+import { PasswordResetPage } from './pages/PasswordResetPage'
+
 
 // Protected Pages
 import { Dashboard } from './pages/protected/Dashboard'
@@ -51,10 +53,11 @@ function App() {
           path="/password-reset"
           element={
             <PublicLayout>
-              <PasswordReset />
+              <PasswordResetPage />
             </PublicLayout>
           }
         />
+
         <Route
           path="/verify-otp"
           element={

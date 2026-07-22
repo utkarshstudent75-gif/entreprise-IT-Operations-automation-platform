@@ -1,0 +1,78 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/utkarsh/projects/entreprise-IT-Operations-automation-platform/backend
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+testpaths: tests
+plugins: anyio-4.14.2, asyncio-1.4.0, cov-7.1.0, mock-3.15.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 109 items
+
+tests/integration/test_audit_api.py ....                                 [  3%]
+tests/integration/test_audit_service.py ...                              [  6%]
+tests/integration/test_e2e_workflow.py .                                 [  7%]
+tests/integration/test_edge_cases.py ........                            [ 14%]
+tests/integration/test_health.py .......                                 [ 21%]
+tests/integration/test_password_reset_flow.py ....                       [ 24%]
+tests/integration/test_redis_health.py ....                              [ 28%]
+tests/integration/test_sms_integration.py ss                             [ 30%]
+tests/unit/test_audit_service.py .....                                   [ 34%]
+tests/unit/test_logging.py .....                                         [ 39%]
+tests/unit/test_notification_service.py ....                             [ 43%]
+tests/unit/test_password_service.py ........                             [ 50%]
+tests/unit/test_rate_limiter.py ..                                       [ 52%]
+tests/unit/test_redis.py .......                                         [ 58%]
+tests/unit/test_redis_service.py .............                           [ 70%]
+tests/unit/test_repositories.py ........                                 [ 77%]
+tests/unit/test_sms_notification_provider.py .............               [ 89%]
+tests/unit/test_user_service.py ...                                      [ 92%]
+tests/unit/test_validation.py ........                                   [100%]
+
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.12.3-final-0 ________________
+
+Name                                     Stmts   Miss  Cover   Missing
+----------------------------------------------------------------------
+app/api/__init__.py                          0      0   100%
+app/api/routers/admin.py                    23      1    96%   23
+app/api/routers/auth.py                     12      0   100%
+app/api/routers/metrics.py                   5      1    80%   11
+app/api/routers/mfa.py                       8      2    75%   11, 16
+app/api/routers/password_reset.py            8      0   100%
+app/api/routers/software.py                  8      2    75%   11, 16
+app/api/routers/tickets.py                   5      1    80%   11
+app/api/routers/workflows.py                 5      1    80%   11
+app/api/v1/__init__.py                       0      0   100%
+app/api/v1/audit.py                          1      1     0%   1
+app/api/v1/health.py                        53      9    83%   23-25, 51-56, 74-76
+app/api/v1/password.py                       0      0   100%
+app/api/v1/router.py                        18      0   100%
+app/api/v1/users.py                          1      1     0%   1
+app/core/__init__.py                         0      0   100%
+app/core/config.py                          40      5    88%   52, 56, 62, 66, 68
+app/core/context.py                         19      0   100%
+app/core/exception_handlers.py              32      6    81%   11-23, 50-56, 99-100
+app/core/exceptions.py                      87      1    99%   32
+app/core/logging_config.py                  54      9    83%   26-29, 43-53
+app/core/rate_limiter.py                    30      0   100%
+app/core/redis.py                           50      5    90%   20, 40, 52, 57-58
+app/models/__init__.py                       7      0   100%
+app/models/audit_log.py                     19      1    95%   10
+app/models/mfa_request.py                   12      0   100%
+app/models/software_request.py              13      0   100%
+app/models/ticket.py                        13      0   100%
+app/models/user.py                          11      0   100%
+app/models/workflow.py                      12      0   100%
+app/repositories/audit_repository.py        32      0   100%
+app/repositories/user_repository.py         10      0   100%
+app/services/__init__.py                     0      0   100%
+app/services/audit_service.py               26      0   100%
+app/services/notification_service.py       145      7    95%   99, 182, 192, 215, 288, 327, 351
+app/services/password_reset_service.py      63      0   100%
+app/services/password_service.py             0      0   100%
+app/services/redis_service.py               73      1    99%   140
+app/services/user_service.py                34      8    76%   57-90
+----------------------------------------------------------------------
+TOTAL                                      929     62    93%
+Coverage HTML written to dir coverage/html
+Coverage XML written to file coverage/coverage.xml
+======================== 107 passed, 2 skipped in 9.26s ========================

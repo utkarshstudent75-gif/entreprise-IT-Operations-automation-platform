@@ -1,14 +1,19 @@
+import os
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
     # application configuration
-    APP_NAME: str
-    APP_VERSION: str
-    ENVIRONMENT: str
-    DEBUG: bool
-    HOST: str
-    PORT: int
+    APP_NAME: str = "Enterprise IT Operations Automation Platform"
+    APP_VERSION: str = "0.1.0"
+    ENVIRONMENT: str = "development"
+    DEBUG: bool = True
+    HOST: str = "0.0.0.0"  # nosec B104
+
+    PORT: int = 8000
 
     # Database Configuration
     DATABASE_URL: str
@@ -25,7 +30,37 @@ class Settings(BaseSettings):
     OTP_EXPIRY_MINUTES: int = 5
     OTP_MAX_ATTEMPTS: int = 3
 
-    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
+    # SMS Notification Configuration
+    NOTIFICATION_PROVIDER: str = "console"
+    SMS_API_KEY: str | None = None
+    SMS_ACCOUNT_SID: str | None = None
+    SMS_BASE_URL: str = "https://api.sms-provider.com/v1"
+    SMS_SENDER_ID: str = "IT-OPS"
+    SMS_TIMEOUT_SECONDS: float = 5.0
+    SMS_RETRY_COUNT: int = 3
+    SMS_TEST_RECIPIENT: str | None = None
 
 
 settings = Settings()
+
+if not os.path.exists("/.dockerenv"):
+    if "@postgres:" in settings.DATABASE_URL:
+        settings.DATABASE_URL = settings.DATABASE_URL.replace(
+            "@postgres:", "@127.0.0.1:"
+        )
+    elif "postgresql://postgres:postgres@postgres:" in settings.DATABASE_URL:
+        settings.DATABASE_URL = settings.DATABASE_URL.replace(
+            "postgresql://postgres:postgres@postgres:",
+            "postgresql://postgres:postgres@127.0.0.1:",
+        )
+
+    if settings.REDIS_HOST == "redis":
+        settings.REDIS_HOST = "127.0.0.1"
+
+    if settings.REDIS_URL:
+        if "@redis:" in settings.REDIS_URL:
+            settings.REDIS_URL = settings.REDIS_URL.replace("@redis:", "@127.0.0.1:")
+        elif "redis://redis:" in settings.REDIS_URL:
+            settings.REDIS_URL = settings.REDIS_URL.replace(
+                "redis://redis:", "redis://127.0.0.1:"
+            )

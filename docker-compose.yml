@@ -58,8 +58,8 @@ services:
     restart: unless-stopped
 
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${{vars.PGDB_USERNAME}}
-      PGADMIN_DEFAULT_PASSWORD: ${{vars.PGDB_PWD}}
+      PGADMIN_DEFAULT_EMAIL: $${{vars.PGDB_USERNAME}}
+      PGADMIN_DEFAULT_PASSWORD: $${{vars.PGDB_PWD}}
 
     ports:
       - "5050:80"

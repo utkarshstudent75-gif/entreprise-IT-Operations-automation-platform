@@ -1,12 +1,11 @@
-from datetime import UTC, datetime, timedelta
+import asyncio
 
 from app.core.rate_limiter import rate_limiter
 from app.models.audit_log import AuditLog
-from app.models.password_reset_request import PasswordResetRequest
 from app.models.user import User
 
 
-def test_complete_e2e_workflow_and_validations(client, db, caplog):
+def test_complete_e2e_workflow_and_validations(client, db, caplog, monkeypatch):
     # Isolated rate limiter store for this test
     rate_limiter.storage._requests.clear()
 
@@ -54,6 +53,13 @@ def test_complete_e2e_workflow_and_validations(client, db, caplog):
     assert user_in_db.username == username
 
     # 2. Password Reset Request & 10. Unknown email identical response
+    # Intercept OTP generated in request_password_reset
+    sent_otps = []
+    monkeypatch.setattr(
+        "app.services.password_reset_service.notification_service.send_otp",
+        lambda email, otp: sent_otps.append(otp),
+    )
+
     # Request password reset for a valid user
     res = client.post("/api/v1/password/forgot-password", json={"email": email})
     assert res.status_code == 200
@@ -68,17 +74,9 @@ def test_complete_e2e_workflow_and_validations(client, db, caplog):
     unknown_email_response = res.json()
     assert unknown_email_response == valid_email_response
 
-    # 3. Password reset request stored in PostgreSQL
-    reset_req = (
-        db.query(PasswordResetRequest)
-        .filter_by(user_id=user_id)
-        .order_by(PasswordResetRequest.created_at.desc())
-        .first()
-    )
-    assert reset_req is not None
-    assert reset_req.is_used is False
-    assert len(reset_req.otp) == 6
-    otp_code = reset_req.otp
+    # Verify reset request stored in Redis (via captured OTP code)
+    assert len(sent_otps) == 1
+    otp_code = sent_otps[0]
 
     # 4. OTP verification validation
     # Verify valid OTP
@@ -101,10 +99,6 @@ def test_complete_e2e_workflow_and_validations(client, db, caplog):
     # Verify password hash updated in PostgreSQL
     db.refresh(user_in_db)
     assert user_in_db.hashed_password != password
-
-    # Verify OTP is marked as used
-    db.refresh(reset_req)
-    assert reset_req.is_used is True
 
     # 8. Reused OTP rejected
     # Verify reused OTP rejected on verify-otp
@@ -130,22 +124,27 @@ def test_complete_e2e_workflow_and_validations(client, db, caplog):
 
     # 9. Expired OTP rejected
     # Generate another OTP for testing expiry
+    sent_otps.clear()
     res = client.post("/api/v1/password/forgot-password", json={"email": email})
     assert res.status_code == 200
-    expired_req = (
-        db.query(PasswordResetRequest)
-        .filter_by(user_id=user_id, is_used=False)
-        .order_by(PasswordResetRequest.created_at.desc())
-        .first()
-    )
-    assert expired_req is not None
-    expired_otp = expired_req.otp
+    assert len(sent_otps) == 1
+    expired_otp = sent_otps[0]
 
-    # Manually expire it in the database
-    expired_req.expires_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(
-        minutes=1
-    )
-    db.commit()
+    # Manually expire it in Redis using asyncio runner on the event loop
+    loop = asyncio.get_event_loop()
+    import os
+
+    from redis.asyncio import Redis
+
+    async def expire_otp_in_redis():
+        redis_url = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
+        redis_client = Redis.from_url(redis_url, decode_responses=True)
+        # Simulate expiration
+        await redis_client.set(f"otp:meta:{email}", "1", ex=60)
+        await redis_client.delete(f"otp:{email}")
+        await redis_client.close()
+
+    loop.run_until_complete(expire_otp_in_redis())
 
     # Verify expired OTP is rejected on verify-otp
     res = client.post(

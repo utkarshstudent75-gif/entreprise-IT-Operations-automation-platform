@@ -1,6 +1,8 @@
 import { Box, Stack, Typography } from '@mui/material'
 import { useMemo, useState } from 'react'
 
+import { useNavigate } from 'react-router-dom'
+
 import { requestPasswordReset, resetPassword, verifyOtp } from '../api/passwordApi'
 import { EnterpriseCard } from '../components/EnterpriseCard'
 import { FormAlert } from '../components/FormAlert'
@@ -12,6 +14,7 @@ import { TextInput } from '../components/TextInput'
 const stepLabels = ['Forgot Password', 'Verify OTP', 'Reset Password']
 
 export function PasswordResetPage() {
+  const navigate = useNavigate()
   const [step, setStep] = useState(0)
   const [email, setEmail] = useState('')
   const [otp, setOtp] = useState('')
@@ -19,6 +22,7 @@ export function PasswordResetPage() {
   const [statusMessage, setStatusMessage] = useState('')
   const [statusSeverity, setStatusSeverity] = useState<'success' | 'error' | 'info'>('info')
   const [loading, setLoading] = useState(false)
+
 
   const canSubmitEmail = email.trim().length > 0
   const canSubmitOtp = otp.trim().length === 6
@@ -83,6 +87,9 @@ export function PasswordResetPage() {
       if (response.success) {
         setStatusMessage(response.message)
         setStatusSeverity('success')
+        setTimeout(() => {
+          navigate('/login')
+        }, 2000)
       } else {
         setStatusMessage(response.message)
         setStatusSeverity('error')
@@ -91,6 +98,7 @@ export function PasswordResetPage() {
       setLoading(false)
     }
   }
+
 
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center' }}>

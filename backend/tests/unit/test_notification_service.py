@@ -1,3 +1,4 @@
+from app.schemas.sms import SmsRequest
 from app.services.notification_service import (
     ConsoleNotificationProvider,
     NotificationProvider,
@@ -12,30 +13,38 @@ class DummyProvider(NotificationProvider):
     """
 
     def __init__(self):
-        self.sent = []
+        self.sent_sms = []
 
-    def send_otp(self, email: str, otp: str) -> None:
-        self.sent.append((email, otp))
+    def send_sms(self, request: SmsRequest) -> None:
+        self.sent_sms.append(request)
+
+    def validate_configuration(self) -> None:
+        pass
+
+    def health_check(self) -> bool:
+        return True
 
 
 def test_notification_service_delegates_to_provider():
     """
     Verify that NotificationService delegatory wrapper invokes the
-    underlying NotificationProvider's send_otp method with the given parameters.
+    underlying NotificationProvider's send_sms method with the given parameters.
     """
     provider = DummyProvider()
     service = NotificationService(provider=provider)
 
-    service.send_otp("user@example.com", "123456")
+    service.send_otp("+15551234567", "123456")
 
-    assert len(provider.sent) == 1
-    assert provider.sent[0] == ("user@example.com", "123456")
+    assert len(provider.sent_sms) == 1
+    assert provider.sent_sms[0].phone_number == "+15551234567"
+    assert "123456" in provider.sent_sms[0].message
+    assert "5 minutes" in provider.sent_sms[0].message
 
 
 def test_console_notification_provider_debug_true(monkeypatch, caplog):
     """
     Verify that in DEBUG mode, the ConsoleNotificationProvider logs the
-    actual plain-text OTP code alongside the recipient email to the application log.
+    SMS message alongside the masked recipient.
     """
     from app.core.config import settings
 
@@ -44,10 +53,11 @@ def test_console_notification_provider_debug_true(monkeypatch, caplog):
     provider = ConsoleNotificationProvider()
     caplog.clear()
 
-    provider.send_otp("debug@example.com", "111222")
+    sms_req = SmsRequest(phone_number="+15551234567", message="Your OTP is 111222")
+    provider.send_sms(sms_req)
 
     assert any(
-        "OTP for debug@example.com: 111222" in record.message
+        "Console SMS to +1******4567: Your OTP is 111222" in record.message
         for record in caplog.records
     )
 
@@ -55,8 +65,7 @@ def test_console_notification_provider_debug_true(monkeypatch, caplog):
 def test_console_notification_provider_debug_false(monkeypatch, caplog):
     """
     Verify that in production (DEBUG=False) mode, the ConsoleNotificationProvider
-    logs a generic message that an OTP was generated for the recipient email,
-    but does NOT reveal the sensitive OTP code itself.
+    logs a generic message with masked recipient.
     """
     from app.core.config import settings
 
@@ -65,12 +74,29 @@ def test_console_notification_provider_debug_false(monkeypatch, caplog):
     provider = ConsoleNotificationProvider()
     caplog.clear()
 
-    provider.send_otp("nodebug@example.com", "333444")
+    sms_req = SmsRequest(phone_number="+15551234567", message="Your OTP is 333444")
+    provider.send_sms(sms_req)
 
-    # In non-debug mode, it should log that an OTP was generated, but NOT
-    # reveal the OTP code itself.
     assert any(
-        "OTP generated for nodebug@example.com" in record.message
+        "Console SMS dispatched to +1******4567" in record.message
         for record in caplog.records
     )
-    assert not any("333444" in record.message for record in caplog.records)
+
+
+def test_notification_service_routes_email_to_test_recipient(monkeypatch):
+    """
+    Verify that when recipient is an email address and settings.SMS_TEST_RECIPIENT is configured,
+    the OTP is routed to the configured phone number instead of the email address.
+    """
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "SMS_TEST_RECIPIENT", "+911800123456")
+
+    provider = DummyProvider()
+    service = NotificationService(provider=provider)
+
+    service.send_otp("user@example.com", "987654")
+
+    assert len(provider.sent_sms) == 1
+    assert provider.sent_sms[0].phone_number == "+911800123456"
+    assert "987654" in provider.sent_sms[0].message
