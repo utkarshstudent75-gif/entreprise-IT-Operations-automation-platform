@@ -11,6 +11,8 @@ class ReadyResponse(BaseModel):
     status: str
     database: str
     redis: str
+    application: str = "healthy"
+    sms_provider: str = "connected"
 
 
 class LiveResponse(BaseModel):

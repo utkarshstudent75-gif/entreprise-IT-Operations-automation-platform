@@ -81,9 +81,7 @@ def clean_tables(db_engine):
     SessionLocal = sessionmaker(bind=db_engine, expire_on_commit=False)
     session = SessionLocal()
     try:
-        session.execute(
-            text("TRUNCATE TABLE audit_logs, password_reset_requests, users CASCADE")
-        )
+        session.execute(text("TRUNCATE TABLE audit_logs, users CASCADE"))
         session.commit()
     except Exception:
         session.rollback()

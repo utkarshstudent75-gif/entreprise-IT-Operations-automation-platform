@@ -1,3 +1,4 @@
+import os
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
@@ -7,18 +8,27 @@ from app.core.config import settings
 from app.database.base import Base
 from app.models.audit_log import AuditLog  # noqa: F401
 from app.models.mfa_request import MFARequest  # noqa: F401
-from app.models.password_reset_request import PasswordResetRequest  # noqa: F401
 from app.models.software_request import SoftwareRequest  # noqa: F401
 from app.models.ticket import Ticket  # noqa: F401
 from app.models.user import User  # noqa: F401
 from app.models.workflow import Workflow  # noqa: F401
+
+db_url = settings.DATABASE_URL
+if not os.path.exists("/.dockerenv"):
+    if "@postgres:" in db_url:
+        db_url = db_url.replace("@postgres:", "@127.0.0.1:")
+    elif "postgresql://postgres:postgres@postgres:" in db_url:
+        db_url = db_url.replace(
+            "postgresql://postgres:postgres@postgres:",
+            "postgresql://postgres:postgres@127.0.0.1:",
+        )
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 config.set_main_option(
     "sqlalchemy.url",
-    settings.DATABASE_URL,
+    db_url,
 )
 
 # Interpret the config file for Python logging.
