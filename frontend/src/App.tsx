@@ -6,7 +6,6 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 // Public Pages
 import { LandingPage } from './pages/public/LandingPage'
 import { Login } from './pages/public/Login'
-import { PasswordReset } from './pages/public/PasswordReset'
 import { VerifyOTP } from './pages/public/VerifyOTP'
 import { ResetPassword } from './pages/public/ResetPassword'
 import { PasswordResetPage } from './pages/PasswordResetPage'
