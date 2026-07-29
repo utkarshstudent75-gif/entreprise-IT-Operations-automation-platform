@@ -8,8 +8,7 @@ resource "azurerm_private_dns_zone" "this" {
 resource "azurerm_private_dns_zone_virtual_network_link" "this" {
   for_each              = azurerm_private_dns_zone.this
   name                  = "${replace(each.key, ".", "-")}-link"
-  resource_group_name   = var.resource_group_name
-  private_dns_zone_name = each.value.name
+  private_dns_zone_id   = each.value.id
   virtual_network_id    = var.vnet_id
   registration_enabled  = false
   tags                  = var.tags

@@ -5,8 +5,6 @@ resource "azurerm_subnet" "this" {
   virtual_network_name = var.vnet_name
   address_prefixes     = each.value.address_prefixes
 
-  service_endpoints = lookup(each.value, "service_endpoints", [])
-
   private_endpoint_network_policies             = lookup(each.value, "private_endpoint_network_policies", "Enabled")
   private_link_service_network_policies_enabled = lookup(each.value, "private_link_service_network_policies_enabled", true)
 
