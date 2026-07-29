@@ -30,6 +30,8 @@ def test_notification_service_delegates_to_provider():
     Verify that NotificationService delegatory wrapper invokes the
     underlying NotificationProvider's send_sms method with the given parameters.
     """
+    from app.core.config import settings
+
     provider = DummyProvider()
     service = NotificationService(provider=provider)
 
@@ -38,7 +40,7 @@ def test_notification_service_delegates_to_provider():
     assert len(provider.sent_sms) == 1
     assert provider.sent_sms[0].phone_number == "+15551234567"
     assert "123456" in provider.sent_sms[0].message
-    assert "5 minutes" in provider.sent_sms[0].message
+    assert f"{settings.OTP_EXPIRY_MINUTES} minutes" in provider.sent_sms[0].message
 
 
 def test_console_notification_provider_debug_true(monkeypatch, caplog):

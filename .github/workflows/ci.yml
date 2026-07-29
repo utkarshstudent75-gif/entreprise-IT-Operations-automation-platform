@@ -55,10 +55,16 @@ jobs:
             OTP_EXPIRY_MINUTES: ${{ vars.OTP_EXPIRY_MINUTES || '5' }}
             OTP_MAX_ATTEMPTS: ${{ vars.OTP_MAX_ATTEMPTS || '3' }}
             DATABASE_URL: postgresql://${{ vars.PS_USER || 'postgres' }}:${{ vars.PS_PWD || 'postgres' }}@localhost:5432/${{ vars.DB_NAME || 'eitoap' }}
+            REDIS_URL: redis://localhost:6379/0
             REDIS_HOST: localhost
             REDIS_PORT: 6379
             REDIS_DB: 0
             REDIS_PASSWORD: ""
+            JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY || 'ci-test-secret-key-not-for-production' }}
+            JWT_ALGORITHM: HS256
+            JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 1440
+            NOTIFICATION_PROVIDER: console
+            AUTH_PROVIDER: local
 
         
         name: Backend Build
@@ -230,6 +236,8 @@ jobs:
             contents: read
         name: Terraform Validation
         runs-on: ubuntu-latest
+        env:
+            TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
         steps:
             - name: Checkout repository
               uses: actions/checkout@v4
@@ -237,7 +245,18 @@ jobs:
             - name: Setup Terraform
               uses: hashicorp/setup-terraform@v3
               with:
-                terraform_version: 1.8.0
+                terraform_version: 1.9.0
+
+            - name: Create Terraform plugin cache directory
+              run: mkdir -p $TF_PLUGIN_CACHE_DIR
+
+            - name: Cache Terraform providers
+              uses: actions/cache@v4
+              with:
+                path: ${{ env.TF_PLUGIN_CACHE_DIR }}
+                key: terraform-providers-${{ runner.os }}-${{ hashFiles('**/.terraform.lock.hcl') }}
+                restore-keys: |
+                  terraform-providers-${{ runner.os }}-
 
             - name: Format Check
               run: terraform fmt -check -recursive infrastructure/terraform
@@ -245,13 +264,13 @@ jobs:
             - name: Init and Validate Dev
               run: |
                 cd infrastructure/terraform/environments/dev
-                terraform init -backend=false
+                terraform init -backend=false -upgrade
                 terraform validate
 
             - name: Init and Validate Prod
               run: |
                 cd infrastructure/terraform/environments/prod
-                terraform init -backend=false
+                terraform init -backend=false -upgrade
                 terraform validate
 
     docker:
