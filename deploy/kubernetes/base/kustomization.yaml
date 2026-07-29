@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespaces.yaml
+  - configmaps.yaml
+  - secrets-template.yaml
+  - ingress.yaml
+  - redis/deployment.yaml
+  - redis/service.yaml
+  - backend/deployment.yaml
+  - backend/service.yaml
+  - backend/hpa.yaml
+  - backend/network-policy.yaml
+  - backend/pdb.yaml
+  - frontend/deployment.yaml
+  - frontend/service.yaml
+  - frontend/backend-external-service.yaml
+  - frontend/hpa.yaml
+  - frontend/network-policy.yaml
+  - frontend/pdb.yaml

@@ -89,4 +89,7 @@ async def get_redis() -> Redis:
         redis_manager.init_redis()
         if await redis_manager.ping():
             logger.info("Redis connection established")
+    else:
+        # Resilient reconnect: if the connection dropped, heal it
+        await redis_manager.check_health_and_reconnect()
     return redis_manager.client

@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: backend
+data:
+  APP_NAME: "Enterprise IT Operations Automation Platform"
+  APP_VERSION: "0.1.0"
+  ENVIRONMENT: "production"
+  DEBUG: "false"
+  HOST: "0.0.0.0"
+  PORT: "8000"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  NOTIFICATION_PROVIDER: "sms"
+  SMS_BASE_URL: "https://od2.in/api/sms/send"
+  SMS_SENDER_ID: "+1234567890"
+  SMS_TIMEOUT_SECONDS: "5.0"
+  SMS_RETRY_COUNT: "3"
+  AUTH_PROVIDER: "local"
+  JWT_ALGORITHM: "HS256"
+  JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "1440"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: frontend
+data:
+  VITE_API_BASE_URL: "/api/v1"

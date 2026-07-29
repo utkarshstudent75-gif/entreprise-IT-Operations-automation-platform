@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
@@ -120,3 +120,52 @@ async def live_check():
             status="alive",
         )
     )
+
+
+@router.get("/liveness", tags=["Health"], response_model=StandardResponse[LiveResponse])
+async def liveness_check():
+    """
+    Liveness check endpoint alias for Kubernetes.
+    """
+    return await live_check()
+
+
+@router.get(
+    "/readiness",
+    tags=["Health"],
+    response_model=StandardResponse[ReadyResponse],
+    responses={503: {"model": ErrorResponse}},
+)
+async def readiness_check():
+    """
+    Readiness check endpoint alias for Kubernetes.
+    """
+    return await ready_check()
+
+
+@router.get("/startup", tags=["Health"], response_model=StandardResponse[LiveResponse])
+async def startup_check():
+    """
+    Startup check endpoint for Kubernetes.
+    """
+    return StandardResponse(
+        data=LiveResponse(
+            status="started",
+        )
+    )
+
+
+@router.get("/metrics", tags=["Health"])
+async def metrics_check():
+    """
+    Exposes basic platform info as Prometheus metrics.
+    """
+    prometheus_data = (
+        "# HELP eitoap_api_info Information about EITOAP api.\n"
+        "# TYPE eitoap_api_info gauge\n"
+        f'eitoap_api_info{{version="{settings.APP_VERSION}"}} 1\n'
+        "# HELP eitoap_health_status Platform general health status (1 for healthy, 0 for unhealthy).\n"
+        "# TYPE eitoap_health_status gauge\n"
+        "eitoap_health_status 1\n"
+    )
+    return Response(content=prometheus_data, media_type="text/plain")

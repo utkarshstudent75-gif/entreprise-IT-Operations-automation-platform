@@ -1,0 +1,64 @@
+# Local Environment Overrides (Minikube / Docker Desktop / Kind)
+# Shared configuration passed to all Helm charts
+
+namespace: local
+
+image:
+  repository: enterprise-backend
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Frontend Chart Overrides
+frontend:
+  image:
+    repository: enterprise-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      kubernetes.io/ingress.class: nginx
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    backendService: backend-service
+    backendPort: 8000
+
+# Backend Chart Overrides
+backend:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  hpa:
+    enabled: false
+  pdb:
+    enabled: false
+
+# Database/Cache Settings (In-Cluster Caching)
+redis:
+  enabled: true
+  host: "redis-service"
+  port: 6379
+  db: 0
+
+# App Configuration
+config:
+  environment: "local"
+  debug: "true"
+  notificationProvider: "console"
+  authProvider: "local"
+  jwtAlgorithm: "HS256"
+  jwtAccessTokenExpireMinutes: 1440
+  viteApiBaseUrl: "/api/v1"
+
+# Database & Redis connection secrets (pointing to in-cluster services)
+secrets:
+  databaseUrl: "postgresql://postgres:postgres@postgres:5432/eitoap"
+  redisUrl: "redis://redis-service:6379/0"
+  jwtSecretKey: "secret-key-change-in-production-local"
+  smsApiKey: "placeholder-sms-api-key"
+  smsAccountSid: "placeholder-sms-account-sid"

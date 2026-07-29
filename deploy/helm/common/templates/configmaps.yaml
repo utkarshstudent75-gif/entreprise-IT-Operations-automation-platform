@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: {{ .Values.backendNamespace }}
+data:
+  APP_NAME: {{ .Values.config.appName | quote }}
+  APP_VERSION: {{ .Values.config.appVersion | quote }}
+  ENVIRONMENT: {{ .Values.config.environment | quote }}
+  DEBUG: {{ .Values.config.debug | quote }}
+  HOST: {{ .Values.config.host | quote }}
+  PORT: {{ .Values.config.port | quote }}
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  NOTIFICATION_PROVIDER: {{ .Values.config.notificationProvider | quote }}
+  SMS_BASE_URL: {{ .Values.config.smsBaseUrl | quote }}
+  SMS_SENDER_ID: {{ .Values.config.smsSenderId | quote }}
+  SMS_TIMEOUT_SECONDS: {{ .Values.config.smsTimeoutSeconds | quote }}
+  SMS_RETRY_COUNT: {{ .Values.config.smsRetryCount | quote }}
+  AUTH_PROVIDER: {{ .Values.config.authProvider | quote }}
+  JWT_ALGORITHM: {{ .Values.config.jwtAlgorithm | quote }}
+  JWT_ACCESS_TOKEN_EXPIRE_MINUTES: {{ .Values.config.jwtAccessTokenExpireMinutes | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: {{ .Values.frontendNamespace }}
+data:
+  VITE_API_BASE_URL: {{ .Values.config.viteApiBaseUrl | quote }}

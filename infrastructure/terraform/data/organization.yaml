@@ -1,0 +1,128 @@
+organization:
+  name: "Enterprise IT Operations Platform"
+  domain: "itproject.in"
+  version: "1.0"
+
+departments:
+  - code: "EXEC"
+    name: "Executive Office"
+    cost_center: "100-EXEC"
+  - code: "IT"
+    name: "Information Technology"
+    cost_center: "200-IT"
+  - code: "HR"
+    name: "Human Resources"
+    cost_center: "300-HR"
+  - code: "FIN"
+    name: "Finance & Accounting"
+    cost_center: "400-FIN"
+  - code: "SALES"
+    name: "Global Sales"
+    cost_center: "500-SLS"
+  - code: "MKTG"
+    name: "Marketing"
+    cost_center: "600-MKT"
+  - code: "OPS"
+    name: "Operations & Facilities"
+    cost_center: "700-OPS"
+  - code: "AUDIT"
+    name: "Internal Audit"
+    cost_center: "800-AUD"
+
+groups:
+  - name: "SG-Executive"
+    display_name: "Security Group - Executive Office"
+    description: "Access and permissions for Executive team members"
+    department: "EXEC"
+    security_enabled: true
+    mail_enabled: false
+    owners: ["alex.morgan@itproject.in"]
+
+
+  - name: "SG-IT"
+    display_name: "Security Group - Information Technology"
+    description: "Access and permissions for IT Operations & Engineering team"
+    department: "IT"
+    security_enabled: true
+    mail_enabled: false
+    owners: ["alex.morgan@itproject.in"]
+
+
+  - name: "SG-HR"
+    display_name: "Security Group - Human Resources"
+    description: "Access and permissions for HR personnel"
+    department: "HR"
+    security_enabled: true
+    mail_enabled: false
+    owners: ["alex.morgan@itproject.in"]
+
+
+  - name: "SG-Finance"
+    display_name: "Security Group - Finance & Accounting"
+    description: "Access and permissions for Financial and Accounting systems"
+    department: "FIN"
+    security_enabled: true
+    mail_enabled: false
+    owners: ["alex.morgan@itproject.in"]
+
+
+  - name: "SG-Sales"
+    display_name: "Security Group - Global Sales"
+    description: "Access and permissions for Sales systems"
+    department: "SALES"
+    security_enabled: true
+    mail_enabled: false
+    owners: ["alex.morgan@itproject.in"]
+
+
+  - name: "SG-Marketing"
+    display_name: "Security Group - Marketing"
+    description: "Access and permissions for Marketing resources"
+    department: "MKTG"
+    security_enabled: true
+    mail_enabled: false
+    owners: ["alex.morgan@itproject.in"]
+
+
+  - name: "SG-Operations"
+    display_name: "Security Group - Operations"
+    description: "Access and permissions for operations team members"
+    department: "OPS"
+    security_enabled: true
+    mail_enabled: false
+    owners: ["alex.morgan@itproject.in"]
+
+
+  - name: "SG-Audit"
+    display_name: "Security Group - Internal Audit"
+    description: "Access and permissions for Internal Audit systems"
+    department: "AUDIT"
+    security_enabled: true
+    mail_enabled: false
+    owners: ["alex.morgan@itproject.in"]
+
+users:
+
+  - id: alex morgan
+    first_name: "Alex"
+    last_name: "Morgan"
+    display_name: "Alex Morgan"
+    email: "alex.morgan@itproject.in"
+    department: "IT"
+    job_title: "IT Administrator"
+    manager: null
+    account_enabled: true
+    groups:
+      - "SG-IT"
+
+  - id: emma johnson
+    first_name: "Emma"
+    last_name: "Johnson"
+    display_name: "Emma Johnson"
+    email: "emma.johnson@itproject.in"
+    department: "HR"
+    job_title: "HR Manager"
+    manager: "alex.morgan@itproject.in"
+    account_enabled: true
+    groups:
+      - "SG-HR"

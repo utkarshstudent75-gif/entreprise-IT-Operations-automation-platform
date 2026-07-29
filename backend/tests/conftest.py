@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Fallback container hostnames to localhost if executing outside Docker
-if not os.path.exists("/.dockerenv"):
+if not os.path.exists("/.dockerenv") and not os.environ.get("KUBERNETES_SERVICE_HOST"):
     if os.environ.get("REDIS_HOST") == "redis":
         os.environ["REDIS_HOST"] = "127.0.0.1"
 

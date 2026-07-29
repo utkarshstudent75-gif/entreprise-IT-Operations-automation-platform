@@ -1,0 +1,48 @@
+application_roles:
+  - name: "Platform.Admin"
+    display_name: "Platform Administrator"
+    description: "Full administrative access to the IT Operations platform, configuration, and security settings."
+    value: "Platform.Admin"
+    id: "2092f392-747d-4197-8c3b-1798e9a263df"
+    allowed_member_types: ["User", "Application"]
+    enabled: true
+
+  - name: "Platform.IT"
+    display_name: "IT Operations Specialist"
+    description: "Access to IT operations dashboards, diagnostics, and management tools."
+    value: "Platform.IT"
+    id: "77626920-5c60-4966-bd98-5c4e16d418eb"
+    allowed_member_types: ["User"]
+    enabled: true
+
+  - name: "Platform.HR"
+    display_name: "HR Operations Specialist"
+    description: "Access to employee records and automation workflows related to onboarding/offboarding."
+    value: "Platform.HR"
+    id: "3057e0fa-60d7-4638-a15d-007e0c8b6b1b"
+    allowed_member_types: ["User"]
+    enabled: true
+
+  - name: "Platform.Manager"
+    display_name: "People Manager"
+    description: "Managerial access to view department requests, reports, and approvals."
+    value: "Platform.Manager"
+    id: "2b1ef113-5b87-4ce1-80bb-64f33cb0a5dc"
+    allowed_member_types: ["User"]
+    enabled: true
+
+  - name: "Platform.Employee"
+    display_name: "Standard Employee"
+    description: "General read-only and self-service capabilities on the automation platform."
+    value: "Platform.Employee"
+    id: "83b48226-c2df-48ab-ad57-79758784ee0a"
+    allowed_member_types: ["User"]
+    enabled: true
+
+  - name: "Platform.Auditor"
+    display_name: "Compliance Auditor"
+    description: "ReadOnly access to audit logs, configuration history, and compliance dashboards."
+    value: "Platform.Auditor"
+    id: "2eb086fb-609c-4613-ba1b-b4618e7b952a"
+    allowed_member_types: ["User", "Application"]
+    enabled: true

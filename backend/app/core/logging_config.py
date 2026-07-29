@@ -114,18 +114,44 @@ class StructuredJSONFormatter(logging.Formatter):
             return self._fallback_format(record, e)
 
 
+class StructuredTextFormatter(logging.Formatter):
+    """
+    Console log formatter that injects request_id safely.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        req_id = getattr(record, "request_id", None) or request_id.get() or "N/A"
+        record.request_id = req_id
+        return super().format(record)
+
+
 def setup_logging():
     """Configure Python logging centrally."""
+    import os
+
     root_logger = logging.getLogger()
     # Remove existing handlers to avoid duplicates
     root_logger.handlers = []
 
+    env = os.getenv("ENVIRONMENT", "development")
+    log_format = os.getenv(
+        "LOG_FORMAT", "text" if env in ("development", "local", "ci") else "json"
+    )
+
     handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(StructuredJSONFormatter())
+    if log_format == "json":
+        handler.setFormatter(StructuredJSONFormatter())
+    else:
+        # Standard human-readable console logging with correlation ID
+        handler.setFormatter(
+            StructuredTextFormatter(
+                "[%(asctime)s] %(levelname)s in %(module)s [ReqId: %(request_id)s]: %(message)s"
+            )
+        )
     root_logger.addHandler(handler)
     root_logger.setLevel(logging.INFO)
 
-    # Propagate Uvicorn and FastAPI logs to the root logger to format them in JSON
+    # Propagate Uvicorn and FastAPI logs to the root logger to format them
     for name in ("uvicorn", "uvicorn.error", "uvicorn.access", "fastapi"):
         uvicorn_logger = logging.getLogger(name)
         uvicorn_logger.handlers = []

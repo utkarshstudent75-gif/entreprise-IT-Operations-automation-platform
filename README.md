@@ -70,13 +70,13 @@ The Enterprise IT Operations Automation Platform automates the complete workflow
 * Uvicorn
 * Pydantic
 
-## Database *(Upcoming)*
+## Database
 
 * PostgreSQL
 * SQLAlchemy
 * Alembic
 
-## Cache *(Upcoming)*
+## Cache
 
 * Redis
 
@@ -85,21 +85,21 @@ The Enterprise IT Operations Automation Platform automates the complete workflow
 * Docker
 * Docker Compose
 
-## Orchestration *(Upcoming)*
+## Orchestration
 
 * Kubernetes
 * Minikube (Development)
 * Azure Kubernetes Service (Production)
 
-## Cloud *(Upcoming)*
+## Cloud
 
 * Microsoft Azure
 
-## Infrastructure as Code *(Upcoming)*
+## Infrastructure as Code
 
 * Terraform
 
-## CI/CD *(Upcoming)*
+## CI/CD
 
 * GitHub Actions
 
@@ -125,29 +125,19 @@ The Enterprise IT Operations Automation Platform automates the complete workflow
 
 ## Implemented
 
-* FastAPI backend
-* React frontend
-* Forgot Password workflow
-* OTP verification
-* Password reset workflow
-* Notification service abstraction
-* Dockerized backend
-* Dockerized frontend
-* Docker Compose development environment
-
-## In Progress
-
-* PostgreSQL integration
-* SQLAlchemy ORM
-* Database migrations
+* FastAPI backend & React frontend implementation
+* Forgot Password & OTP-based password reset workflow
+* Notification service abstraction (with SMS delivery support)
+* PostgreSQL integration with SQLAlchemy & Alembic migrations
+* Redis caching & rate limiter integration
+* Multi-stage Docker containerization and Docker Compose setup
+* Production-ready Kubernetes manifests & Helm charts (backend, frontend, common)
+* Terraform-managed Azure infrastructure (AKS, Postgres, Redis, ACR)
+* CI/CD automation workflow (linting, image build/push via OIDC)
 
 ## Planned
 
-* Redis
-* GitHub Actions CI/CD
-* Kubernetes deployment
-* Azure deployment
-* Monitoring & Observability
+* Monitoring & Observability (Prometheus, Grafana, OpenTelemetry, Azure Monitor)
 * Microsoft Entra ID integration
 * Microsoft Graph API integration
 
@@ -213,9 +203,11 @@ enterprise-it-operations-automation-platform/
 │   ├── package.json
 │   └── .dockerignore
 │
-├── infrastructure/
+├── deploy/
 │   ├── helm/
-│   ├── kubernetes/
+│   └── kubernetes/
+│
+├── infrastructure/
 │   └── terraform/
 │
 ├── docs/
@@ -520,24 +512,59 @@ This project demonstrates practical experience with:
 
 # Current Status
 
-**Version:** `v0.2.0`
+**Version:** `v0.3.0`
 
 ### Completed
 
-* ✅ Backend implementation
-* ✅ Frontend implementation
-* ✅ Password reset workflow
-* ✅ OTP verification
-* ✅ Dockerized frontend
-* ✅ Dockerized backend
-* ✅ Docker Compose development environment
-* ✅ End-to-end application successfully running inside Docker containers
+* ✅ FastAPI backend & React frontend implementation
+* ✅ PostgreSQL integration with SQLAlchemy & Alembic migrations
+* ✅ Redis caching & rate limiter integration
+* ✅ Multi-stage Docker containerization and Docker Compose setup
+* ✅ Production-ready Kubernetes raw manifests (`deploy/kubernetes/`)
+* ✅ Reusable, parameterized Helm Charts (`deploy/helm/`)
+* ✅ Production AKS infrastructure (Phase 3 Terraform deployment)
+* ✅ CI/CD pipeline automation (Helm linting & secure OIDC ACR push)
 
-### Currently Working On
+---
 
-* PostgreSQL integration
-* SQLAlchemy ORM
-* Alembic migrations
+# Kubernetes & Helm Architecture
+
+This application is fully modernized and prepared for production-grade deployment to Azure Kubernetes Service (AKS), while maintaining 100% backward compatibility with local Docker Compose development.
+
+## 1. Kubernetes Manifests (`deploy/kubernetes/`)
+The raw Kubernetes resources are organized under `deploy/kubernetes/` and include:
+- **`namespaces.yaml`**: Establishes the `eitoap` isolated namespace.
+- **`configmaps.yaml`**: Outlines non-sensitive environment configurations for `frontend` and `backend`.
+- **`secrets-template.yaml`**: Provides templates for database connections, API keys, and JWT keys.
+- **`ingress.yaml`**: Configures NGINX Ingress routing rule where `/api` points to the backend API and all other paths `/` point to the Nginx frontend.
+- **`backend/`**:
+  - [deployment.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/deployment.yaml): FastAPI deployment running 2 replicas, configured with non-root security context, read-only root filesystem with a `/tmp` mount, and CPU/Memory requests and limits (`100m-500m` / `128Mi-256Mi`). Includes liveness, readiness, and startup probes targeting `/liveness` and `/readiness`.
+  - [service.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/service.yaml): Exposes the backend inside the cluster on port `8000`.
+  - [hpa.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/hpa.yaml): Horizontal Pod Autoscaler targeting 80% CPU/Memory utilization, scaling from 2 to 5 replicas.
+  - [pdb.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/pdb.yaml): Pod Disruption Budget ensuring a minimum of 1 backend pod is available during node maintenance.
+  - [network-policy.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/network-policy.yaml): Restricts inbound traffic to the backend, allowing ingress only from the frontend pods and ingress controllers.
+- **`frontend/`**:
+  - [deployment.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/deployment.yaml): Nginx frontend deployment running 2 replicas, utilizing a non-root unprivileged Nginx image, read-only filesystem with emptyDir cache mounts, and liveness/readiness probes.
+  - [service.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/service.yaml): Exposes the frontend inside the cluster on port `80`.
+  - [hpa.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/hpa.yaml): Configures CPU/Memory autoscaling from 2 to 5 replicas.
+  - [pdb.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/pdb.yaml): Protects frontend availability during disruptions.
+  - [network-policy.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/network-policy.yaml): Protects the frontend and allows traffic to backend.
+- **`redis/`**:
+  - [deployment.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/redis/deployment.yaml) & [service.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/redis/service.yaml): Deploy a secure single-replica caching layer inside the cluster.
+
+## 2. Helm Charts (`deploy/helm/`)
+To support reproducible multi-environment package management, raw manifests are compiled into reusable Helm charts under `deploy/helm/`:
+- **`deploy/helm/common`**: Packages shared infrastructure assets such as configuration maps, secrets, and Redis caching.
+- **`deploy/helm/backend`**: Packages the FastAPI application, its scaling policies (HPA, PDB), and security/networking rules.
+- **`deploy/helm/frontend`**: Packages the React static asset server and the Nginx Ingress routing layer.
+All environment secrets and endpoints are parameterized via `values.yaml` to ensure zero hardcoding.
+
+## 3. AKS-Ready Improvements
+- **Decoupled Configuration**: Database and Redis hosts are read dynamically from environment variables. The hostname fallback checks are updated (`not os.path.exists("/.dockerenv") and not os.environ.get("KUBERNETES_SERVICE_HOST")`) to ignore Kubernetes runtimes and preserve local developer setups.
+- **Dynamic Ingress Proxy**: Vite dev server proxies `/api` to the backend locally, while the Kubernetes Ingress routes it directly in the cloud. This avoids compiling hostnames into frontend docker images.
+- **Production Performance**: Disabled Python reload flags in the `entrypoint.sh` for production runs.
+- **Structured JSON Logging**: Automatically switches logging to Structured JSON format in production and retains colored human-readable text logs in local development.
+- **CI/CD Automation**: Updated `.github/workflows/ci.yml` to lint Helm charts and build/push production images to Azure Container Registry using Azure OIDC workload identities.
 
 ---
 

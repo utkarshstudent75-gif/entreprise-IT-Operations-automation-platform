@@ -43,7 +43,7 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-if not os.path.exists("/.dockerenv"):
+if not os.path.exists("/.dockerenv") and not os.environ.get("KUBERNETES_SERVICE_HOST"):
     if "@postgres:" in settings.DATABASE_URL:
         settings.DATABASE_URL = settings.DATABASE_URL.replace(
             "@postgres:", "@127.0.0.1:"
