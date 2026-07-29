@@ -1,0 +1,13 @@
+# Terraform local directories
+.terraform/
+.terraform.tfstate
+terraform.tfstate
+terraform.tfstate.*
+*.tfplan
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+registry.terraform.io/
