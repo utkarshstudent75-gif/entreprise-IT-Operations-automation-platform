@@ -21,7 +21,10 @@ import {
   SupportAgentRounded,
   SmartToyRounded,
   ShieldRounded,
+  PersonRounded,
+  NotificationsRounded,
 } from '@mui/icons-material'
+import { useAuth } from '../contexts/AuthContext'
 
 const sidebarWidth = 260
 
@@ -29,6 +32,7 @@ interface SidebarItem {
   label: string
   path: string
   icon: React.ComponentType
+  roles?: string[]
 }
 
 interface SidebarGroup {
@@ -38,38 +42,61 @@ interface SidebarGroup {
 
 const sidebarGroups: SidebarGroup[] = [
   {
+    title: 'User Center',
+    items: [
+      { label: 'My Profile', path: '/dashboard/profile', icon: PersonRounded },
+      { label: 'Reset History', path: '/dashboard/reset-history', icon: HistoryRounded },
+      { label: 'Session Information', path: '/dashboard/session-info', icon: VpnKeyRounded },
+      { label: 'Notification Center', path: '/dashboard/notifications', icon: NotificationsRounded },
+    ],
+  },
+  {
     title: 'Identity Services',
     items: [
-      { label: 'Password Reset', path: '/dashboard/password-reset', icon: LockResetRounded },
-      { label: 'MFA Reset', path: '/dashboard/mfa-reset', icon: VpnKeyRounded },
-      { label: 'Unlock Account', path: '/dashboard/unlock-account', icon: LockOpenRounded },
+      { label: 'Password Reset', path: '/dashboard/password-reset', icon: LockResetRounded, roles: ['Platform Administrator', 'Support Engineer', 'Standard User'] },
+      { label: 'MFA Reset', path: '/dashboard/mfa-reset', icon: VpnKeyRounded, roles: ['Platform Administrator', 'Support Engineer'] },
+      { label: 'Unlock Account', path: '/dashboard/unlock-account', icon: LockOpenRounded, roles: ['Platform Administrator', 'Support Engineer'] },
     ],
   },
   {
     title: 'Software & Access',
     items: [
-      { label: 'Software Request', path: '/dashboard/software-request', icon: AppShortcutRounded },
-      { label: 'Access Request', path: '/dashboard/access-request', icon: VpnLockRounded },
-      { label: 'License Assignment', path: '/dashboard/license-assignment', icon: AssignmentIndRounded },
+      { label: 'Software Request', path: '/dashboard/software-request', icon: AppShortcutRounded, roles: ['Platform Administrator', 'Support Engineer', 'Standard User'] },
+      { label: 'Access Request', path: '/dashboard/access-request', icon: VpnLockRounded, roles: ['Platform Administrator', 'Support Engineer'] },
+      { label: 'License Assignment', path: '/dashboard/license-assignment', icon: AssignmentIndRounded, roles: ['Platform Administrator'] },
     ],
   },
   {
     title: 'Support',
     items: [
-      { label: 'My Requests', path: '/dashboard/my-requests', icon: HistoryRounded },
-      { label: 'My Tickets', path: '/dashboard/my-tickets', icon: SupportAgentRounded },
-      { label: 'AI Assistant', path: '/dashboard/ai-assistant', icon: SmartToyRounded },
+      { label: 'My Requests', path: '/dashboard/my-requests', icon: HistoryRounded, roles: ['Platform Administrator', 'Support Engineer', 'Standard User'] },
+      { label: 'My Tickets', path: '/dashboard/my-tickets', icon: SupportAgentRounded, roles: ['Platform Administrator', 'Support Engineer'] },
+      { label: 'AI Assistant', path: '/dashboard/ai-assistant', icon: SmartToyRounded, roles: ['Platform Administrator', 'Support Engineer', 'Standard User'] },
     ],
   },
   {
     title: 'Administration',
     items: [
-      { label: 'Admin Dashboard', path: '/dashboard/admin', icon: ShieldRounded },
+      { label: 'Admin Dashboard', path: '/dashboard/admin', icon: ShieldRounded, roles: ['Platform Administrator'] },
     ],
   },
 ]
 
 export function Sidebar() {
+  const { user } = useAuth()
+  
+  if (!user) return null
+
+  // Filter sidebar groups based on user role
+  const filteredGroups = sidebarGroups
+    .map((group) => {
+      const filteredItems = group.items.filter(
+        (item) => !item.roles || item.roles.includes(user.role)
+      )
+      return { ...group, items: filteredItems }
+    })
+    .filter((group) => group.items.length > 0)
+
   return (
     <Drawer
       variant="permanent"
@@ -114,7 +141,7 @@ export function Sidebar() {
             </ListItemButton>
           </ListItem>
 
-          {sidebarGroups.map((group) => (
+          {filteredGroups.map((group) => (
             <Box key={group.title} sx={{ mb: 2 }}>
               <ListSubheader
                 sx={{
@@ -164,3 +191,4 @@ export function Sidebar() {
     </Drawer>
   )
 }
+

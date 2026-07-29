@@ -1,26 +1,61 @@
-import { Box, Button, Card, Stack, TextField, Typography, Link, Alert } from '@mui/material'
-import { useState } from 'react'
+import { Box, Button, Card, Stack, TextField, Typography, Link, Alert, MenuItem, Select, FormControl, InputLabel } from '@mui/material'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link as RouterLink } from 'react-router-dom'
+import { useAuth, UserProfile } from '../../contexts/AuthContext'
 
 export function Login() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
   const navigate = useNavigate()
+  const { login, isAuthenticated, isMockMode } = useAuth()
+  
+  const [email, setEmail] = useState('')
+  const [role, setRole] = useState<UserProfile['role']>('Standard User')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleLogin = (e: React.FormEvent) => {
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard')
+    }
+  }, [isAuthenticated, navigate])
+
+  // Set default test email depending on role selected
+  useEffect(() => {
+    if (isMockMode) {
+      if (role === 'Platform Administrator') {
+        setEmail('riya@example.com')
+      } else if (role === 'Support Engineer') {
+        setEmail('support@example.com')
+      } else if (role === 'Auditor') {
+        setEmail('auditor@example.com')
+      } else {
+        setEmail('arsh@example.com')
+      }
+    }
+  }, [role, isMockMode])
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setLoading(true)
 
-    if (!email.trim() || !password.trim()) {
-      setError('Please fill in all fields.')
-      return
+    try {
+      if (isMockMode) {
+        if (!email.trim()) {
+          setError('Please enter an email address.')
+          setLoading(false)
+          return
+        }
+        await login({ email: email.trim(), role })
+      } else {
+        await login()
+      }
+      navigate('/dashboard')
+    } catch (err: any) {
+      setError(err?.message ?? 'Authentication failed. Please try again.')
+    } finally {
+      setLoading(false)
     }
-
-    // Mock Login Success
-    localStorage.setItem('isAuthenticated', 'true')
-    localStorage.setItem('userEmail', email.trim())
-    navigate('/dashboard')
   }
 
   return (
@@ -42,47 +77,84 @@ export function Login() {
               Portal Sign In
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Use your corporate credentials to sign in
+              {isMockMode 
+                ? 'Local development mock SSO mode enabled' 
+                : 'Use your corporate credentials to sign in via Microsoft SSO'}
             </Typography>
           </Box>
 
           {error && <Alert severity="error">{error}</Alert>}
 
-          <TextField
-            label="Corporate Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            fullWidth
-            required
-            autoComplete="email"
-            autoFocus
-          />
+          {isMockMode ? (
+            <>
+              <FormControl fullWidth required>
+                <InputLabel id="developer-role-label">Developer Role</InputLabel>
+                <Select
+                  labelId="developer-role-label"
+                  value={role}
+                  label="Developer Role"
+                  onChange={(e) => setRole(e.target.value as UserProfile['role'])}
+                >
+                  <MenuItem value="Standard User">Standard User</MenuItem>
+                  <MenuItem value="Platform Administrator">Platform Administrator</MenuItem>
+                  <MenuItem value="Support Engineer">Support Engineer</MenuItem>
+                  <MenuItem value="Auditor">Auditor</MenuItem>
+                </Select>
+              </FormControl>
 
-          <TextField
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            fullWidth
-            required
-            autoComplete="current-password"
-          />
+              <TextField
+                label="Mock Corporate Email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                fullWidth
+                required
+                autoComplete="email"
+              />
 
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Button 
+                type="submit" 
+                variant="contained" 
+                size="large" 
+                fullWidth 
+                disabled={loading}
+                sx={{ py: 1.25 }}
+              >
+                {loading ? 'Signing in...' : 'Sign In (Mock Bypass)'}
+              </Button>
+            </>
+          ) : (
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              fullWidth
+              disabled={loading}
+              sx={{
+                py: 1.5,
+                bgcolor: '#0078d4', // Microsoft blue
+                fontWeight: 700,
+                fontSize: '1rem',
+                textTransform: 'none',
+                '&:hover': {
+                  bgcolor: '#005a9e',
+                }
+              }}
+            >
+              {loading ? 'Connecting...' : 'Sign In with Microsoft'}
+            </Button>
+          )}
+
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
             <Link
               component={RouterLink}
               to="/password-reset"
               variant="body2"
               sx={{ fontWeight: 600 }}
             >
-              Forgot Password?
+              Self-Service Password Reset
             </Link>
           </Box>
-
-          <Button type="submit" variant="contained" size="large" fullWidth sx={{ py: 1.25 }}>
-            Sign In
-          </Button>
 
           <Box sx={{ textAlign: 'center' }}>
             <Link component={RouterLink} to="/" variant="body2" sx={{ fontWeight: 600 }}>
@@ -94,3 +166,4 @@ export function Login() {
     </Box>
   )
 }
+

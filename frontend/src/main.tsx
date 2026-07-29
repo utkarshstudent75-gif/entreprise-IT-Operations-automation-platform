@@ -3,6 +3,13 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
 
+import { PublicClientApplication } from '@azure/msal-browser'
+import { MsalProvider } from '@azure/msal-react'
+import { msalConfig } from './authConfig'
+import { AuthProvider } from './contexts/AuthContext'
+
+const msalInstance = new PublicClientApplication(msalConfig)
+
 const theme = createTheme({
   palette: {
     primary: { main: '#155fc1', dark: '#0b3a82' },
@@ -21,9 +28,14 @@ const theme = createTheme({
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <App />
-    </ThemeProvider>
+    <MsalProvider instance={msalInstance}>
+      <AuthProvider>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <App />
+        </ThemeProvider>
+      </AuthProvider>
+    </MsalProvider>
   </StrictMode>,
 )
+

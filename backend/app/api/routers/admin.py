@@ -9,6 +9,7 @@ from app.database.dependencies import get_db
 from app.schemas.audit import AuditLogResponse
 from app.schemas.response import StandardResponse
 from app.services.audit_service import audit_service
+from app.auth.dependencies import check_role
 
 router = APIRouter(
     tags=["Admin & Audit Logs"],
@@ -18,15 +19,18 @@ router = APIRouter(
 @router.get(
     "/admin",
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(check_role(["Platform Administrator"]))],
 )
 async def get_admin():
     return {"status": "coming soon"}
+
 
 
 @router.get(
     "/audit-logs",
     response_model=StandardResponse[list[AuditLogResponse]],
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(check_role(["Platform Administrator", "Auditor"]))],
 )
 def get_audit_logs(
     user_id: Annotated[int | None, Query(description="Filter by user ID")] = None,
@@ -68,6 +72,7 @@ def get_audit_logs(
     "/audit-logs/{audit_id}",
     response_model=StandardResponse[AuditLogResponse],
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(check_role(["Platform Administrator", "Auditor"]))],
 )
 def get_audit_log(
     audit_id: int,

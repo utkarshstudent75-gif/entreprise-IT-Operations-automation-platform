@@ -568,6 +568,73 @@ All environment secrets and endpoints are parameterized via `values.yaml` to ens
 
 ---
 
+# Microsoft Entra ID SSO & Dashboard Architecture
+
+We have integrated Microsoft Entra ID authentication and Microsoft Graph reset capabilities, introducing an authenticated Enterprise Dashboard alongside the public SSPR flow.
+
+## 1. Separate Application Entry Points
+
+The application is architecturally partitioned into two strict security zones:
+1. **Public Zone (Anonymous):** Includes SSPR email submission, OTP code verification, Graph-mediated SSPR password submission, and portal login. Accessible without authentication.
+2. **Authenticated Zone (SSO Protected):** Includes the dashboard, My Profile, Session Info, Reset History, and security notifications. Accessible only after valid Microsoft Entra ID authentication.
+
+## 2. Authentication Flow
+
+The SSO login relies on **MSAL React (MSAL v3)** implementing the OpenID Connect (OIDC) **Authorization Code Flow with PKCE**:
+
+```mermaid
+sequenceDiagram
+    participant User as User Browser
+    participant MSAL as React MSAL Client
+    participant Entra as Microsoft Entra ID
+    participant Backend as FastAPI Backend
+    
+    User->>MSAL: Click "Sign In with Microsoft"
+    MSAL->>Entra: Authorization Request + Code Challenge (PKCE)
+    Entra->>User: Authenticate & Request Consent
+    User->>Entra: Provide Credentials
+    Entra->>MSAL: Auth Code Redirect
+    MSAL->>Entra: Swap Code + Verifier for Tokens
+    Entra->>MSAL: ID & Access Token
+    MSAL->>Backend: Request APIs (Bearer Access Token)
+    Backend->>Backend: Validate Token Signature/Audience/Claims
+    Backend->>User: Return Restricted Data
+```
+
+*   **Silent Token Refresh:** MSAL React automatically renews the token silently in the background before it expires, using session storage claims.
+*   **Developer Mock SSO Bypass:** If `ENTRA_CLIENT_ID` is not configured, the frontend renders a mock selector. Clicking a role requests a locally signed JWT token from `/users/mock-token` (signed using `JWT_SECRET_KEY`) which mimics Entra ID OIDC claims (`preferred_username`, `name`, `roles`).
+
+## 3. Backend JWT Validation
+
+The backend executes secure, stateless signature checks on every Bearer token:
+- **JWKS Key Caching:** Fetches public keys from the tenant's OIDC discovery endpoint (`discovery/v2.0/keys`) and caches them in memory for 12 hours.
+- **Claims Verification:** Asserts signature validity (RS256), audience matches `ENTRA_CLIENT_ID`, issuer matches the active tenant (`https://login.microsoftonline.com/{tenant}/v2.0`), and the token is not expired.
+- **Fallback Verification:** If in developer mock mode, validates HS256 signature against local `JWT_SECRET_KEY`.
+
+## 4. Role-Based Access Control (RBAC)
+
+FastAPI endpoints and React frontend routes are restricted based on security privilege mappings decoded from the token's `roles` claims:
+- **`Platform Administrator`**: Administrative configuration, full log auditing, user management.
+- **`Support Engineer`**: Access to identity helpdesk tools (MFA reset, password resets, account unlocking).
+- **`Auditor`**: Read-only log viewing and session monitoring.
+- **`Standard User`**: Base profile access and self-service history details.
+
+## 5. Security & Rate Limiting
+
+- **SSPR Brute-Force Protection:** If an email or IP address fails SSPR verification 5 times, it is placed on a **15-minute Redis-based cooldown block**. Any requests during this period are rejected with `HTTP 429 Too Many Requests`.
+- **Password Complexity Policy:** Enforces complexity criteria both in frontend UI (live checkbox requirements) and backend schemas (minimum length of 12, uppercase, lowercase, numbers, special characters, and weak blacklist dictionary checks).
+
+## 6. Environment Variables
+
+Configure the following variables in your `.env` or Kubernetes secret:
+- `ENTRA_TENANT_ID`: Microsoft Entra tenant ID (Directory ID)
+- `ENTRA_CLIENT_ID`: App registration Application (Client) ID
+- `ENTRA_CLIENT_SECRET`: App registration Client Secret (for Graph client API)
+- `ENTRA_REDIRECT_URI`: Registered application redirect URL (e.g. `http://localhost:5173/login`)
+- `PASSWORD_MIN_LENGTH`: Configurable complexity length (default: `12`)
+
+---
+
 # License
 
 This project is licensed under the MIT License.

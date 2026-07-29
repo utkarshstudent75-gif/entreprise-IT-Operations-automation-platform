@@ -40,6 +40,29 @@ class Settings(BaseSettings):
     SMS_RETRY_COUNT: int = 3
     SMS_TEST_RECIPIENT: str | None = None
 
+    # Microsoft Entra ID Integration
+    ENTRA_TENANT_ID: str | None = None
+    ENTRA_CLIENT_ID: str | None = None
+    ENTRA_CLIENT_SECRET: str | None = None
+    ENTRA_REDIRECT_URI: str | None = None
+    GRAPH_ENDPOINT: str = "https://graph.microsoft.com/v1.0"
+    USE_MANAGED_IDENTITY: bool = False
+
+    # Password Policy Configuration
+    PASSWORD_MIN_LENGTH: int = 12
+    PASSWORD_REQUIRE_UPPERCASE: bool = True
+    PASSWORD_REQUIRE_LOWERCASE: bool = True
+    PASSWORD_REQUIRE_NUMBERS: bool = True
+    PASSWORD_REQUIRE_SPECIAL: bool = True
+    PASSWORD_FORCE_CHANGE_ON_NEXT_SIGNIN: bool = True
+
+    # JWT Authentication Configuration
+    JWT_SECRET_KEY: str = "secret-key-change-in-production"
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+
+
+
 
 settings = Settings()
 

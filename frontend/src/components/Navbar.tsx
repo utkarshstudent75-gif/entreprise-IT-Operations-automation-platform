@@ -1,14 +1,25 @@
-import { AppBar, Box, Button, Toolbar, Typography, Chip } from '@mui/material'
+import { AppBar, Box, Button, Toolbar, Typography, Chip, Avatar, Tooltip } from '@mui/material'
 import { LogoutRounded, FiberManualRecordRounded } from '@mui/icons-material'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link as RouterLink } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 
 export function Navbar() {
   const navigate = useNavigate()
+  const { user, logout } = useAuth()
 
-  const handleLogout = () => {
-    localStorage.setItem('isAuthenticated', 'false')
-    localStorage.removeItem('userEmail')
+  const handleLogout = async () => {
+    await logout()
     navigate('/')
+  }
+
+  // Determine role colors
+  let roleColor: 'primary' | 'secondary' | 'error' | 'success' | 'warning' | 'info' = 'primary'
+  if (user?.role === 'Platform Administrator') {
+    roleColor = 'error'
+  } else if (user?.role === 'Support Engineer') {
+    roleColor = 'warning'
+  } else if (user?.role === 'Auditor') {
+    roleColor = 'success'
   }
 
   return (
@@ -39,7 +50,7 @@ export function Navbar() {
             </Typography>
           </Box>
         </Box>
-
+ 
         {/* Action Panel */}
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           {/* System status placeholder */}
@@ -56,6 +67,47 @@ export function Navbar() {
               display: { xs: 'none', sm: 'inline-flex' },
             }}
           />
+
+          {user && (
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mr: 1 }}>
+              <Tooltip title="View Profile">
+                <Avatar 
+                  component={RouterLink}
+                  to="/dashboard/profile"
+                  sx={{ 
+                    width: 32, 
+                    height: 32, 
+                    fontSize: '0.85rem', 
+                    bgcolor: 'primary.main',
+                    cursor: 'pointer',
+                    textDecoration: 'none',
+                    color: 'common.white',
+                  }}
+                >
+                  {user.name.charAt(0).toUpperCase()}
+                </Avatar>
+              </Tooltip>
+              <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', lineHeight: 1 }}>
+                  {user.name}
+                </Typography>
+                <Chip 
+                  label={user.role} 
+                  size="small" 
+                  color={roleColor}
+                  sx={{ 
+                    height: 16, 
+                    fontSize: '0.65rem', 
+                    fontWeight: 700,
+                    borderRadius: 1, 
+                    mt: 0.5,
+                    px: 0.5,
+                    '& .MuiChip-label': { px: 0.5 }
+                  }} 
+                />
+              </Box>
+            </Stack>
+          )}
 
           <Button
             variant="outlined"
@@ -77,3 +129,5 @@ export function Navbar() {
     </AppBar>
   )
 }
+import { Stack } from '@mui/material'
+

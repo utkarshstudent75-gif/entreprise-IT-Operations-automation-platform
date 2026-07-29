@@ -1,9 +1,10 @@
-import { Box, Stack, Typography } from '@mui/material'
-import { useMemo, useState } from 'react'
+import { Box, Stack, Typography, List, ListItem, ListItemIcon, ListItemText } from '@mui/material'
+import { useMemo, useState, useEffect } from 'react'
+import { CheckCircleRounded, RadioButtonUncheckedRounded } from '@mui/icons-material'
 
 import { useNavigate } from 'react-router-dom'
 
-import { requestPasswordReset, resetPassword, verifyOtp } from '../api/passwordApi'
+import { requestPasswordReset, resetPassword, verifyOtp, getPasswordPolicy, PasswordPolicy } from '../api/passwordApi'
 import { EnterpriseCard } from '../components/EnterpriseCard'
 import { FormAlert } from '../components/FormAlert'
 import { LoadingButton } from '../components/LoadingButton'
@@ -22,21 +23,52 @@ export function PasswordResetPage() {
   const [statusMessage, setStatusMessage] = useState('')
   const [statusSeverity, setStatusSeverity] = useState<'success' | 'error' | 'info'>('info')
   const [loading, setLoading] = useState(false)
+  const [policy, setPolicy] = useState<PasswordPolicy>({
+    min_length: 12,
+    require_uppercase: true,
+    require_lowercase: true,
+    require_numbers: true,
+    require_special: true,
+  })
 
+  // Load password complexity policy from backend on mount
+  useEffect(() => {
+    const fetchPolicy = async () => {
+      const activePolicy = await getPasswordPolicy()
+      setPolicy(activePolicy)
+    }
+    fetchPolicy()
+  }, [])
+
+  // Complexity criteria checks
+  const criteria = useMemo(() => {
+    return {
+      length: newPassword.length >= policy.min_length,
+      uppercase: !policy.require_uppercase || /[A-Z]/.test(newPassword),
+      lowercase: !policy.require_lowercase || /[a-z]/.test(newPassword),
+      number: !policy.require_numbers || /\d/.test(newPassword),
+      special: !policy.require_special || /[^A-Za-z0-9]/.test(newPassword),
+    }
+  }, [newPassword, policy])
 
   const canSubmitEmail = email.trim().length > 0
   const canSubmitOtp = otp.trim().length === 6
-  const canSubmitPassword = newPassword.length >= 8
+  
+  // Submit only if ALL policy criteria are satisfied
+  const canSubmitPassword = useMemo(() => {
+    return Object.values(criteria).every(Boolean)
+  }, [criteria])
 
   const passwordStrength = useMemo(() => {
-    if (newPassword.length >= 12 && /[A-Z]/.test(newPassword) && /\d/.test(newPassword) && /[^A-Za-z0-9]/.test(newPassword)) {
+    const satisfiedCount = Object.values(criteria).filter(Boolean).length
+    if (satisfiedCount === 5 && newPassword.length >= 14) {
       return 'Strong'
     }
-    if (newPassword.length >= 10) {
+    if (satisfiedCount >= 4) {
       return 'Moderate'
     }
     return 'Weak'
-  }, [newPassword])
+  }, [criteria, newPassword])
 
   const clearStatus = () => {
     setStatusMessage('')
@@ -99,7 +131,6 @@ export function PasswordResetPage() {
     }
   }
 
-
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center' }}>
       <Box sx={{ width: '100%', maxWidth: 900 }}>
@@ -158,7 +189,7 @@ export function PasswordResetPage() {
             )}
 
             {step === 2 && (
-              <Stack spacing={2}>
+              <Stack spacing={2.5}>
                 <TextInput
                   label="Email"
                   value={email}
@@ -179,6 +210,73 @@ export function PasswordResetPage() {
                   onChange={(event) => setNewPassword(event.target.value)}
                   helperText={`Password strength: ${passwordStrength}`}
                 />
+
+                {/* Dynamic Password Policy Complexity Checklist */}
+                <Box sx={{ p: 2, bgcolor: '#f4f6fb', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary' }}>
+                    Password Security Checklist:
+                  </Typography>
+                  <List disablePadding>
+                    <ListItem disablePadding sx={{ py: 0.25 }}>
+                      <ListItemIcon sx={{ minWidth: 28 }}>
+                        {criteria.length ? <CheckCircleRounded color="success" sx={{ fontSize: 18 }} /> : <RadioButtonUncheckedRounded sx={{ fontSize: 18 }} />}
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={`At least ${policy.min_length} characters (Currently: ${newPassword.length})`}
+                        primaryTypographyProps={{ fontSize: '0.8rem', color: criteria.length ? 'success.main' : 'text.secondary' }}
+                      />
+                    </ListItem>
+                    
+                    {policy.require_uppercase && (
+                      <ListItem disablePadding sx={{ py: 0.25 }}>
+                        <ListItemIcon sx={{ minWidth: 28 }}>
+                          {criteria.uppercase ? <CheckCircleRounded color="success" sx={{ fontSize: 18 }} /> : <RadioButtonUncheckedRounded sx={{ fontSize: 18 }} />}
+                        </ListItemIcon>
+                        <ListItemText 
+                          primary="At least one uppercase letter (A-Z)"
+                          primaryTypographyProps={{ fontSize: '0.8rem', color: criteria.uppercase ? 'success.main' : 'text.secondary' }}
+                        />
+                      </ListItem>
+                    )}
+
+                    {policy.require_lowercase && (
+                      <ListItem disablePadding sx={{ py: 0.25 }}>
+                        <ListItemIcon sx={{ minWidth: 28 }}>
+                          {criteria.lowercase ? <CheckCircleRounded color="success" sx={{ fontSize: 18 }} /> : <RadioButtonUncheckedRounded sx={{ fontSize: 18 }} />}
+                        </ListItemIcon>
+                        <ListItemText 
+                          primary="At least one lowercase letter (a-z)"
+                          primaryTypographyProps={{ fontSize: '0.8rem', color: criteria.lowercase ? 'success.main' : 'text.secondary' }}
+                        />
+                      </ListItem>
+                    )}
+
+                    {policy.require_numbers && (
+                      <ListItem disablePadding sx={{ py: 0.25 }}>
+                        <ListItemIcon sx={{ minWidth: 28 }}>
+                          {criteria.number ? <CheckCircleRounded color="success" sx={{ fontSize: 18 }} /> : <RadioButtonUncheckedRounded sx={{ fontSize: 18 }} />}
+                        </ListItemIcon>
+                        <ListItemText 
+                          primary="At least one number (0-9)"
+                          primaryTypographyProps={{ fontSize: '0.8rem', color: criteria.number ? 'success.main' : 'text.secondary' }}
+                        />
+                      </ListItem>
+                    )}
+
+                    {policy.require_special && (
+                      <ListItem disablePadding sx={{ py: 0.25 }}>
+                        <ListItemIcon sx={{ minWidth: 28 }}>
+                          {criteria.special ? <CheckCircleRounded color="success" sx={{ fontSize: 18 }} /> : <RadioButtonUncheckedRounded sx={{ fontSize: 18 }} />}
+                        </ListItemIcon>
+                        <ListItemText 
+                          primary="At least one special character (e.g. !@#$%^&*)"
+                          primaryTypographyProps={{ fontSize: '0.8rem', color: criteria.special ? 'success.main' : 'text.secondary' }}
+                        />
+                      </ListItem>
+                    )}
+                  </List>
+                </Box>
+
                 <LoadingButton variant="contained" loading={loading} onClick={handleResetPassword} disabled={!canSubmitPassword}>
                   Reset password
                 </LoadingButton>
@@ -190,3 +288,4 @@ export function PasswordResetPage() {
     </Box>
   )
 }
+

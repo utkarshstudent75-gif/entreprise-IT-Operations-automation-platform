@@ -46,3 +46,28 @@ export async function verifyOtp(email: string, otp: string): Promise<PasswordApi
 export async function resetPassword(email: string, otp: string, new_password: string): Promise<PasswordApiResult> {
   return postPasswordRequest('/password/reset-password', { email, otp, new_password }, 'Unable to reset your password. Please try again.')
 }
+
+export interface PasswordPolicy {
+  min_length: number
+  require_uppercase: boolean
+  require_lowercase: boolean
+  require_numbers: boolean
+  require_special: boolean
+}
+
+export async function getPasswordPolicy(): Promise<PasswordPolicy> {
+  try {
+    const { data } = await passwordApiClient.get<{ success: boolean, data: PasswordPolicy }>('/password/policy')
+    return data.data
+  } catch (error) {
+    // Fallback to standard enterprise settings on failure
+    return {
+      min_length: 12,
+      require_uppercase: true,
+      require_lowercase: true,
+      require_numbers: true,
+      require_special: true,
+    }
+  }
+}
+

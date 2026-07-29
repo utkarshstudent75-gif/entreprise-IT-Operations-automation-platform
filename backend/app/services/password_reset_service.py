@@ -17,6 +17,8 @@ from app.services.audit_service import audit_service
 from app.services.notification_service import notification_service
 from app.services.redis_service import redis_service
 
+from app.services.graph_service import graph_service
+
 INVALID_EMAIL_OR_OTP = "Invalid email or OTP."
 OTP_EXPIRED = "OTP has expired."
 OTP_ALREADY_USED_MSG = "OTP has already been used."
@@ -61,20 +63,79 @@ class PasswordResetService:
 
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+    def validate_password_strength(self, password: str) -> None:
+        """
+        Validates password complexity against system configuration and weak blacklists.
+        Raises GraphAPIException if complexity rules are not met.
+        """
+        from app.services.graph_service import GraphAPIException
+        import re
+        
+        # 1. Length check
+        if len(password) < settings.PASSWORD_MIN_LENGTH:
+            raise GraphAPIException(
+                f"Password must be at least {settings.PASSWORD_MIN_LENGTH} characters long.",
+                status_code=400,
+                error_code="PASSWORD_POLICY_VIOLATION"
+            )
+            
+        # 2. Case checks
+        if settings.PASSWORD_REQUIRE_UPPERCASE and not re.search(r"[A-Z]", password):
+            raise GraphAPIException(
+                "Password must contain at least one uppercase letter (A-Z).",
+                status_code=400,
+                error_code="PASSWORD_POLICY_VIOLATION"
+            )
+        if settings.PASSWORD_REQUIRE_LOWERCASE and not re.search(r"[a-z]", password):
+            raise GraphAPIException(
+                "Password must contain at least one lowercase letter (a-z).",
+                status_code=400,
+                error_code="PASSWORD_POLICY_VIOLATION"
+            )
+            
+        # 3. Numeric checks
+        if settings.PASSWORD_REQUIRE_NUMBERS and not re.search(r"\d", password):
+            raise GraphAPIException(
+                "Password must contain at least one digit (0-9).",
+                status_code=400,
+                error_code="PASSWORD_POLICY_VIOLATION"
+            )
+            
+        # 4. Special character checks
+        if settings.PASSWORD_REQUIRE_SPECIAL and not re.search(r"[^A-Za-z0-9]", password):
+            raise GraphAPIException(
+                "Password must contain at least one special character (e.g. !@#$%^&*).",
+                status_code=400,
+                error_code="PASSWORD_POLICY_VIOLATION"
+            )
+
+        # 5. Blacklisted weak passwords check
+        weak_blacklist = ["password", "12345678", "admin123", "password123", "qwerty"]
+        if password.lower() in weak_blacklist:
+            raise GraphAPIException(
+                "The password meets standard rules but is too common or weak.",
+                status_code=400,
+                error_code="PASSWORD_POLICY_VIOLATION"
+            )
+
     async def request_password_reset(self, db: Session, email: str) -> None:
         """Create a reset request and send the OTP.
 
-        If the user does not exist, complete the call successfully anyway to prevent
-        user enumeration. This avoids leaking whether an email is registered.
+        If the user does not exist in Microsoft Entra ID, complete the call successfully 
+        anyway to prevent user enumeration. This avoids leaking whether an email is registered.
         """
         with logging_context(act="password_reset_requested"):
-            user = user_repository.get_by_email(db, email)
-            if user:
-                user_id.set(user.id)
+            # Check user presence in Microsoft Entra ID
+            user_exists = await graph_service.lookup_user(email)
+            
+            # Map user ID from local database if available for log correlation
+            local_user = user_repository.get_by_email(db, email)
+            if local_user:
+                user_id.set(local_user.id)
 
-            if user is None:
+            if not user_exists:
                 logger.info(
-                    "Password reset requested for unknown email %s; "
+                    "Password reset requested for unknown Entra ID email %s; "
                     "returning success to avoid enumeration.",
                     email,
                 )
@@ -98,7 +159,7 @@ class PasswordResetService:
                 audit_service.record_event(
                     action="forgot_password",
                     status="FAILED",
-                    user_id=user.id,
+                    user_id=local_user.id if local_user else None,
                     details={"email": email, "reason": str(e)},
                 )
                 raise
@@ -106,28 +167,25 @@ class PasswordResetService:
             # Send the OTP using notification_service
             notification_service.send_otp(email, otp)
 
-            logger.info("Password reset request created for user id %s", user.id)
+            logger.info("Password reset request created for email %s", email)
             audit_service.record_event(
                 action="forgot_password",
                 status="SUCCESS",
-                user_id=user.id,
+                user_id=local_user.id if local_user else None,
                 details={"email": email},
             )
 
     async def verify_otp(self, db: Session, email: str, otp: str) -> bool:
-        """Verify a submitted OTP without consuming it.
-
-        This method validates existence, usage state, expiry, and OTP match.
-        Business rules stay in the service layer; Redis stores the state.
-        """
+        """Verify a submitted OTP without consuming it."""
         with logging_context(act="otp_verification"):
-            user = user_repository.get_by_email(db, email)
-            if user:
-                user_id.set(user.id)
+            user_exists = await graph_service.lookup_user(email)
+            local_user = user_repository.get_by_email(db, email)
+            if local_user:
+                user_id.set(local_user.id)
 
-            if user is None:
+            if not user_exists:
                 logger.warning(
-                    "Password reset verify failed for unknown email %s", email
+                    "Password reset verify failed for unknown Entra ID email %s", email
                 )
                 audit_service.record_event(
                     action="otp_verification",
@@ -149,7 +207,7 @@ class PasswordResetService:
                 )
             except Exception as e:
                 logger.warning(
-                    "OTP verification failed for user id %s: %s", user.id, str(e)
+                    "OTP verification failed for email %s: %s", email, str(e)
                 )
                 from app.core.exceptions import (
                     ExpiredOTPException,
@@ -161,7 +219,7 @@ class PasswordResetService:
                     audit_service.record_event(
                         action="otp_verification",
                         status="FAILED",
-                        user_id=user.id,
+                        user_id=local_user.id if local_user else None,
                         details={"email": email, "reason": reason},
                     )
                     raise PasswordResetExpiredError(OTP_EXPIRED)
@@ -170,7 +228,7 @@ class PasswordResetService:
                     audit_service.record_event(
                         action="otp_verification",
                         status="FAILED",
-                        user_id=user.id,
+                        user_id=local_user.id if local_user else None,
                         details={"email": email, "reason": reason},
                     )
                     raise PasswordResetAlreadyUsedError(OTP_ALREADY_USED_MSG)
@@ -179,16 +237,16 @@ class PasswordResetService:
                 audit_service.record_event(
                     action="otp_verification",
                     status="FAILED",
-                    user_id=user.id,
+                    user_id=local_user.id if local_user else None,
                     details={"email": email, "reason": reason},
                 )
                 raise PasswordResetInvalidRequest(INVALID_EMAIL_OR_OTP)
 
-            logger.info("Password reset OTP verified for user id %s", user.id)
+            logger.info("Password reset OTP verified for email %s", email)
             audit_service.record_event(
                 action="otp_verification",
                 status="SUCCESS",
-                user_id=user.id,
+                user_id=local_user.id if local_user else None,
                 details={"email": email},
             )
             return True
@@ -196,14 +254,15 @@ class PasswordResetService:
     async def reset_password(
         self, db: Session, email: str, otp: str, new_password: str
     ) -> bool:
-        """Reset a user's password in a single transactional operation."""
+        """Reset a user's password in Entra ID via Microsoft Graph after validating OTP."""
         with logging_context(act="password_reset_completed"):
-            user = user_repository.get_by_email(db, email)
-            if user:
-                user_id.set(user.id)
+            user_exists = await graph_service.lookup_user(email)
+            local_user = user_repository.get_by_email(db, email)
+            if local_user:
+                user_id.set(local_user.id)
 
-            if user is None:
-                logger.warning("Password reset failed for unknown email %s", email)
+            if not user_exists:
+                logger.warning("Password reset failed for unknown Entra ID email %s", email)
                 audit_service.record_event(
                     action="password_reset",
                     status="FAILED",
@@ -214,6 +273,7 @@ class PasswordResetService:
                 )
                 raise PasswordResetInvalidRequest(INVALID_EMAIL_OR_OTP)
 
+            # 1. Verify OTP first (consumes on success)
             try:
                 await redis_service.verify_otp(
                     email=email,
@@ -224,8 +284,8 @@ class PasswordResetService:
                 )
             except Exception as e:
                 logger.warning(
-                    "OTP verification for reset failed for user id %s: %s",
-                    user.id,
+                    "OTP verification for reset failed for email %s: %s",
+                    email,
                     str(e),
                 )
                 from app.core.exceptions import (
@@ -238,7 +298,7 @@ class PasswordResetService:
                     audit_service.record_event(
                         action="password_reset",
                         status="FAILED",
-                        user_id=user.id,
+                        user_id=local_user.id if local_user else None,
                         details={"email": email, "reason": reason},
                     )
                     raise PasswordResetExpiredError(OTP_EXPIRED)
@@ -247,7 +307,7 @@ class PasswordResetService:
                     audit_service.record_event(
                         action="password_reset",
                         status="FAILED",
-                        user_id=user.id,
+                        user_id=local_user.id if local_user else None,
                         details={"email": email, "reason": reason},
                     )
                     raise PasswordResetAlreadyUsedError(OTP_ALREADY_USED_MSG)
@@ -256,36 +316,48 @@ class PasswordResetService:
                 audit_service.record_event(
                     action="password_reset",
                     status="FAILED",
-                    user_id=user.id,
+                    user_id=local_user.id if local_user else None,
                     details={"email": email, "reason": reason},
                 )
                 raise PasswordResetInvalidRequest(INVALID_EMAIL_OR_OTP)
 
-            hashed_password = self._hash_password(new_password)
+            # 2. Validate password strength against Pydantic policy rules
+            self.validate_password_strength(new_password)
 
-            user.hashed_password = hashed_password
-
+            # 3. Call Microsoft Graph client to reset the password
             try:
-                db.add(user)
-                db.commit()
-                db.refresh(user)
-            except Exception as e:
-                logger.error(
-                    "Failed database transaction for reset_password: %s", str(e)
-                )
                 audit_service.record_event(
-                    action="password_reset",
+                    action="graph_password_reset_initiated",
+                    status="SUCCESS",
+                    user_id=local_user.id if local_user else None,
+                    details={"email": email},
+                )
+                
+                await graph_service.reset_password(email, new_password)
+                
+                audit_service.record_event(
+                    action="graph_password_reset_successful",
+                    status="SUCCESS",
+                    user_id=local_user.id if local_user else None,
+                    details={"email": email},
+                )
+            except Exception as e:
+                from app.services.graph_service import GraphAPIException
+                reason = str(e) if isinstance(e, GraphAPIException) else "Graph integration error"
+                
+                audit_service.record_event(
+                    action="graph_password_reset_failed",
                     status="FAILED",
-                    user_id=user.id,
-                    details={"email": email, "reason": f"Database error: {str(e)}"},
+                    user_id=local_user.id if local_user else None,
+                    details={"email": email, "reason": reason},
                 )
                 raise
 
-            logger.info("Password reset completed for user id %s", user.id)
+            logger.info("Password reset completed successfully via Graph for email %s", email)
             audit_service.record_event(
                 action="password_reset",
                 status="SUCCESS",
-                user_id=user.id,
+                user_id=local_user.id if local_user else None,
                 details={"email": email},
             )
             return True
@@ -293,8 +365,6 @@ class PasswordResetService:
     def _generate_otp(self) -> str:
         return "".join(str(secrets.randbelow(10)) for _ in range(6))
 
-    def _hash_password(self, password: str) -> str:
-        return self.pwd_context.hash(password)
-
 
 password_reset_service = PasswordResetService()
+

@@ -47,7 +47,7 @@ async def test_password_reset_flow_works_end_to_end(db, monkeypatch, caplog):
     assert otp_data is not None
     assert "otp_hash" in otp_data
     assert int(otp_data["attempts"]) == 0
-    assert "Password reset request created for user id" in caplog.text
+    assert "Password reset request created for email" in caplog.text
 
     # Verify TTL exists in Redis
     client = await get_redis()
@@ -67,8 +67,9 @@ async def test_password_reset_flow_works_end_to_end(db, monkeypatch, caplog):
     )
 
     db.refresh(user)
-    assert user.hashed_password != "oldhash"
-    assert "Password reset completed for user id" in caplog.text
+    # The local database password must not change, since Graph API resets corporate Entra passwords
+    assert user.hashed_password == "oldhash"
+    assert "Password reset completed successfully via Graph" in caplog.text
 
     # OTP should be gone/consumed
     otp_data_after = await redis_service.get_otp(user.email)

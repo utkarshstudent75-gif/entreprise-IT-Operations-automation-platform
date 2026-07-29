@@ -10,4 +10,32 @@
 
 # Node modules and build artifacts
 node_modules/
+dist/
+
+# Python Virtual Environments & Packages
+.venv/
+backend/.venv/
+venv/
+ENV/
+
+# Python caching & bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Coverage & testing reports
+.coverage
+htmlcov/
+coverage.xml
+backend/coverage/
+backend/.coverage
+
+# Local environment configuration & archives
+.env
+*.env
+backend/.env
+deploy.tar
+
+
 

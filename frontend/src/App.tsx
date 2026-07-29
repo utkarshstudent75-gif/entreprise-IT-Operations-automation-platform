@@ -10,7 +10,6 @@ import { VerifyOTP } from './pages/public/VerifyOTP'
 import { ResetPassword } from './pages/public/ResetPassword'
 import { PasswordResetPage } from './pages/PasswordResetPage'
 
-
 // Protected Pages
 import { Dashboard } from './pages/protected/Dashboard'
 import { ProtectedPasswordReset } from './pages/protected/PasswordReset'
@@ -23,6 +22,12 @@ import { MyRequests } from './pages/protected/MyRequests'
 import { MyTickets } from './pages/protected/MyTickets'
 import { AIAssistant } from './pages/protected/AIAssistant'
 import { AdminDashboard } from './pages/protected/AdminDashboard'
+
+// New User Center Protected Pages
+import { MyProfile } from './pages/protected/MyProfile'
+import { PasswordResetHistory } from './pages/protected/PasswordResetHistory'
+import { SessionInfo } from './pages/protected/SessionInfo'
+import { NotificationCenter } from './pages/protected/NotificationCenter'
 
 // Keep old route imports/aliases
 import { AdminCreateUserPage } from './pages/AdminCreateUserPage'
@@ -85,10 +90,53 @@ function App() {
             </ProtectedRoute>
           }
         />
+        
+        {/* User Center Protected Routes */}
+        <Route
+          path="/dashboard/profile"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <MyProfile />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/reset-history"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <PasswordResetHistory />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/session-info"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <SessionInfo />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/notifications"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <NotificationCenter />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="/dashboard/password-reset"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer', 'Standard User']}>
               <DashboardLayout>
                 <ProtectedPasswordReset />
               </DashboardLayout>
@@ -98,7 +146,7 @@ function App() {
         <Route
           path="/dashboard/mfa-reset"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer']}>
               <DashboardLayout>
                 <MFAReset />
               </DashboardLayout>
@@ -108,7 +156,7 @@ function App() {
         <Route
           path="/dashboard/unlock-account"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer']}>
               <DashboardLayout>
                 <UnlockAccount />
               </DashboardLayout>
@@ -118,7 +166,7 @@ function App() {
         <Route
           path="/dashboard/software-request"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer', 'Standard User']}>
               <DashboardLayout>
                 <SoftwareRequest />
               </DashboardLayout>
@@ -128,7 +176,7 @@ function App() {
         <Route
           path="/dashboard/access-request"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer']}>
               <DashboardLayout>
                 <AccessRequest />
               </DashboardLayout>
@@ -138,7 +186,7 @@ function App() {
         <Route
           path="/dashboard/license-assignment"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['Platform Administrator']}>
               <DashboardLayout>
                 <LicenseAssignment />
               </DashboardLayout>
@@ -148,7 +196,7 @@ function App() {
         <Route
           path="/dashboard/my-requests"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer', 'Standard User']}>
               <DashboardLayout>
                 <MyRequests />
               </DashboardLayout>
@@ -158,7 +206,7 @@ function App() {
         <Route
           path="/dashboard/my-tickets"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer']}>
               <DashboardLayout>
                 <MyTickets />
               </DashboardLayout>
@@ -168,7 +216,7 @@ function App() {
         <Route
           path="/dashboard/ai-assistant"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer', 'Standard User']}>
               <DashboardLayout>
                 <AIAssistant />
               </DashboardLayout>
@@ -178,7 +226,7 @@ function App() {
         <Route
           path="/dashboard/admin"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['Platform Administrator']}>
               <DashboardLayout>
                 <AdminDashboard />
               </DashboardLayout>
@@ -190,7 +238,7 @@ function App() {
         <Route
           path="/admin/create-user"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['Platform Administrator']}>
               <DashboardLayout>
                 <AdminCreateUserPage />
               </DashboardLayout>
@@ -206,3 +254,4 @@ function App() {
 }
 
 export default App
+

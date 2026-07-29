@@ -1,0 +1,239 @@
+import time
+import httpx
+import logging
+from typing import Dict, Any, Optional
+from app.core.config import settings
+from app.core.exceptions import BaseAppException
+from app.core.redis import get_redis
+
+logger = logging.getLogger("itpa")
+
+class GraphAPIException(BaseAppException):
+  """Custom exception for MS Graph API integrations."""
+  def __init__(self, message: str, status_code: int = 400, error_code: str = "GRAPH_API_ERROR"):
+    super().__init__(message, status_code=status_code, error_code=error_code)
+
+class GraphService:
+  """
+  Service interfacing with Microsoft Graph API using application permissions.
+  Supports automatic fallback to mock mode for local testing if credentials are unset.
+  """
+  
+  def __init__(self) -> None:
+    self.is_mock = not (settings.ENTRA_CLIENT_ID and settings.ENTRA_TENANT_ID)
+    self._in_memory_token: Optional[str] = None
+    self._in_memory_expiry: float = 0.0
+
+  async def get_access_token(self) -> str:
+    """
+    Acquires and returns a valid Graph API access token.
+    Uses Redis caching with automatic renewal, falling back to in-memory cache if needed.
+    """
+    if self.is_mock:
+      return "MOCK_GRAPH_ACCESS_TOKEN"
+
+    now = time.time()
+    
+    # 1. Try retrieving token from Redis cache
+    try:
+      redis_client = await get_redis()
+      cached_token = await redis_client.get("entra:access_token")
+      if cached_token:
+        # Check TTL on key
+        ttl = await redis_client.ttl("entra:access_token")
+        # Renew if within 5 minutes (300 seconds) of expiration
+        if ttl > 300:
+          return cached_token.decode("utf-8")
+    except Exception as e:
+      logger.warning("Redis access token retrieval failed: %s. Falling back to memory.", str(e))
+
+    # 2. Try retrieving from in-memory cache
+    if self._in_memory_token and (self._in_memory_expiry - now > 300):
+      return self._in_memory_token
+
+    # 3. Cache miss: acquire new token from Microsoft Entra ID
+    token = await self._acquire_token_from_entra()
+    
+    # Cache token in memory
+    self._in_memory_token = token
+    self._in_memory_expiry = now + 3500 # standard token lifetime is 3600s
+
+    # Cache token in Redis
+    try:
+      redis_client = await get_redis()
+      # Set key to expire in 3500 seconds
+      await redis_client.set("entra:access_token", token, ex=3500)
+    except Exception as e:
+      logger.warning("Failed to store access token in Redis: %s", str(e))
+
+    return token
+
+  async def _acquire_token_from_entra(self) -> str:
+    """Sends token request using configured client secret or Managed Identity."""
+    logger.info("Requesting new access token from Microsoft Entra ID...")
+    
+    # HTTP client timeout parameters
+    timeout = httpx.Timeout(10.0, connect=5.0)
+    
+    if settings.USE_MANAGED_IDENTITY:
+      # Obtain token via Azure Instance Metadata Service (IMDS)
+      imds_url = "http://169.254.169.254/metadata/identity/oauth2/token"
+      params = {
+        "api-version": "2018-02-01",
+        "resource": "https://graph.microsoft.com"
+      }
+      headers = {"Metadata": "true"}
+      
+      try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+          response = await client.get(imds_url, params=params, headers=headers)
+          response.raise_for_status()
+          data = response.json()
+          return data["access_token"]
+      except Exception as e:
+        logger.error("Managed Identity token acquisition failed: %s", str(e))
+        raise GraphAPIException("Failed to acquire token from Managed Identity service.", status_code=502)
+    else:
+      # Obtain token via Client Credentials Flow
+      token_url = f"https://login.microsoftonline.com/{settings.ENTRA_TENANT_ID}/oauth2/v2.0/token"
+      payload = {
+        "grant_type": "client_credentials",
+        "client_id": settings.ENTRA_CLIENT_ID,
+        "client_secret": settings.ENTRA_CLIENT_SECRET,
+        "scope": "https://graph.microsoft.com/.default"
+      }
+      
+      try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+          response = await client.post(token_url, data=payload)
+          response.raise_for_status()
+          data = response.json()
+          return data["access_token"]
+      except Exception as e:
+        logger.error("Client credentials flow failed: %s", str(e))
+        raise GraphAPIException("Authentication failed: Unable to connect to Microsoft Entra ID.", status_code=502)
+
+  async def lookup_user(self, email: str) -> bool:
+    """
+    Check if a user exists in Microsoft Entra ID.
+    Returns True if user exists, False if not.
+    """
+    if self.is_mock:
+      logger.info("[Mock Mode] Looking up user %s in Entra ID", email)
+      # Simulating that any corporate domain email exists
+      if "@example.com" in email or "@enterprise.com" in email or "riya" in email or "arsh" in email:
+        return True
+      return False
+
+    token = await self.get_access_token()
+    url = f"{settings.GRAPH_ENDPOINT}/users/{email}"
+    headers = {"Authorization": f"Bearer {token}"}
+    
+    # Retry logic configuration
+    attempts = 3
+    for attempt in range(attempts):
+      try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+          response = await client.get(url, headers=headers)
+          
+          if response.status_code == 200:
+            return True
+          if response.status_code == 404:
+            return False
+            
+          # Trigger retry for transient status codes
+          if response.status_code in (429, 502, 503, 504):
+            if attempt < attempts - 1:
+              time.sleep(0.5 * (2 ** attempt))
+              continue
+          
+          response.raise_for_status()
+      except (httpx.TimeoutException, httpx.NetworkError) as e:
+        if attempt < attempts - 1:
+          time.sleep(0.5 * (2 ** attempt))
+          continue
+        logger.error("Graph API lookup user failed due to network/timeout error: %s", str(e))
+        raise GraphAPIException("Network connection error to Microsoft Graph API.", status_code=504)
+      except httpx.HTTPStatusError as e:
+        logger.error("Graph API lookup returned error %d: %s", response.status_code, response.text)
+        raise GraphAPIException(f"Graph query returned status {response.status_code}.", status_code=500)
+    
+    return False
+
+  async def reset_password(self, email: str, new_password: str) -> None:
+    """
+    Resets the password profile of the specified user in Microsoft Entra ID.
+    Translates OData error messages into user-friendly security alerts.
+    """
+    if self.is_mock:
+      logger.info("[Mock Mode] Password reset requested for %s via MS Graph", email)
+      if "violation" in new_password.lower():
+        raise GraphAPIException("The password does not meet corporate complexity requirements.", status_code=400, error_code="PASSWORD_POLICY_VIOLATION")
+      if "disabled" in email:
+        raise GraphAPIException("This account is currently disabled.", status_code=400, error_code="ACCOUNT_DISABLED")
+      if "locked" in email:
+        raise GraphAPIException("This account is currently locked.", status_code=400, error_code="ACCOUNT_LOCKED")
+      return
+
+    token = await self.get_access_token()
+    url = f"{settings.GRAPH_ENDPOINT}/users/{email}"
+    headers = {
+      "Authorization": f"Bearer {token}",
+      "Content-Type": "application/json"
+    }
+    payload = {
+      "passwordProfile": {
+        "forceChangePasswordNextSignIn": settings.PASSWORD_FORCE_CHANGE_ON_NEXT_SIGNIN,
+        "password": new_password
+      }
+    }
+    
+    attempts = 3
+    for attempt in range(attempts):
+      try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+          response = await client.patch(url, json=payload, headers=headers)
+          
+          if response.status_code == 204:
+            logger.info("Password updated successfully via Graph API for %s", email)
+            return
+            
+          # Trigger retry for transient status codes
+          if response.status_code in (429, 502, 503, 504):
+            if attempt < attempts - 1:
+              time.sleep(0.5 * (2 ** attempt))
+              continue
+          
+          # Process specific errors
+          response_data = response.json()
+          error_details = response_data.get("error", {})
+          error_code = error_details.get("code", "")
+          error_msg = error_details.get("message", "")
+          
+          logger.error("Microsoft Graph password reset failed for %s. Code: %s, Message: %s", email, error_code, error_msg)
+          
+          # Map OData errors to specific business rules
+          if error_code == "Authorization_RequestDenied" or "insufficient privileges" in error_msg.lower():
+            raise GraphAPIException("Insufficient permissions to reset this account's password. Administrative accounts cannot be reset by application-level permissions.", status_code=403, error_code="INSUFFICIENT_PERMISSIONS")
+          elif "password policy" in error_msg.lower() or "complexity" in error_msg.lower():
+            raise GraphAPIException("The password does not meet corporate complexity requirements.", status_code=400, error_code="PASSWORD_POLICY_VIOLATION")
+          elif "disabled" in error_msg.lower():
+            raise GraphAPIException("This account is currently disabled.", status_code=400, error_code="ACCOUNT_DISABLED")
+          elif "locked" in error_msg.lower():
+            raise GraphAPIException("This account is currently locked.", status_code=400, error_code="ACCOUNT_LOCKED")
+          else:
+            raise GraphAPIException(f"Graph password reset failed: {error_msg}", status_code=response.status_code)
+            
+      except (httpx.TimeoutException, httpx.NetworkError) as e:
+        if attempt < attempts - 1:
+          time.sleep(0.5 * (2 ** attempt))
+          continue
+        logger.error("Graph API password reset failed due to network/timeout error: %s", str(e))
+        raise GraphAPIException("Network connection error to Microsoft Graph API.", status_code=504)
+      except GraphAPIException:
+        raise
+      except Exception as e:
+        logger.error("Unexpected error during Graph password reset: %s", str(e))
+        raise GraphAPIException("An unexpected error occurred while resetting the password.", status_code=500)
+
+graph_service = GraphService()
