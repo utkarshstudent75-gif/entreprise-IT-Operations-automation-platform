@@ -15,7 +15,7 @@ resource "azurerm_postgresql_flexible_server" "this" {
     for_each = var.tenant_id != null ? [1] : []
     content {
       active_directory_auth_enabled = true
-      password_auth_enabled          = true
+      password_auth_enabled         = true
       tenant_id                     = var.tenant_id
     }
   }
