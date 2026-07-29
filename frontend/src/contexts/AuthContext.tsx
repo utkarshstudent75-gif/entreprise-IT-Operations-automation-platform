@@ -49,8 +49,8 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
         if (account) {
           setIsAuthenticated(true)
           // Extract roles from MSAL claims if present
-          const idTokenClaims = account.idTokenClaims as Record<string, any>
-          const rawRoles: string[] = idTokenClaims?.roles ?? []
+          const idTokenClaims = account.idTokenClaims as Record<string, unknown>
+          const rawRoles = (idTokenClaims?.roles as string[]) ?? []
           
           let role: UserProfile['role'] = 'Standard User'
           if (rawRoles.includes('PlatformAdministrator')) {

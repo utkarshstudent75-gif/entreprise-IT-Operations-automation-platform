@@ -70,43 +70,45 @@ class PasswordResetService:
         import re
 
         from app.services.graph_service import GraphAPIException
-        
+
         # 1. Length check
         if len(password) < settings.PASSWORD_MIN_LENGTH:
             raise GraphAPIException(
                 f"Password must be at least {settings.PASSWORD_MIN_LENGTH} characters long.",
                 status_code=400,
-                error_code="PASSWORD_POLICY_VIOLATION"
+                error_code="PASSWORD_POLICY_VIOLATION",
             )
-            
+
         # 2. Case checks
         if settings.PASSWORD_REQUIRE_UPPERCASE and not re.search(r"[A-Z]", password):
             raise GraphAPIException(
                 "Password must contain at least one uppercase letter (A-Z).",
                 status_code=400,
-                error_code="PASSWORD_POLICY_VIOLATION"
+                error_code="PASSWORD_POLICY_VIOLATION",
             )
         if settings.PASSWORD_REQUIRE_LOWERCASE and not re.search(r"[a-z]", password):
             raise GraphAPIException(
                 "Password must contain at least one lowercase letter (a-z).",
                 status_code=400,
-                error_code="PASSWORD_POLICY_VIOLATION"
+                error_code="PASSWORD_POLICY_VIOLATION",
             )
-            
+
         # 3. Numeric checks
         if settings.PASSWORD_REQUIRE_NUMBERS and not re.search(r"\d", password):
             raise GraphAPIException(
                 "Password must contain at least one digit (0-9).",
                 status_code=400,
-                error_code="PASSWORD_POLICY_VIOLATION"
+                error_code="PASSWORD_POLICY_VIOLATION",
             )
-            
+
         # 4. Special character checks
-        if settings.PASSWORD_REQUIRE_SPECIAL and not re.search(r"[^A-Za-z0-9]", password):
+        if settings.PASSWORD_REQUIRE_SPECIAL and not re.search(
+            r"[^A-Za-z0-9]", password
+        ):
             raise GraphAPIException(
                 "Password must contain at least one special character (e.g. !@#$%^&*).",
                 status_code=400,
-                error_code="PASSWORD_POLICY_VIOLATION"
+                error_code="PASSWORD_POLICY_VIOLATION",
             )
 
         # 5. Blacklisted weak passwords check
@@ -115,19 +117,19 @@ class PasswordResetService:
             raise GraphAPIException(
                 "The password meets standard rules but is too common or weak.",
                 status_code=400,
-                error_code="PASSWORD_POLICY_VIOLATION"
+                error_code="PASSWORD_POLICY_VIOLATION",
             )
 
     async def request_password_reset(self, db: Session, email: str) -> None:
         """Create a reset request and send the OTP.
 
-        If the user does not exist in Microsoft Entra ID, complete the call successfully 
+        If the user does not exist in Microsoft Entra ID, complete the call successfully
         anyway to prevent user enumeration. This avoids leaking whether an email is registered.
         """
         with logging_context(act="password_reset_requested"):
             # Check user presence in Microsoft Entra ID
             user_exists = await graph_service.lookup_user(email)
-            
+
             # Map user ID from local database if available for log correlation
             local_user = user_repository.get_by_email(db, email)
             if local_user:
@@ -262,7 +264,9 @@ class PasswordResetService:
                 user_id.set(local_user.id)
 
             if not user_exists:
-                logger.warning("Password reset failed for unknown Entra ID email %s", email)
+                logger.warning(
+                    "Password reset failed for unknown Entra ID email %s", email
+                )
                 audit_service.record_event(
                     action="password_reset",
                     status="FAILED",
@@ -332,9 +336,9 @@ class PasswordResetService:
                     user_id=local_user.id if local_user else None,
                     details={"email": email},
                 )
-                
+
                 await graph_service.reset_password(email, new_password)
-                
+
                 audit_service.record_event(
                     action="graph_password_reset_successful",
                     status="SUCCESS",
@@ -343,8 +347,13 @@ class PasswordResetService:
                 )
             except Exception as e:
                 from app.services.graph_service import GraphAPIException
-                reason = str(e) if isinstance(e, GraphAPIException) else "Graph integration error"
-                
+
+                reason = (
+                    str(e)
+                    if isinstance(e, GraphAPIException)
+                    else "Graph integration error"
+                )
+
                 audit_service.record_event(
                     action="graph_password_reset_failed",
                     status="FAILED",
@@ -353,7 +362,9 @@ class PasswordResetService:
                 )
                 raise
 
-            logger.info("Password reset completed successfully via Graph for email %s", email)
+            logger.info(
+                "Password reset completed successfully via Graph for email %s", email
+            )
             audit_service.record_event(
                 action="password_reset",
                 status="SUCCESS",
@@ -367,4 +378,3 @@ class PasswordResetService:
 
 
 password_reset_service = PasswordResetService()
-

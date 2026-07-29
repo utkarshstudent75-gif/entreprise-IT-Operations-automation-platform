@@ -51,8 +51,8 @@ export function Login() {
         await login()
       }
       navigate('/dashboard')
-    } catch (err: any) {
-      setError(err?.message ?? 'Authentication failed. Please try again.')
+    } catch (err: unknown) {
+      setError((err as Error)?.message ?? 'Authentication failed. Please try again.')
     } finally {
       setLoading(false)
     }

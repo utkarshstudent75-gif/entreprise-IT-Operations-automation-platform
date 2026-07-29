@@ -1,4 +1,4 @@
-import { Box, Card, Stack, Typography, Grid, Divider, Button } from '@mui/material'
+import { Box, Card, Stack, Typography, Grid, Divider } from '@mui/material'
 import { VpnKeyRounded, AccessTimeRounded, InfoRounded, CodeRounded } from '@mui/icons-material'
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
@@ -6,13 +6,11 @@ import { Header } from '../../components/Header'
 
 export function SessionInfo() {
   const { getAccessToken, isMockMode, user } = useAuth()
-  const [token, setToken] = useState<string | null>(null)
-  const [claims, setClaims] = useState<Record<string, any> | null>(null)
+  const [claims, setClaims] = useState<Record<string, unknown> | null>(null)
 
   useEffect(() => {
     const fetchToken = async () => {
       const accessToken = await getAccessToken()
-      setToken(accessToken)
       
       if (accessToken) {
         try {
@@ -28,7 +26,7 @@ export function SessionInfo() {
               user_role: user?.role,
             })
           }
-        } catch (e) {
+        } catch {
           setClaims({ error: "Failed to parse JWT payload." })
         }
       }
@@ -88,7 +86,7 @@ export function SessionInfo() {
                     Issued At
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {claims?.iat ? formatTime(claims.iat) : 'Session Active'}
+                    {claims?.iat ? formatTime(claims.iat as number) : 'Session Active'}
                   </Typography>
                 </Box>
               </Stack>
@@ -102,7 +100,7 @@ export function SessionInfo() {
                     Session Expiration
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {claims?.exp ? formatTime(claims.exp) : 'Closing Browser Ends Session'}
+                    {claims?.exp ? formatTime(claims.exp as number) : 'Closing Browser Ends Session'}
                   </Typography>
                 </Box>
               </Stack>
@@ -116,7 +114,7 @@ export function SessionInfo() {
                     Access Scopes
                   </Typography>
                   <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
-                    {claims?.scp ?? 'User.Read'}
+                    {(claims?.scp as string) ?? 'User.Read'}
                   </Typography>
                 </Box>
               </Stack>

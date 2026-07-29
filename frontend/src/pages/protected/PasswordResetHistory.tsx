@@ -43,9 +43,10 @@ export function PasswordResetHistory() {
         } else {
           setError(data?.message ?? 'Failed to load history.')
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Failed to load password history:', err)
-        setError(err?.response?.data?.detail ?? 'An error occurred while fetching password reset history.')
+        const errorDetail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        setError(errorDetail ?? 'An error occurred while fetching password reset history.')
       } finally {
         setLoading(false)
       }

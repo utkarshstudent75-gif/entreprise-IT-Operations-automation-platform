@@ -62,8 +62,6 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
 
-
-
 settings = Settings()
 
 if not os.path.exists("/.dockerenv") and not os.environ.get("KUBERNETES_SERVICE_HOST"):

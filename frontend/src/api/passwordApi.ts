@@ -59,7 +59,7 @@ export async function getPasswordPolicy(): Promise<PasswordPolicy> {
   try {
     const { data } = await passwordApiClient.get<{ success: boolean, data: PasswordPolicy }>('/password/policy')
     return data.data
-  } catch (error) {
+  } catch {
     // Fallback to standard enterprise settings on failure
     return {
       min_length: 12,

@@ -30,6 +30,7 @@ DUMMY_REQUEST_ID_2 = "e4f8a9e8-cf7d-417d-815f-6a75a7c2be5f"
 async def check_cooldown(email: str, ip: str) -> None:
     """Checks if the email or IP is currently blocked due to excessive failures."""
     from app.core.redis import get_redis
+
     try:
         redis_client = await get_redis()
         blocked_email = await redis_client.get(f"block:otp:{email}")
@@ -37,45 +38,53 @@ async def check_cooldown(email: str, ip: str) -> None:
         if blocked_email or blocked_ip:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many failed attempts. Please try again after 15 minutes."
+                detail="Too many failed attempts. Please try again after 15 minutes.",
             )
     except HTTPException:
         raise
-    except Exception:
+    except Exception:  # nosec B110
         pass
 
 
 async def record_failure(email: str, ip: str) -> None:
     """Increments failure counts and triggers blocking cooldown on 5 failures."""
     from app.core.redis import get_redis
+
     try:
         redis_client = await get_redis()
-        
+
         # Track failures for 15 minutes (900 seconds)
         fails = await redis_client.incr(f"fail:otp:{email}")
         await redis_client.expire(f"fail:otp:{email}", 900)
-        
+
         ip_fails = await redis_client.incr(f"fail:ip:{ip}")
         await redis_client.expire(f"fail:ip:{ip}", 900)
-        
+
         if fails >= 5:
             await redis_client.set(f"block:otp:{email}", "1", ex=900)
-            logger.warning("Email %s blocked from password resets for 15 minutes due to excessive failures.", email)
+            logger.warning(
+                "Email %s blocked from password resets for 15 minutes due to excessive failures.",
+                email,
+            )
         if ip_fails >= 5:
             await redis_client.set(f"block:ip:{ip}", "1", ex=900)
-            logger.warning("IP %s blocked from password resets for 15 minutes due to excessive failures.", ip)
-    except Exception:
+            logger.warning(
+                "IP %s blocked from password resets for 15 minutes due to excessive failures.",
+                ip,
+            )
+    except Exception:  # nosec B110
         pass
 
 
 async def clear_failures(email: str, ip: str) -> None:
     """Resets the failure counters on successful OTP authentication."""
     from app.core.redis import get_redis
+
     try:
         redis_client = await get_redis()
         await redis_client.delete(f"fail:otp:{email}")
         await redis_client.delete(f"fail:ip:{ip}")
-    except Exception:
+    except Exception:  # nosec B110
         pass
 
 
@@ -276,9 +285,7 @@ async def forgot_password(
     },
 )
 async def verify_otp(
-    request: VerifyOtpRequest,
-    req_obj: Request,
-    db: Annotated[Session, Depends(get_db)]
+    request: VerifyOtpRequest, req_obj: Request, db: Annotated[Session, Depends(get_db)]
 ):
     ip = req_obj.client.host if req_obj.client else "unknown"
     await check_cooldown(request.email, ip)
@@ -288,7 +295,7 @@ async def verify_otp(
         limit=10,
         window_seconds=600,
     )
-    
+
     try:
         await password_reset_service.verify_otp(db, request.email, request.otp)
         await clear_failures(request.email, ip)
@@ -392,7 +399,7 @@ async def verify_otp(
 async def reset_password(
     request: ResetPasswordRequest,
     req_obj: Request,
-    db: Annotated[Session, Depends(get_db)]
+    db: Annotated[Session, Depends(get_db)],
 ):
     ip = req_obj.client.host if req_obj.client else "unknown"
     await check_cooldown(request.email, ip)
@@ -422,13 +429,15 @@ async def get_password_policy():
     """
     Exposes password complexity settings to the frontend.
     """
-    return StandardResponse(data={
-        "min_length": settings.PASSWORD_MIN_LENGTH,
-        "require_uppercase": settings.PASSWORD_REQUIRE_UPPERCASE,
-        "require_lowercase": settings.PASSWORD_REQUIRE_LOWERCASE,
-        "require_numbers": settings.PASSWORD_REQUIRE_NUMBERS,
-        "require_special": settings.PASSWORD_REQUIRE_SPECIAL,
-    })
+    return StandardResponse(
+        data={
+            "min_length": settings.PASSWORD_MIN_LENGTH,
+            "require_uppercase": settings.PASSWORD_REQUIRE_UPPERCASE,
+            "require_lowercase": settings.PASSWORD_REQUIRE_LOWERCASE,
+            "require_numbers": settings.PASSWORD_REQUIRE_NUMBERS,
+            "require_special": settings.PASSWORD_REQUIRE_SPECIAL,
+        }
+    )
 
 
 @router.get(
@@ -437,51 +446,58 @@ async def get_password_policy():
 )
 async def get_reset_history(
     current_user: Annotated[dict, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)]
+    db: Annotated[Session, Depends(get_db)],
 ):
     """
     Retrieves the password reset logs.
     Admins, Auditors, and Support can view all logs. Standard users can only view their own.
     """
     logs = audit_service.list_logs(db, limit=500)
-    
+
     reset_actions = [
         "forgot_password",
         "otp_verification",
         "password_reset",
         "graph_password_reset_initiated",
         "graph_password_reset_successful",
-        "graph_password_reset_failed"
+        "graph_password_reset_failed",
     ]
-    
+
     filtered_logs = []
     for log in logs:
         if log.action not in reset_actions:
             continue
-            
-        email_detail = log.details.get("email") if log.details else None
-        
-        # Check permissions and filter accordingly
-        if current_user["role"] in ["Platform Administrator", "Auditor", "Support Engineer"]:
-            filtered_logs.append({
-                "id": log.id,
-                "timestamp": log.timestamp.isoformat(),
-                "action": log.action,
-                "status": log.status,
-                "ip_address": log.ip_address,
-                "request_id": log.request_id,
-                "details": log.details
-            })
-        elif email_detail == current_user["email"]:
-            filtered_logs.append({
-                "id": log.id,
-                "timestamp": log.timestamp.isoformat(),
-                "action": log.action,
-                "status": log.status,
-                "ip_address": log.ip_address,
-                "request_id": log.request_id,
-                "details": log.details
-            })
-            
-    return StandardResponse(data=filtered_logs)
 
+        email_detail = log.details.get("email") if log.details else None
+
+        # Check permissions and filter accordingly
+        if current_user["role"] in [
+            "Platform Administrator",
+            "Auditor",
+            "Support Engineer",
+        ]:
+            filtered_logs.append(
+                {
+                    "id": log.id,
+                    "timestamp": log.timestamp.isoformat(),
+                    "action": log.action,
+                    "status": log.status,
+                    "ip_address": log.ip_address,
+                    "request_id": log.request_id,
+                    "details": log.details,
+                }
+            )
+        elif email_detail == current_user["email"]:
+            filtered_logs.append(
+                {
+                    "id": log.id,
+                    "timestamp": log.timestamp.isoformat(),
+                    "action": log.action,
+                    "status": log.status,
+                    "ip_address": log.ip_address,
+                    "request_id": log.request_id,
+                    "details": log.details,
+                }
+            )
+
+    return StandardResponse(data=filtered_logs)

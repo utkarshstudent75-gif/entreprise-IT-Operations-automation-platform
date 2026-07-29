@@ -37,5 +37,6 @@ backend/.coverage
 backend/.env
 deploy.tar
 
-
-
+# Bootstrap output and secrets files
+bootstrap/.bootstrap-output.json
+bootstrap/github-secrets.txt

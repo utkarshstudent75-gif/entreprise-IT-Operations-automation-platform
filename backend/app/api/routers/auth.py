@@ -47,26 +47,33 @@ async def generate_mock_token(request: MockTokenRequest):
     if not jwt_validator.is_mock:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Mock SSO authentication is disabled in production environments."
+            detail="Mock SSO authentication is disabled in production environments.",
         )
 
     # Validate role is valid
-    valid_roles = ["Standard User", "Platform Administrator", "Support Engineer", "Auditor"]
+    valid_roles = [
+        "Standard User",
+        "Platform Administrator",
+        "Support Engineer",
+        "Auditor",
+    ]
     if request.role not in valid_roles:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid security role. Must be one of: {valid_roles}"
+            detail=f"Invalid security role. Must be one of: {valid_roles}",
         )
 
     now = datetime.datetime.utcnow()
     payload = {
         "preferred_username": request.email,
         "name": request.email.split("@")[0],
-        "roles": [request.role.replace(" ", "")], # standard Entra ID formats them without spaces
+        "roles": [
+            request.role.replace(" ", "")
+        ],  # standard Entra ID formats them without spaces
         "aud": settings.ENTRA_CLIENT_ID or "MOCK_CLIENT_ID",
         "iss": f"https://login.microsoftonline.com/{settings.ENTRA_TENANT_ID or 'mock-tenant'}/v2.0",
         "iat": int(now.timestamp()),
-        "exp": int((now + datetime.timedelta(hours=1)).timestamp())
+        "exp": int((now + datetime.timedelta(hours=1)).timestamp()),
     }
 
     token = jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm="HS256")
@@ -77,13 +84,16 @@ async def generate_mock_token(request: MockTokenRequest):
     "/me",
     status_code=status.HTTP_200_OK,
 )
-async def get_current_user_profile(current_user: Annotated[dict, Depends(get_current_user)]):
+async def get_current_user_profile(
+    current_user: Annotated[dict, Depends(get_current_user)],
+):
     """
     Returns the currently logged-in user profile, mapped from Entra ID claims.
     """
-    return StandardResponse(data={
-        "email": current_user["email"],
-        "name": current_user["name"],
-        "role": current_user["role"]
-    })
-
+    return StandardResponse(
+        data={
+            "email": current_user["email"],
+            "name": current_user["name"],
+            "role": current_user["role"],
+        }
+    )

@@ -226,4 +226,5 @@ async def test_reset_password_updates_password(monkeypatch):
         )
         is True
     )
-    assert user.hashed_password != "oldhash"
+    # The local database password hash is preserved; Graph SSPR resets corporate Entra ID password
+    assert user.hashed_password == "oldhash"

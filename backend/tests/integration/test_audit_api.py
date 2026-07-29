@@ -1,12 +1,35 @@
-from datetime import UTC, datetime, timedelta
+import datetime
+from datetime import UTC, timedelta
 
+import jwt
+
+from app.core.config import settings
 from app.models.audit_log import AuditLog
 from app.models.user import User
 
 
+def get_auth_headers(role="Platform Administrator"):
+    payload = {
+        "preferred_username": "admin@example.com",
+        "name": "Admin User",
+        "roles": [role.replace(" ", "")],
+        "aud": "MOCK_CLIENT_ID",
+        "iss": "https://login.microsoftonline.com/mock-tenant/v2.0",
+        "iat": int(datetime.datetime.now(datetime.timezone.utc).timestamp()),
+        "exp": int(
+            (
+                datetime.datetime.now(datetime.timezone.utc)
+                + datetime.timedelta(hours=1)
+            ).timestamp()
+        ),
+    }
+    token = jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm="HS256")
+    return {"Authorization": f"Bearer {token}"}
+
+
 def test_get_audit_logs_empty(client):
     """Verify that retrieval of audit logs returns an empty list when no entries exist."""
-    response = client.get("/api/v1/audit-logs")
+    response = client.get("/api/v1/audit-logs", headers=get_auth_headers())
     assert response.status_code == 200
     json_data = response.json()
     assert json_data["success"] is True
@@ -33,7 +56,7 @@ def test_get_audit_log_by_id(client, db):
     db.commit()
     db.refresh(log)
 
-    response = client.get(f"/api/v1/audit-logs/{log.id}")
+    response = client.get(f"/api/v1/audit-logs/{log.id}", headers=get_auth_headers())
     assert response.status_code == 200
     json_data = response.json()
     assert json_data["success"] is True
@@ -51,7 +74,7 @@ def test_get_audit_log_by_id(client, db):
 
 def test_get_audit_log_not_found(client):
     """Verify retrieving a non-existent audit log returns a 404 and AUDIT_LOG_NOT_FOUND error code."""
-    response = client.get("/api/v1/audit-logs/9999")
+    response = client.get("/api/v1/audit-logs/9999", headers=get_auth_headers())
     assert response.status_code == 404
     json_data = response.json()
     assert json_data["success"] is False
@@ -73,42 +96,46 @@ def test_get_audit_logs_filtering(client, db):
         action="user_creation",
         status="SUCCESS",
         user_id=user1.id,
-        timestamp=datetime.now(UTC).replace(tzinfo=None) - timedelta(days=2),
+        timestamp=datetime.datetime.now(UTC).replace(tzinfo=None) - timedelta(days=2),
     )
     log2 = AuditLog(
         action="password_reset",
         status="FAILED",
         user_id=user2.id,
-        timestamp=datetime.now(UTC).replace(tzinfo=None),
+        timestamp=datetime.datetime.now(UTC).replace(tzinfo=None),
     )
     db.add(log1)
     db.add(log2)
     db.commit()
 
+    headers = get_auth_headers()
+
     # 1. Filter by user_id
-    res = client.get(f"/api/v1/audit-logs?user_id={user1.id}")
+    res = client.get(f"/api/v1/audit-logs?user_id={user1.id}", headers=headers)
     assert res.status_code == 200
     data = res.json()["data"]
     assert len(data) == 1
     assert data[0]["action"] == "user_creation"
 
     # 2. Filter by action
-    res = client.get("/api/v1/audit-logs?action=password_reset")
+    res = client.get("/api/v1/audit-logs?action=password_reset", headers=headers)
     assert res.status_code == 200
     data = res.json()["data"]
     assert len(data) == 1
     assert data[0]["action"] == "password_reset"
 
     # 3. Filter by status
-    res = client.get("/api/v1/audit-logs?status=FAILED")
+    res = client.get("/api/v1/audit-logs?status=FAILED", headers=headers)
     assert res.status_code == 200
     data = res.json()["data"]
     assert len(data) == 1
     assert data[0]["status"] == "FAILED"
 
     # 4. Filter by date range (start_date)
-    start_date = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S")
-    res = client.get(f"/api/v1/audit-logs?start_date={start_date}")
+    start_date = (datetime.datetime.now(UTC) - timedelta(days=1)).strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    )
+    res = client.get(f"/api/v1/audit-logs?start_date={start_date}", headers=headers)
     assert res.status_code == 200
     data = res.json()["data"]
     assert len(data) == 1

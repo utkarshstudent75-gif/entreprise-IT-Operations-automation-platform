@@ -1,6 +1,6 @@
 {
   "errors": [],
-  "generated_at": "2026-07-22T05:51:29Z",
+  "generated_at": "2026-07-29T17:21:48Z",
   "metrics": {
     "_totals": {
       "CONFIDENCE.HIGH": 0,
@@ -11,9 +11,9 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 2500,
+      "loc": 3361,
       "nosec": 0,
-      "skipped_tests": 1
+      "skipped_tests": 4
     },
     "app/__init__.py": {
       "CONFIDENCE.HIGH": 0,
@@ -50,7 +50,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 75,
+      "loc": 79,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -63,7 +63,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 19,
+      "loc": 84,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -102,9 +102,9 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 324,
+      "loc": 464,
       "nosec": 0,
-      "skipped_tests": 0
+      "skipped_tests": 3
     },
     "app/api/routers/software.py": {
       "CONFIDENCE.HIGH": 0,
@@ -180,7 +180,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 103,
+      "loc": 144,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -223,6 +223,32 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "app/auth/dependencies.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 89,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "app/auth/jwt_validator.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 140,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "app/core/__init__.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -245,7 +271,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 47,
+      "loc": 62,
       "nosec": 0,
       "skipped_tests": 1
     },
@@ -297,7 +323,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 109,
+      "loc": 129,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -323,7 +349,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 74,
+      "loc": 76,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -626,6 +652,19 @@
       "nosec": 0,
       "skipped_tests": 0
     },
+    "app/services/graph_service.py": {
+      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 0,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 284,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
     "app/services/notification_service.py": {
       "CONFIDENCE.HIGH": 0,
       "CONFIDENCE.LOW": 0,
@@ -648,7 +687,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 254,
+      "loc": 315,
       "nosec": 0,
       "skipped_tests": 0
     },

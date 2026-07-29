@@ -25,7 +25,6 @@ async def get_admin():
     return {"status": "coming soon"}
 
 
-
 @router.get(
     "/audit-logs",
     response_model=StandardResponse[list[AuditLogResponse]],
