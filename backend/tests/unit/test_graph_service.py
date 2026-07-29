@@ -1,6 +1,8 @@
+
 import pytest
-from unittest.mock import patch, AsyncMock
-from app.services.graph_service import GraphService, GraphAPIException
+
+from app.services.graph_service import GraphAPIException, GraphService
+
 
 def test_graph_service_mock_mode():
   """Tests that GraphService runs in mock mode when credentials are not configured."""

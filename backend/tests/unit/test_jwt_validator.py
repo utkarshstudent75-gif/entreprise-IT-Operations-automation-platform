@@ -1,9 +1,11 @@
-import pytest
-import jwt
 import datetime
-from unittest.mock import AsyncMock, patch
-from app.auth.jwt_validator import JWTValidator, JWTValidationError
+
+import jwt
+import pytest
+
+from app.auth.jwt_validator import JWTValidationError, JWTValidator
 from app.core.config import settings
+
 
 @pytest.mark.asyncio
 async def test_jwt_validator_mock_mode():

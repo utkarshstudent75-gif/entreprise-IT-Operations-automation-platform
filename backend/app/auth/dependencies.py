@@ -1,7 +1,9 @@
-from typing import List, Dict, Any
-from fastapi import Request, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from app.auth.jwt_validator import jwt_validator, JWTValidationError
+from typing import Any, Dict, List
+
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from app.auth.jwt_validator import JWTValidationError, jwt_validator
 from app.services.audit_service import audit_service
 
 security_scheme = HTTPBearer(auto_error=False)

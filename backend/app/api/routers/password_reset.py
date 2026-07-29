@@ -1,7 +1,11 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, status, Request, HTTPException
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from app.auth.dependencies import get_current_user
+from app.core.config import settings
+from app.core.logging_config import logger
 from app.core.rate_limiter import rate_limiter
 from app.database.dependencies import get_db
 from app.schemas.password import (
@@ -11,11 +15,8 @@ from app.schemas.password import (
     VerifyOtpRequest,
 )
 from app.schemas.response import ErrorResponse, StandardResponse
-from app.services.password_reset_service import password_reset_service
-from app.auth.dependencies import get_current_user
 from app.services.audit_service import audit_service
-from app.core.config import settings
-from app.core.logging_config import logger
+from app.services.password_reset_service import password_reset_service
 
 router = APIRouter(
     prefix="/password",

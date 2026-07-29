@@ -1,17 +1,18 @@
-from typing import Annotated
-import jwt
 import datetime
-from fastapi import APIRouter, Depends, status, HTTPException
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from typing import Annotated
 
+import jwt
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.auth.dependencies import get_current_user
+from app.auth.jwt_validator import jwt_validator
+from app.core.config import settings
 from app.database.dependencies import get_db
 from app.schemas.response import StandardResponse
 from app.schemas.user import UserCreate, UserResponse
 from app.services.user_service import user_service
-from app.auth.dependencies import get_current_user
-from app.auth.jwt_validator import jwt_validator
-from app.core.config import settings
 
 router = APIRouter(
     prefix="/users",

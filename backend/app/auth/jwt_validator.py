@@ -1,8 +1,10 @@
-import jwt
-import httpx
 import logging
 import time
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict
+
+import httpx
+import jwt
+
 from app.core.config import settings
 from app.core.exceptions import BaseAppException
 

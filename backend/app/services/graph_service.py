@@ -1,7 +1,9 @@
-import time
-import httpx
 import logging
-from typing import Dict, Any, Optional
+import time
+from typing import Optional
+
+import httpx
+
 from app.core.config import settings
 from app.core.exceptions import BaseAppException
 from app.core.redis import get_redis
@@ -154,7 +156,7 @@ class GraphService:
           continue
         logger.error("Graph API lookup user failed due to network/timeout error: %s", str(e))
         raise GraphAPIException("Network connection error to Microsoft Graph API.", status_code=504)
-      except httpx.HTTPStatusError as e:
+      except httpx.HTTPStatusError:
         logger.error("Graph API lookup returned error %d: %s", response.status_code, response.text)
         raise GraphAPIException(f"Graph query returned status {response.status_code}.", status_code=500)
     

@@ -14,10 +14,9 @@ from app.core.exceptions import (
 from app.core.logging_config import logger
 from app.repositories.user_repository import user_repository
 from app.services.audit_service import audit_service
+from app.services.graph_service import graph_service
 from app.services.notification_service import notification_service
 from app.services.redis_service import redis_service
-
-from app.services.graph_service import graph_service
 
 INVALID_EMAIL_OR_OTP = "Invalid email or OTP."
 OTP_EXPIRED = "OTP has expired."
@@ -68,8 +67,9 @@ class PasswordResetService:
         Validates password complexity against system configuration and weak blacklists.
         Raises GraphAPIException if complexity rules are not met.
         """
-        from app.services.graph_service import GraphAPIException
         import re
+
+        from app.services.graph_service import GraphAPIException
         
         # 1. Length check
         if len(password) < settings.PASSWORD_MIN_LENGTH:
