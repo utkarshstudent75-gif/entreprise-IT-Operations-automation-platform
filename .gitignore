@@ -1,33 +1,13 @@
-#Python
-_pycache_/
-*.pyc
+# Ignore Terraform local directories and caches
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
 
-#Virtual Environment
-backend/.venv/
+# Ignore backup files
+*~
+*.bak
 
-#Environment Variable
-backend/.env
-
-#VS Code
-.vscode/
-
-#macOS
-.DS_Store
-
-#Logs
-*.log
-
-#Pytest
-.pytest_cache/
-
-#Coverage
-.coverage
-htmlcov/
-
-# Frontend build artifacts
-frontend/node_modules/
-frontend/dist/
-
-
-
+# Node modules and build artifacts
+node_modules/
 
