@@ -171,6 +171,9 @@ jobs:
             - name: Run ESLint
               run: npm run lint
 
+            - name: TypeScript validation
+              run: npx tsc --noEmit
+
             - name: Build react app
               run: npm run build
 
@@ -215,6 +218,41 @@ jobs:
                 helm lint deploy/helm/backend
                 helm lint deploy/helm/frontend
 
+            - name: Template Helm Charts (Dry Run)
+              run: |
+                helm template common deploy/helm/common -f deploy/helm/values/dev.yaml
+                helm template backend deploy/helm/backend -f deploy/helm/values/dev.yaml
+                helm template frontend deploy/helm/frontend -f deploy/helm/values/dev.yaml
+
+    terraform:
+        permissions:
+            contents: read
+        name: Terraform Validation
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Setup Terraform
+              uses: hashicorp/setup-terraform@v3
+              with:
+                terraform_version: 1.8.0
+
+            - name: Format Check
+              run: terraform fmt -check -recursive infrastructure/terraform
+
+            - name: Init and Validate Dev
+              run: |
+                cd infrastructure/terraform/environments/dev
+                terraform init -backend=false
+                terraform validate
+
+            - name: Init and Validate Prod
+              run: |
+                cd infrastructure/terraform/environments/prod
+                terraform init -backend=false
+                terraform validate
+
     docker:
         permissions:
             contents: read
@@ -226,6 +264,7 @@ jobs:
             - frontend
             - Semgrep
             - helm
+            - terraform
         
         steps:
         
@@ -345,6 +384,63 @@ jobs:
                 path: frontend-image.tar
                 retention-days: 7
 
+    sign:
+      permissions:
+        contents: read
+        id-token: write
+      name: Cosign Image Signing
+      runs-on: ubuntu-latest
+      needs: docker
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v4
+
+        - name: Azure Login
+          uses: azure/login@v2
+          with:
+            client-id: ${{ secrets.AZURE_CLIENT_ID }}
+            tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+            subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+        - name: Log in to Azure Container Registry
+          run: |
+            az acr login --name ${{ vars.ACR_NAME || 'enterpriseitoperationsplatformdev397741ac' }}
+
+        - name: Install Cosign
+          run: |
+            curl -sLO https://github.com/sigstore/cosign/releases/download/v2.2.2/cosign-linux-amd64
+            chmod +x cosign-linux-amd64
+            sudo mv cosign-linux-amd64 /usr/local/bin/cosign
+
+        - name: Sign Backend Image
+          env:
+            COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+          run: |
+            echo "${{ secrets.COSIGN_PRIVATE_KEY }}" > cosign.key
+            cosign sign --key cosign.key ${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev397741ac.azurecr.io' }}/backend:${{ github.sha }}
+
+        - name: Sign Frontend Image
+          env:
+            COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+          run: |
+            echo "${{ secrets.COSIGN_PRIVATE_KEY }}" > cosign.key
+            cosign sign --key cosign.key ${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev397741ac.azurecr.io' }}/frontend:${{ github.sha }}
+
+        - name: Upload Backend Signature
+          uses: actions/upload-artifact@v4
+          with:
+            name: backend-signature
+            path: cosign.key
+            retention-days: 30
+
+        - name: Upload Frontend Signature
+          uses: actions/upload-artifact@v4
+          with:
+            name: frontend-signature
+            path: cosign.key
+            retention-days: 30
+
     trivy:
         permissions:
             contents: read
@@ -357,6 +453,16 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
+
+            - name: Run Trivy Filesystem Scan (Vulnerabilities & Secrets)
+              uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+              with:
+                scan-type: 'fs'
+                scan-ref: '.'
+                format: 'table'
+                exit-code: 1
+                ignore-unfixed: true
+                severity: 'CRITICAL'
 
             #download .tar artifacts 
             - name: Download back-end image
@@ -380,7 +486,7 @@ jobs:
               run: docker images
 
             #scan Backend image in trivy    
-            - name: Scan backend image
+            - name: Scan backend image (HIGH & CRITICAL Report)
               uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
               with:
                 image-ref: entreprise-backend:latest
@@ -392,7 +498,7 @@ jobs:
                 severity: HIGH,CRITICAL
 
             # Scan frontend image in trivy
-            - name: Scan frontend image
+            - name: Scan frontend image (HIGH & CRITICAL Report)
               uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
               with:
                 image-ref: entreprise-frontend:latest
@@ -402,6 +508,27 @@ jobs:
                 ignore-unfixed: true
                 vuln-type: os,library
                 severity: HIGH,CRITICAL
+
+            # Scan images to fail on CRITICAL
+            - name: Fail backend image on Critical vulnerability
+              uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+              with:
+                image-ref: entreprise-backend:latest
+                format: table
+                exit-code: 1
+                ignore-unfixed: true
+                vuln-type: os,library
+                severity: CRITICAL
+
+            - name: Fail frontend image on Critical vulnerability
+              uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+              with:
+                image-ref: entreprise-frontend:latest
+                format: table
+                exit-code: 1
+                ignore-unfixed: true
+                vuln-type: os,library
+                severity: CRITICAL
 
             # Upload the backend sarif
             - name: Upload backend SARIF
@@ -461,5 +588,80 @@ jobs:
                   frontend-trivy-results.sarif
               if: always()
 
-            - name: Install cosign
-              uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac
+    deploy:
+        permissions:
+            contents: read
+            id-token: write
+        name: Deploy to AKS
+        runs-on: ubuntu-latest
+        needs:
+            - backend
+            - frontend
+            - Semgrep
+            - helm
+            - terraform
+            - docker
+            - trivy
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+        
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Install Helm
+              uses: azure/setup-helm@v4
+              with:
+                version: 'v3.14.0'
+
+            - name: Azure Login
+              uses: azure/login@v2
+              with:
+                client-id: ${{ secrets.AZURE_CLIENT_ID }}
+                tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+                subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+            - name: Set AKS Context
+              uses: azure/aks-set-context@v4
+              with:
+                resource-group: 'enterprise-it-operations-platform-dev-rg'
+                cluster-name: 'enterprise-dev-aks'
+
+            - name: Deploy Common Chart
+              run: |
+                helm upgrade --install common deploy/helm/common \
+                  -f deploy/helm/values/dev.yaml \
+                  -n database --create-namespace
+
+            - name: Deploy Backend Chart
+              run: |
+                helm upgrade --install backend deploy/helm/backend \
+                  -f deploy/helm/values/dev.yaml \
+                  --set image.tag=${{ github.sha }} \
+                  -n backend --create-namespace
+
+            - name: Deploy Frontend Chart
+              run: |
+                helm upgrade --install frontend deploy/helm/frontend \
+                  -f deploy/helm/values/dev.yaml \
+                  --set image.repository=enterpriseitoperationsplatformdev397741ac.azurecr.io/frontend \
+                  --set image.tag=${{ github.sha }} \
+                  -n frontend --create-namespace
+
+            - name: Post-Deployment Validation
+              run: |
+                echo "Validating deployments rollout..."
+                kubectl rollout status deployment/backend-deployment -n backend --timeout=5m
+                kubectl rollout status deployment/frontend-deployment -n frontend --timeout=5m
+                
+                echo "Validating pod database and cache connectivity..."
+                FRONTEND_POD=$(kubectl get pods -n frontend -l app.kubernetes.io/name=frontend -o jsonpath='{.items[0].metadata.name}')
+                echo "Selected frontend pod: $FRONTEND_POD"
+                
+                RESPONSE=$(kubectl exec -n frontend pod/$FRONTEND_POD -- curl -s http://backend-service.backend.svc.cluster.local:8000/api/v1/readiness)
+                echo "Readiness response: $RESPONSE"
+                
+                if [[ $RESPONSE != *"\"status\":\"ready\""* || $RESPONSE != *"\"database\":\"connected\""* || $RESPONSE != *"\"redis\":\"connected\""* ]]; then
+                  echo "Error: Application readiness check failed or PostgreSQL/Redis connectivity is offline!"
+                  exit 1
+                fi
+                echo "All post-deployment checks successfully passed!"
