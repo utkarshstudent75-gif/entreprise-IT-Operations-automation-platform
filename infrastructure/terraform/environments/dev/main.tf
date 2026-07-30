@@ -516,6 +516,7 @@ resource "azurerm_key_vault_secret" "vm_admin_password" {
 module "validation_workstation" {
   source                  = "../../modules/validation-workstation"
   vm_name                 = "${local.resource_prefix}-val-vm"
+  vm_size                 = "Standard_D2s_v4"
   resource_group_name     = module.resource_group.resource_group_name
   location                = module.resource_group.location
   subnet_id               = module.subnets.subnet_ids["validation"]

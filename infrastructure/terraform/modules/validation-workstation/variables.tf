@@ -53,3 +53,9 @@ variable "tags" {
   description = "Tags applied to all workstation resources."
   default     = {}
 }
+
+variable "vm_size" {
+  type        = string
+  description = "The SKU size of the Windows virtual machine."
+  default     = "Standard_D2s_v5"
+}

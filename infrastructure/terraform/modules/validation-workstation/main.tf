@@ -73,7 +73,7 @@ resource "azurerm_windows_virtual_machine" "this" {
   computer_name       = "val-workstation"
   resource_group_name = var.resource_group_name
   location            = var.location
-  size                = "Standard_D2s_v5"
+  size                = var.vm_size
   admin_username      = var.admin_username
   admin_password      = var.admin_password
   network_interface_ids = [
