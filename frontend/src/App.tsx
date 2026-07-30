@@ -28,6 +28,11 @@ import { MyProfile } from './pages/protected/MyProfile'
 import { PasswordResetHistory } from './pages/protected/PasswordResetHistory'
 import { SessionInfo } from './pages/protected/SessionInfo'
 import { NotificationCenter } from './pages/protected/NotificationCenter'
+import { VpnRequest } from './pages/protected/VpnRequest'
+import { MailboxRequest } from './pages/protected/MailboxRequest'
+import { MfaManagement } from './pages/protected/MfaManagement'
+import { SettingsPage } from './pages/protected/SettingsPage'
+import { HelpPage } from './pages/protected/HelpPage'
 
 // Keep old route imports/aliases
 import { AdminCreateUserPage } from './pages/AdminCreateUserPage'
@@ -169,6 +174,56 @@ function App() {
             <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer', 'Standard User']}>
               <DashboardLayout>
                 <SoftwareRequest />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/vpn-request"
+          element={
+            <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer', 'Standard User']}>
+              <DashboardLayout>
+                <VpnRequest />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/mailbox-request"
+          element={
+            <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer', 'Standard User']}>
+              <DashboardLayout>
+                <MailboxRequest />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/mfa-management"
+          element={
+            <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer', 'Standard User']}>
+              <DashboardLayout>
+                <MfaManagement />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/settings"
+          element={
+            <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer', 'Standard User']}>
+              <DashboardLayout>
+                <SettingsPage />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/help"
+          element={
+            <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer', 'Standard User']}>
+              <DashboardLayout>
+                <HelpPage />
               </DashboardLayout>
             </ProtectedRoute>
           }

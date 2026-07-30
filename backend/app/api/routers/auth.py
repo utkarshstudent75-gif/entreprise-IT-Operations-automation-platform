@@ -2,7 +2,7 @@ import datetime
 from typing import Annotated
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -85,15 +85,44 @@ async def generate_mock_token(request: MockTokenRequest):
     status_code=status.HTTP_200_OK,
 )
 async def get_current_user_profile(
+    request: Request,
     current_user: Annotated[dict, Depends(get_current_user)],
 ):
     """
     Returns the currently logged-in user profile, mapped from Entra ID claims.
     """
+    claims = current_user.get("claims", {})
+    department = claims.get("department") or "Information Technology"
+    job_title = claims.get("jobTitle") or claims.get("job_title") or "Platform Engineer"
+
+    # Session info
+    iat = claims.get("iat")
+    exp = claims.get("exp")
+
+    # Safe date conversion using datetime.timezone.utc
+    issued_at = (
+        datetime.datetime.fromtimestamp(iat, datetime.timezone.utc).isoformat()
+        if iat
+        else None
+    )
+    expires_at = (
+        datetime.datetime.fromtimestamp(exp, datetime.timezone.utc).isoformat()
+        if exp
+        else None
+    )
+    ip_address = request.client.host if request.client else "127.0.0.1"
+
     return StandardResponse(
         data={
             "email": current_user["email"],
             "name": current_user["name"],
             "role": current_user["role"],
+            "department": department,
+            "job_title": job_title,
+            "session_info": {
+                "ip_address": ip_address,
+                "issued_at": issued_at,
+                "expires_at": expires_at,
+            },
         }
     )

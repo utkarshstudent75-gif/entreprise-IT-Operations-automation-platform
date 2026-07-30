@@ -92,6 +92,10 @@ module "subnets" {
       name             = "${local.resource_prefix}-mgmt-subnet"
       address_prefixes = ["10.10.4.0/24"]
     }
+    validation = {
+      name             = "${local.resource_prefix}-validation-subnet"
+      address_prefixes = ["10.10.5.0/24"]
+    }
   }
 }
 
@@ -480,4 +484,53 @@ resource "azuread_app_role_assignment" "mi_msgraph" {
   app_role_id         = data.azuread_service_principal.msgraph.app_role_ids["User.ReadWrite.All"]
   principal_object_id = module.managed_identity.principal_id
   resource_object_id  = data.azuread_service_principal.msgraph.object_id
+}
+
+#################################
+# Phase 5: Validation Workstation
+#################################
+
+# 1. Render configuration startup script
+module "startup_script" {
+  source        = "../../modules/startup-script"
+  dashboard_url = "http://portal.company.com/dashboard"
+  timezone      = "Eastern Standard Time"
+}
+
+# 2. Generate random local admin password
+resource "random_password" "vm_admin_password" {
+  length           = 16
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+# 3. Store local admin password in Key Vault
+resource "azurerm_key_vault_secret" "vm_admin_password" {
+  name         = "validation-vm-admin-password"
+  value        = random_password.vm_admin_password.result
+  key_vault_id = module.key_vault.key_vault_id
+  depends_on   = [azurerm_role_assignment.deployer_kv_secrets_officer]
+}
+
+# 4. Deploy Validation Workstation VM
+module "validation_workstation" {
+  source                  = "../../modules/validation-workstation"
+  vm_name                 = "${local.resource_prefix}-val-vm"
+  resource_group_name     = module.resource_group.resource_group_name
+  location                = module.resource_group.location
+  subnet_id               = module.subnets.subnet_ids["validation"]
+  admin_username          = "valadmin"
+  admin_password          = random_password.vm_admin_password.result
+  startup_script_content  = module.startup_script.script_content
+  enable_public_ip        = true
+  allowed_inbound_rdp_ips = ["*"]
+  tags                    = local.common_tags
+}
+
+# 5. Assign VM User Login role to Validation Employee in Entra ID
+module "vm_identity_assignment" {
+  source                       = "../../modules/identity-assignment"
+  scope                        = module.validation_workstation.vm_id
+  vm_user_login_principal_ids  = [module.users.user_object_ids["validation-employee"]]
+  vm_admin_login_principal_ids = [data.azurerm_client_config.current.object_id]
 }

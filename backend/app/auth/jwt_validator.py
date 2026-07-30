@@ -30,9 +30,14 @@ class JWTValidator:
     """
 
     def __init__(self) -> None:
-        self.is_mock = not (settings.ENTRA_CLIENT_ID and settings.ENTRA_TENANT_ID)
         self.jwks_cache: Dict[str, Any] = {}
         self.jwks_expiry: float = 0.0
+
+    @property
+    def is_mock(self) -> bool:
+        client_id = settings.ENTRA_CLIENT_ID or settings.CLIENT_ID
+        tenant_id = settings.ENTRA_TENANT_ID or settings.TENANT_ID
+        return not (client_id and tenant_id)
 
     async def validate_token(self, token: str) -> Dict[str, Any]:
         """
@@ -54,7 +59,9 @@ class JWTValidator:
                 token,
                 settings.JWT_SECRET_KEY,
                 algorithms=["HS256"],
-                audience=settings.ENTRA_CLIENT_ID or "MOCK_CLIENT_ID",
+                audience=settings.ENTRA_CLIENT_ID
+                or settings.CLIENT_ID
+                or "MOCK_CLIENT_ID",
             )
             return payload
         except jwt.ExpiredSignatureError:
@@ -83,21 +90,30 @@ class JWTValidator:
                     "Unable to verify token signature: Unknown certificate key ID."
                 )
 
-            tenant_id = settings.ENTRA_TENANT_ID
-            client_id = settings.ENTRA_CLIENT_ID
+            tenant_id = settings.ENTRA_TENANT_ID or settings.TENANT_ID
+            client_id = settings.ENTRA_CLIENT_ID or settings.CLIENT_ID
+            audience = settings.API_AUDIENCE or client_id
 
             # Define expected issuers (Entra ID supports both v2.0 and v1.0 token formats)
             issuers = [
                 f"https://login.microsoftonline.com/{tenant_id}/v2.0",
                 f"https://sts.windows.net/{tenant_id}/",
             ]
+            if settings.AUTHORITY:
+                authority = settings.AUTHORITY.rstrip("/")
+                issuers.append(f"{authority}/v2.0")
+                issuers.append(f"{authority}/")
+                parts = authority.split("/")
+                if len(parts) > 3:
+                    t_id = parts[-1]
+                    issuers.append(f"https://sts.windows.net/{t_id}/")
 
             # Decode and validate signature, issuer, audience, and expiration
             payload = jwt.decode(
                 token,
                 public_key,
                 algorithms=["RS256"],
-                audience=client_id,
+                audience=audience,
                 options={
                     "verify_signature": True,
                     "verify_aud": True,
@@ -148,7 +164,7 @@ class JWTValidator:
 
     async def _refresh_jwks(self) -> None:
         """Downloads key mapping from the Microsoft Entra ID OIDC discovery endpoint."""
-        tenant_id = settings.ENTRA_TENANT_ID
+        tenant_id = settings.ENTRA_TENANT_ID or settings.TENANT_ID
         # OIDC keys discovery URL
         jwks_url = f"https://login.microsoftonline.com/{tenant_id}/discovery/v2.0/keys"
 

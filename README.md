@@ -624,14 +624,308 @@ FastAPI endpoints and React frontend routes are restricted based on security pri
 - **SSPR Brute-Force Protection:** If an email or IP address fails SSPR verification 5 times, it is placed on a **15-minute Redis-based cooldown block**. Any requests during this period are rejected with `HTTP 429 Too Many Requests`.
 - **Password Complexity Policy:** Enforces complexity criteria both in frontend UI (live checkbox requirements) and backend schemas (minimum length of 12, uppercase, lowercase, numbers, special characters, and weak blacklist dictionary checks).
 
-## 6. Environment Variables
+## 6. Microsoft Graph Integration & Key Vault Configuration
 
-Configure the following variables in your `.env` or Kubernetes secret:
-- `ENTRA_TENANT_ID`: Microsoft Entra tenant ID (Directory ID)
-- `ENTRA_CLIENT_ID`: App registration Application (Client) ID
-- `ENTRA_CLIENT_SECRET`: App registration Client Secret (for Graph client API)
-- `ENTRA_REDIRECT_URI`: Registered application redirect URL (e.g. `http://localhost:5173/login`)
-- `PASSWORD_MIN_LENGTH`: Configurable complexity length (default: `12`)
+The SSPR workflow uses the Microsoft Graph API to securely look up corporate accounts and perform password resets. The backend supports loading credentials and connection settings directly from environment variables or dynamically from **Azure Key Vault** using **Azure Workload Identity**.
+
+### Environment Variables
+Configure the following variables in your `.env` or Kubernetes ConfigMap/Secret:
+- `TENANT_ID` / `ENTRA_TENANT_ID`: Microsoft Entra tenant ID (Directory ID).
+- `CLIENT_ID` / `ENTRA_CLIENT_ID`: App registration Application (Client) ID.
+- `CLIENT_SECRET` / `ENTRA_CLIENT_SECRET`: App registration Client Secret.
+- `GRAPH_SCOPES`: Customizable scopes for the MS Graph access token (default: `https://graph.microsoft.com/.default`).
+- `KEYVAULT_NAME`: Name of the Azure Key Vault to dynamically retrieve configuration secrets.
+
+### Required Microsoft Graph API Permissions
+Ensure the Application Registration has the following **Application** permissions granted under **API Permissions** -> **Microsoft Graph**:
+- `User.ReadWrite.All`: Required to look up users and reset passwords.
+- **Admin Consent**: Ensure a Tenant Administrator clicks **Grant admin consent** for the tenant.
+
+### Azure Key Vault Secret Mappings
+When `KEYVAULT_NAME` is configured, the application retrieves the following secret names from Key Vault on startup:
+- `msgraph-client-id`: Client ID override
+- `msgraph-client-secret`: Client Secret override
+- `msgraph-tenant-id`: Tenant ID override
+- `database-host`, `database-name`, `database-port`, `database-username`, `database-password`: Reconstructs the DB connection URL
+- `redis-host`, `redis-port`, `redis-primary-key`: Reconstructs the Redis connection URL
+- `sms-provider-api-key`, `sms-provider-account-sid`: Notification keys
+
+### Local Development vs Azure Deployment
+- **Local Development**: Leave `KEYVAULT_NAME` unset or empty. The backend will fall back to local `.env` variables or standard defaults.
+- **Azure Deployment (AKS)**: Deploy AKS with Workload Identity enabled. Associate the backend `ServiceAccount` with the Azure User-Assigned Managed Identity. Set `KEYVAULT_NAME` to your vault name. The container will authenticate passwordlessly to the Key Vault using `DefaultAzureCredential` to fetch all database, Redis, and Microsoft Graph secrets.
+
+* Dashboards
+
+---
+
+## 🚧 Phase 4 – AI Operations
+
+* Microsoft Copilot Studio
+* AI-powered IT Assistant
+* Intelligent Ticket Routing
+* Knowledge Base Search
+* Root Cause Analysis
+
+---
+
+# Future Enhancements
+
+* Account Unlock
+* MFA Reset
+* VPN Troubleshooting
+* Software Requests
+* Printer Support
+* Manager Approval Workflow
+* IT Analytics Dashboard
+* Multi-Tenant Support
+
+---
+
+# Learning Objectives
+
+This project demonstrates practical experience with:
+
+* Python
+* FastAPI
+* React
+* TypeScript
+* Docker
+* Docker Compose
+* PostgreSQL
+* Redis
+* Kubernetes
+* Microsoft Azure
+* Terraform
+* GitHub Actions
+* DevOps
+* Site Reliability Engineering (SRE)
+* Infrastructure as Code
+* CI/CD
+* Cloud-native application architecture
+
+---
+
+# Current Status
+
+**Version:** `v0.3.0`
+
+### Completed
+
+* ✅ FastAPI backend & React frontend implementation
+* ✅ PostgreSQL integration with SQLAlchemy & Alembic migrations
+* ✅ Redis caching & rate limiter integration
+* ✅ Multi-stage Docker containerization and Docker Compose setup
+* ✅ Production-ready Kubernetes raw manifests (`deploy/kubernetes/`)
+* ✅ Reusable, parameterized Helm Charts (`deploy/helm/`)
+* ✅ Production AKS infrastructure (Phase 3 Terraform deployment)
+* ✅ CI/CD pipeline automation (Helm linting & secure OIDC ACR push)
+
+---
+
+# Kubernetes & Helm Architecture
+
+This application is fully modernized and prepared for production-grade deployment to Azure Kubernetes Service (AKS), while maintaining 100% backward compatibility with local Docker Compose development.
+
+## 1. Kubernetes Manifests (`deploy/kubernetes/`)
+The raw Kubernetes resources are organized under `deploy/kubernetes/` and include:
+- **`namespaces.yaml`**: Establishes the `eitoap` isolated namespace.
+- **`configmaps.yaml`**: Outlines non-sensitive environment configurations for `frontend` and `backend`.
+- **`secrets-template.yaml`**: Provides templates for database connections, API keys, and JWT keys.
+- **`ingress.yaml`**: Configures NGINX Ingress routing rule where `/api` points to the backend API and all other paths `/` point to the Nginx frontend.
+- **`backend/`**:
+  - [deployment.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/deployment.yaml): FastAPI deployment running 2 replicas, configured with non-root security context, read-only root filesystem with a `/tmp` mount, and CPU/Memory requests and limits (`100m-500m` / `128Mi-256Mi`). Includes liveness, readiness, and startup probes targeting `/liveness` and `/readiness`.
+  - [service.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/service.yaml): Exposes the backend inside the cluster on port `8000`.
+  - [hpa.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/hpa.yaml): Horizontal Pod Autoscaler targeting 80% CPU/Memory utilization, scaling from 2 to 5 replicas.
+  - [pdb.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/pdb.yaml): Pod Disruption Budget ensuring a minimum of 1 backend pod is available during node maintenance.
+  - [network-policy.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/network-policy.yaml): Restricts inbound traffic to the backend, allowing ingress only from the frontend pods and ingress controllers.
+- **`frontend/`**:
+  - [deployment.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/deployment.yaml): Nginx frontend deployment running 2 replicas, utilizing a non-root unprivileged Nginx image, read-only filesystem with emptyDir cache mounts, and liveness/readiness probes.
+  - [service.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/service.yaml): Exposes the frontend inside the cluster on port `80`.
+  - [hpa.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/hpa.yaml): Configures CPU/Memory autoscaling from 2 to 5 replicas.
+  - [pdb.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/pdb.yaml): Protects frontend availability during disruptions.
+  - [network-policy.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/network-policy.yaml): Protects the frontend and allows traffic to backend.
+- **`redis/`**:
+  - [deployment.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/redis/deployment.yaml) & [service.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/redis/service.yaml): Deploy a secure single-replica caching layer inside the cluster.
+
+## 2. Helm Charts (`deploy/helm/`)
+To support reproducible multi-environment package management, raw manifests are compiled into reusable Helm charts under `deploy/helm/`:
+- **`deploy/helm/common`**: Packages shared infrastructure assets such as configuration maps, secrets, and Redis caching.
+- **`deploy/helm/backend`**: Packages the FastAPI application, its scaling policies (HPA, PDB), and security/networking rules.
+- **`deploy/helm/frontend`**: Packages the React static asset server and the Nginx Ingress routing layer.
+All environment secrets and endpoints are parameterized via `values.yaml` to ensure zero hardcoding.
+
+## 3. AKS-Ready Improvements
+- **Decoupled Configuration**: Database and Redis hosts are read dynamically from environment variables. The hostname fallback checks are updated (`not os.path.exists("/.dockerenv") and not os.environ.get("KUBERNETES_SERVICE_HOST")`) to ignore Kubernetes runtimes and preserve local developer setups.
+- **Dynamic Ingress Proxy**: Vite dev server proxies `/api` to the backend locally, while the Kubernetes Ingress routes it directly in the cloud. This avoids compiling hostnames into frontend docker images.
+- **Production Performance**: Disabled Python reload flags in the `entrypoint.sh` for production runs.
+- **Structured JSON Logging**: Automatically switches logging to Structured JSON format in production and retains colored human-readable text logs in local development.
+- **CI/CD Automation**: Updated `.github/workflows/ci.yml` to lint Helm charts and build/push production images to Azure Container Registry using Azure OIDC workload identities.
+
+---
+
+# Microsoft Entra ID SSO & Dashboard Architecture
+
+We have integrated Microsoft Entra ID authentication and Microsoft Graph reset capabilities, introducing an authenticated Enterprise Dashboard alongside the public SSPR flow.
+
+## 1. Separate Application Entry Points
+
+The application is architecturally partitioned into two strict security zones:
+1. **Public Zone (Anonymous):** Includes SSPR email submission, OTP code verification, Graph-mediated SSPR password submission, and portal login. Accessible without authentication.
+2. **Authenticated Zone (SSO Protected):** Includes the dashboard, My Profile, Session Info, Reset History, and security notifications. Accessible only after valid Microsoft Entra ID authentication.
+
+## 2. Authentication Flow
+
+The SSO login relies on **MSAL React (MSAL v3)** implementing the OpenID Connect (OIDC) **Authorization Code Flow with PKCE**:
+
+```mermaid
+sequenceDiagram
+    participant User as User Browser
+    participant MSAL as React MSAL Client
+    participant Entra as Microsoft Entra ID
+    participant Backend as FastAPI Backend
+    
+    User->>MSAL: Click "Sign In with Microsoft"
+    MSAL->>Entra: Authorization Request + Code Challenge (PKCE)
+    Entra->>User: Authenticate & Request Consent
+    User->>Entra: Provide Credentials
+    Entra->>MSAL: Auth Code Redirect
+    MSAL->>Entra: Swap Code + Verifier for Tokens
+    Entra->>MSAL: ID & Access Token
+    MSAL->>Backend: Request APIs (Bearer Access Token)
+    Backend->>Backend: Validate Token Signature/Audience/Claims
+    Backend->>User: Return Restricted Data
+```
+
+*   **Silent Token Refresh:** MSAL React automatically renews the token silently in the background before it expires, using session storage claims.
+*   **Developer Mock SSO Bypass:** If `ENTRA_CLIENT_ID` is not configured, the frontend renders a mock selector. Clicking a role requests a locally signed JWT token from `/users/mock-token` (signed using `JWT_SECRET_KEY`) which mimics Entra ID OIDC claims (`preferred_username`, `name`, `roles`).
+
+## 3. Backend JWT Validation
+
+The backend executes secure, stateless signature checks on every Bearer token:
+- **JWKS Key Caching:** Fetches public keys from the tenant's OIDC discovery endpoint (`discovery/v2.0/keys`) and caches them in memory for 12 hours.
+- **Claims Verification:** Asserts signature validity (RS256), audience matches `ENTRA_CLIENT_ID`, issuer matches the active tenant (`https://login.microsoftonline.com/{tenant}/v2.0`), and the token is not expired.
+- **Fallback Verification:** If in developer mock mode, validates HS256 signature against local `JWT_SECRET_KEY`.
+
+## 4. Role-Based Access Control (RBAC)
+
+FastAPI endpoints and React frontend routes are restricted based on security privilege mappings decoded from the token's `roles` claims:
+- **`Platform Administrator`**: Administrative configuration, full log auditing, user management.
+- **`Support Engineer`**: Access to identity helpdesk tools (MFA reset, password resets, account unlocking).
+- **`Auditor`**: Read-only log viewing and session monitoring.
+- **`Standard User`**: Base profile access and self-service history details.
+
+## 5. Security & Rate Limiting
+
+- **SSPR Brute-Force Protection:** If an email or IP address fails SSPR verification 5 times, it is placed on a **15-minute Redis-based cooldown block**. Any requests during this period are rejected with `HTTP 429 Too Many Requests`.
+- **Password Complexity Policy:** Enforces complexity criteria both in frontend UI (live checkbox requirements) and backend schemas (minimum length of 12, uppercase, lowercase, numbers, special characters, and weak blacklist dictionary checks).
+
+## 6. Microsoft Graph Integration & Key Vault Configuration
+
+The SSPR workflow uses the Microsoft Graph API to securely look up corporate accounts and perform password resets. The backend supports loading credentials and connection settings directly from environment variables or dynamically from **Azure Key Vault** using **Azure Workload Identity**.
+
+### Environment Variables
+Configure the following variables in your `.env` or Kubernetes ConfigMap/Secret:
+- `TENANT_ID` / `ENTRA_TENANT_ID`: Microsoft Entra tenant ID (Directory ID).
+- `CLIENT_ID` / `ENTRA_CLIENT_ID`: App registration Application (Client) ID.
+- `CLIENT_SECRET` / `ENTRA_CLIENT_SECRET`: App registration Client Secret.
+- `GRAPH_SCOPES`: Customizable scopes for the MS Graph access token (default: `https://graph.microsoft.com/.default`).
+- `KEYVAULT_NAME`: Name of the Azure Key Vault to dynamically retrieve configuration secrets.
+
+### Required Microsoft Graph API Permissions
+Ensure the Application Registration has the following **Application** permissions granted under **API Permissions** -> **Microsoft Graph**:
+- `User.ReadWrite.All`: Required to look up users and reset passwords.
+- **Admin Consent**: Ensure a Tenant Administrator clicks **Grant admin consent** for the tenant.
+
+### Azure Key Vault Secret Mappings
+When `KEYVAULT_NAME` is configured, the application retrieves the following secret names from Key Vault on startup:
+- `msgraph-client-id`: Client ID override
+- `msgraph-client-secret`: Client Secret override
+- `msgraph-tenant-id`: Tenant ID override
+- `database-host`, `database-name`, `database-port`, `database-username`, `database-password`: Reconstructs the DB connection URL
+- `redis-host`, `redis-port`, `redis-primary-key`: Reconstructs the Redis connection URL
+- `sms-provider-api-key`, `sms-provider-account-sid`: Notification keys
+
+### Local Development vs Azure Deployment
+- **Local Development**: Leave `KEYVAULT_NAME` unset or empty. The backend will fall back to local `.env` variables or standard defaults.
+- **Azure Deployment (AKS)**: Deploy AKS with Workload Identity enabled. Associate the backend `ServiceAccount` with the Azure User-Assigned Managed Identity. Set `KEYVAULT_NAME` to your vault name. The container will authenticate passwordlessly to the Key Vault using `DefaultAzureCredential` to fetch all database, Redis, and Microsoft Graph secrets.
+
+### Troubleshooting
+- **ModuleNotFoundError for 'azure'**: Make sure the packages `azure-identity` and `azure-keyvault-secrets` are installed (`pip install -r requirements.txt`).
+- **GraphAPIException (INSUFFICIENT_PERMISSIONS)**: Microsoft Graph API does not allow application-level permissions to reset passwords of Administrative accounts (e.g. Global Administrators). Test resets on standard non-admin User accounts.
+- **Key Vault Access Failure**: If Key Vault secret retrieval fails, verify that your Managed Identity or deployment principal has the **Key Vault Secrets User** role assignment on Key Vault.
+
+---
+
+# Enterprise Validation Workstation
+
+The repository includes a complete Enterprise Validation Workstation configuration designed to simulate a real employee workstation. This dedicated environment is used for end-to-end platform validation, user acceptance testing (UAT), and portfolio demonstrations.
+
+## 1. Validation Architecture
+The validation workstation is deployed as a Windows 11 Enterprise Gen2 Virtual Machine in a dedicated subnet (`validation-subnet`) within the existing virtual network. 
+
+```mermaid
+graph TD
+    A[Employee signs into Windows via Microsoft Entra ID] --> B[Windows Desktop Loads]
+    B --> C[Edge Automatically Launches via Startup Batch Script]
+    C --> D[Edge Navigates to http://portal.company.com/dashboard]
+    D --> E{MSAL ssoSilent check}
+    E -- Session Exists --> F[Seamless Single Sign-On into Dashboard]
+    E -- Session Missing --> G[Redirect to Microsoft Entra login page]
+    G --> H[User Authenticates]
+    H --> F
+```
+
+## 2. Workstation Features
+*   **Operating System:** Windows 11 Enterprise Gen2 (offers advanced security configurations).
+*   **Trusted Launch:** Enabled with Secure Boot and vTPM for hardware-level integrity checks.
+*   **Microsoft Entra ID Join:** Integrated via the `AADLoginForWindows` extension. Traditional domain controllers are not used. Users sign in using Microsoft Entra credentials.
+*   **Automatic Browser Launch:** Installs a startup script in the all-users startup folder, launching Microsoft Edge to point to `http://portal.company.com/dashboard` upon desktop load.
+*   **Single Sign-On (SSO):** Incorporates `ssoSilent` authentication within the React dashboard context. If silent token acquisition fails, it automatically triggers a page redirect to the Microsoft Entra login screen.
+*   **Auto Shutdown:** Configured via Azure DevTest schedule to shut down the VM daily at 7:00 PM EST, minimizing idle computing cost.
+*   **Pre-installed Software:** Bootstrapped via Chocolatey to include Microsoft Edge, PowerShell 7, Azure CLI, Git, VS Code, and the Azure Monitor Agent.
+
+## 3. Provisioning Workstation
+You can provision the VM automatically using the provided PowerShell script in the root directory:
+```powershell
+./scripts/Provision-ValidationVM.ps1
+```
+This script initializes Terraform in the `environments/dev` workspace, applies the plan, and outputs the VM Name, Public IP, and Private IP. The local administrator password is randomly generated and stored securely in Azure Key Vault as `validation-vm-admin-password`.
+
+## 4. Connecting & Login
+1.  Verify the VM has finished provisioning and has successfully executed the startup script (can take 5-10 minutes).
+2.  Open your RDP client and target the **Public IP** of the workstation (Port 3389).
+3.  Sign in using Microsoft Entra credentials:
+    *   **Username:** `validation.employee@itproject.in`
+    *   **Password:** (The password configured in your Microsoft Entra tenant for the user).
+    *   *Note: If connecting via RDP with Entra ID, ensure your RDP client supports Network Level Authentication (NLA) and you use the credentials format `AzureAD\validation.employee@itproject.in`.*
+
+## 5. Health Check & Validation
+To verify the health of local workstation policies and remote infrastructure connectivity, run the health check script from the workstation or from a management node:
+```powershell
+./scripts/Invoke-HealthCheck.ps1 -ResourceGroupName "eitoap-dev-rg" -AksClusterName "enterprise-dev-aks"
+```
+This checks:
+*   Local RDP & Clipboard registry settings.
+*   Local timezone alignment.
+*   Chocolatey, Git, VS Code, and Azure CLI installations.
+*   AKS Cluster and Deployment Pod states.
+*   Central API health, database, and Redis connectivity.
+
+## 6. Teardown
+To destroy the validation workstation resources and prevent billing charges, execute:
+```powershell
+./scripts/Destroy-ValidationEnvironment.ps1
+```
+This script targets only the validation VM, NIC, NSG, public IP, startup scripts, and role assignments to protect core AKS and database infrastructure from deletion.
+
+## 7. Estimated Azure Cost
+
+| Azure Resource | Size / Specification | Monthly Cost (Est. USD) | Cost Optimization Recommendation |
+| :--- | :--- | :---: | :--- |
+| **Windows 11 VM** | Standard_D2s_v5 (2 vCPUs, 8 GB RAM) | ~$75.00 | **Auto Shutdown:** Reduces active hours to ~160 hrs/month, dropping costs to **~$18.00/month**. |
+| **Premium SSD Disk** | 128 GB Premium SSD | ~$19.20 | Delete OS disk when tearing down environment. |
+| **Public IP Address** | Static Standard IP | ~$3.60 | Toggle `enable_public_ip` to `false` when using VPN. |
+| **Total Cost** | **Active 24/7:** **~$97.80/month** | **With Auto-Shutdown:** **~$40.80/month** | |
 
 ---
 

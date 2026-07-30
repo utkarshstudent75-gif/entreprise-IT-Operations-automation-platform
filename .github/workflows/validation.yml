@@ -1,0 +1,56 @@
+name: Enterprise Validation Workstation Lifecycle
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform on the validation workstation'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - destroy
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  workstation-lifecycle:
+    runs-on: ubuntu-latest
+    name: Workstation Lifecycle - ${{ github.event.inputs.action }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.0"
+
+      - name: Provision Workstation VM
+        if: ${{ github.event.inputs.action == 'deploy' }}
+        shell: pwsh
+        run: |
+          ./scripts/Provision-ValidationVM.ps1
+
+      - name: Run Platform Health & Verification Check
+        if: ${{ github.event.inputs.action == 'deploy' }}
+        shell: pwsh
+        run: |
+          # Automatically runs local registry checks, VM connectivity, AKS pod readiness, Postgres, and Redis API checks
+          ./scripts/Invoke-HealthCheck.ps1 -ResourceGroupName "eitoap-dev-rg" -AksClusterName "enterprise-dev-aks"
+
+      - name: Teardown Workstation VM
+        if: ${{ github.event.inputs.action == 'destroy' }}
+        shell: pwsh
+        run: |
+          ./scripts/Destroy-ValidationEnvironment.ps1

@@ -166,8 +166,12 @@ class PasswordResetService:
                 )
                 raise
 
+            # Resolve user phone from Microsoft Graph
+            phone_number = await graph_service.get_user_phone(email)
+            recipient = phone_number if phone_number else email
+
             # Send the OTP using notification_service
-            notification_service.send_otp(email, otp)
+            notification_service.send_otp(recipient, otp)
 
             logger.info("Password reset request created for email %s", email)
             audit_service.record_event(
@@ -254,9 +258,23 @@ class PasswordResetService:
             return True
 
     async def reset_password(
-        self, db: Session, email: str, otp: str, new_password: str
+        self,
+        db: Session,
+        email: str,
+        otp: str,
+        new_password: str,
+        confirm_password: str | None = None,
     ) -> bool:
         """Reset a user's password in Entra ID via Microsoft Graph after validating OTP."""
+        if confirm_password is not None and new_password != confirm_password:
+            from app.services.graph_service import GraphAPIException
+
+            raise GraphAPIException(
+                "Passwords do not match.",
+                status_code=400,
+                error_code="PASSWORD_MISMATCH",
+            )
+
         with logging_context(act="password_reset_completed"):
             user_exists = await graph_service.lookup_user(email)
             local_user = user_repository.get_by_email(db, email)

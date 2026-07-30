@@ -50,6 +50,11 @@ class ResetPasswordRequest(BaseModel):
         description="The new secure password to set for the account.",
         examples=["NewSecurePassword123!"],
     )
+    confirm_password: str | None = Field(
+        None,
+        description="The confirmation of the new secure password.",
+        examples=["NewSecurePassword123!"],
+    )
 
     model_config = {
         "json_schema_extra": {
@@ -57,6 +62,9 @@ class ResetPasswordRequest(BaseModel):
                 "email": EXAMPLE_EMAIL,
                 "otp": "123456",
                 "new_password": os.getenv(
+                    "NEW_P", "NewSecurePassword123!"
+                ),  # nosec B105
+                "confirm_password": os.getenv(
                     "NEW_P", "NewSecurePassword123!"
                 ),  # nosec B105
             }

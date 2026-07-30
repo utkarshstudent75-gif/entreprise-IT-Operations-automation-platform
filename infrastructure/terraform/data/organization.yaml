@@ -126,3 +126,16 @@ users:
     account_enabled: true
     groups:
       - "SG-HR"
+
+  - id: validation employee
+    first_name: "Validation"
+    last_name: "Employee"
+    display_name: "Validation Employee"
+    email: "validation.employee@itproject.in"
+    department: "IT"
+    job_title: "Validation Engineer"
+    manager: "alex.morgan@itproject.in"
+    account_enabled: true
+    groups:
+      - "SG-IT"
+

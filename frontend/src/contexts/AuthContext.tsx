@@ -66,15 +66,49 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
             email: account.username,
             role,
           })
+          setIsLoading(false)
         } else {
-          setIsAuthenticated(false)
-          setUser(null)
+          // If no active account is cached, try ssoSilent
+          instance.ssoSilent(loginRequest)
+            .then((silentResult) => {
+              if (silentResult && silentResult.account) {
+                instance.setActiveAccount(silentResult.account)
+                const idTokenClaims = silentResult.account.idTokenClaims as Record<string, unknown>
+                const rawRoles = (idTokenClaims?.roles as string[]) ?? []
+                
+                let role: UserProfile['role'] = 'Standard User'
+                if (rawRoles.includes('PlatformAdministrator')) {
+                  role = 'Platform Administrator'
+                } else if (rawRoles.includes('SupportEngineer')) {
+                  role = 'Support Engineer'
+                } else if (rawRoles.includes('Auditor')) {
+                  role = 'Auditor'
+                }
+                
+                setUser({
+                  name: silentResult.account.name ?? silentResult.account.username,
+                  email: silentResult.account.username,
+                  role,
+                })
+                setIsAuthenticated(true)
+              } else {
+                setIsAuthenticated(false)
+                setUser(null)
+              }
+            })
+            .catch((error) => {
+              console.warn("MSAL Silent SSO failed, user must sign in:", error)
+              setIsAuthenticated(false)
+              setUser(null)
+            })
+            .finally(() => {
+              setIsLoading(false)
+            })
         }
-        setIsLoading(false)
       }
     }
     initializeAuth()
-  }, [account, isMockMode])
+  }, [account, isMockMode, instance])
 
   const login = async (mockUser?: { email: string; role: UserProfile['role'] }) => {
     setIsLoading(true)
@@ -103,8 +137,8 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
         setUser(loggedUser)
         setIsAuthenticated(true)
       } else {
-        // Trigger MSAL popup login
-        await instance.loginPopup(loginRequest)
+        // Trigger MSAL redirect login for automated workstation SSO fallback
+        await instance.loginRedirect(loginRequest)
       }
     } catch (error) {
       console.error('Login failed:', error)
@@ -123,7 +157,7 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
         setUser(null)
         setIsAuthenticated(false)
       } else {
-        await instance.logoutPopup()
+        await instance.logoutRedirect()
       }
     } catch (error) {
       console.error('Logout failed:', error)

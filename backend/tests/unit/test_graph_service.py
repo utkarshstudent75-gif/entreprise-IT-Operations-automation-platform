@@ -50,3 +50,71 @@ async def test_graph_service_mock_reset_exceptions():
     with pytest.raises(GraphAPIException) as excinfo:
         await service.reset_password("locked_user@example.com", "SecurePass123!")
     assert excinfo.value.error_code == "ACCOUNT_LOCKED"
+
+
+@pytest.mark.asyncio
+async def test_graph_service_real_credentials_token_acquisition(monkeypatch):
+    """Tests token acquisition when credentials are configured."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from app.core.config import settings
+
+    # Configure mock credentials
+    monkeypatch.setattr(settings, "ENTRA_CLIENT_ID", "test-client-id")
+    monkeypatch.setattr(settings, "ENTRA_TENANT_ID", "test-tenant-id")
+    monkeypatch.setattr(settings, "ENTRA_CLIENT_SECRET", "test-client-secret")
+    monkeypatch.setattr(
+        settings, "GRAPH_SCOPES", "https://graph.microsoft.com/.default-custom"
+    )
+
+    service = GraphService()
+    assert service.is_mock is False
+
+    # Mock Redis client get to return None (cache miss)
+    async def mock_redis_get(*args, **kwargs):
+        return None
+
+    async def mock_redis_set(*args, **kwargs):
+        return True
+
+    async def mock_redis_ttl(*args, **kwargs):
+        return 0
+
+    mock_redis = MagicMock()
+    mock_redis.get = mock_redis_get
+    mock_redis.set = mock_redis_set
+    mock_redis.ttl = mock_redis_ttl
+
+    # We patch get_redis
+    monkeypatch.setattr(
+        "app.services.graph_service.get_redis", AsyncMock(return_value=mock_redis)
+    )
+
+    # Mock httpx AsyncClient post
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"access_token": "REAL_ACQUIRED_TOKEN"}
+    mock_response.raise_for_status = MagicMock()
+
+    # Capture the payload sent to Entra ID
+    captured_payload = {}
+
+    async def mock_post(url, data=None, **kwargs):
+        nonlocal captured_payload
+        captured_payload = data
+        return mock_response
+
+    mock_client = MagicMock()
+    mock_client.post = mock_post
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock()
+
+    with patch("httpx.AsyncClient", return_value=mock_client):
+        token = await service.get_access_token()
+        assert token == "REAL_ACQUIRED_TOKEN"
+        # Verify the correct scopes and client credentials are used
+        assert captured_payload["client_id"] == "test-client-id"
+        assert captured_payload["client_secret"] == "test-client-secret"
+        assert (
+            captured_payload["scope"] == "https://graph.microsoft.com/.default-custom"
+        )

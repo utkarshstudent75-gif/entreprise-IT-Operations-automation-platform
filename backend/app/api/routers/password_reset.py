@@ -410,6 +410,7 @@ async def reset_password(
             request.email,
             request.otp,
             request.new_password,
+            confirm_password=request.confirm_password,
         )
         await clear_failures(request.email, ip)
     except Exception:

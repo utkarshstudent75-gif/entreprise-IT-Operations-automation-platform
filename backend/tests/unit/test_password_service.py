@@ -228,3 +228,20 @@ async def test_reset_password_updates_password(monkeypatch):
     )
     # The local database password hash is preserved; Graph SSPR resets corporate Entra ID password
     assert user.hashed_password == "oldhash"
+
+
+async def test_reset_password_raises_on_password_mismatch(monkeypatch):
+    """
+    Test that reset_password raises GraphAPIException if new_password and confirm_password mismatch.
+    """
+    from app.services.graph_service import GraphAPIException
+
+    user = DummyUser(id=1, email="test@example.com")
+
+    db = DummyDB()
+    with pytest.raises(GraphAPIException) as excinfo:
+        await password_reset_service.reset_password(
+            db, user.email, "123456", "NewPassword@123", "MismatchPassword@123"
+        )
+    assert excinfo.value.error_code == "PASSWORD_MISMATCH"
+    assert "do not match" in excinfo.value.message.lower()

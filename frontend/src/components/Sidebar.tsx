@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import {
   Box,
   Drawer,
@@ -23,6 +23,7 @@ import {
   ShieldRounded,
   PersonRounded,
   NotificationsRounded,
+  LogoutRounded,
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -42,48 +43,39 @@ interface SidebarGroup {
 
 const sidebarGroups: SidebarGroup[] = [
   {
-    title: 'User Center',
-    items: [
-      { label: 'My Profile', path: '/dashboard/profile', icon: PersonRounded },
-      { label: 'Reset History', path: '/dashboard/reset-history', icon: HistoryRounded },
-      { label: 'Session Information', path: '/dashboard/session-info', icon: VpnKeyRounded },
-      { label: 'Notification Center', path: '/dashboard/notifications', icon: NotificationsRounded },
-    ],
-  },
-  {
-    title: 'Identity Services',
+    title: 'Identity',
     items: [
       { label: 'Password Reset', path: '/dashboard/password-reset', icon: LockResetRounded, roles: ['Platform Administrator', 'Support Engineer', 'Standard User'] },
-      { label: 'MFA Reset', path: '/dashboard/mfa-reset', icon: VpnKeyRounded, roles: ['Platform Administrator', 'Support Engineer'] },
+      { label: 'MFA Management', path: '/dashboard/mfa-management', icon: VpnKeyRounded, roles: ['Platform Administrator', 'Support Engineer', 'Standard User'] },
       { label: 'Unlock Account', path: '/dashboard/unlock-account', icon: LockOpenRounded, roles: ['Platform Administrator', 'Support Engineer'] },
+      { label: 'My Profile', path: '/dashboard/profile', icon: PersonRounded },
+      { label: 'Session Information', path: '/dashboard/session-info', icon: VpnKeyRounded },
     ],
   },
   {
-    title: 'Software & Access',
+    title: 'Requests',
     items: [
       { label: 'Software Request', path: '/dashboard/software-request', icon: AppShortcutRounded, roles: ['Platform Administrator', 'Support Engineer', 'Standard User'] },
+      { label: 'VPN Request', path: '/dashboard/vpn-request', icon: VpnLockRounded, roles: ['Platform Administrator', 'Support Engineer', 'Standard User'] },
+      { label: 'Shared Mailbox', path: '/dashboard/mailbox-request', icon: AppShortcutRounded, roles: ['Platform Administrator', 'Support Engineer', 'Standard User'] },
       { label: 'Access Request', path: '/dashboard/access-request', icon: VpnLockRounded, roles: ['Platform Administrator', 'Support Engineer'] },
       { label: 'License Assignment', path: '/dashboard/license-assignment', icon: AssignmentIndRounded, roles: ['Platform Administrator'] },
     ],
   },
   {
-    title: 'Support',
+    title: 'System',
     items: [
-      { label: 'My Requests', path: '/dashboard/my-requests', icon: HistoryRounded, roles: ['Platform Administrator', 'Support Engineer', 'Standard User'] },
-      { label: 'My Tickets', path: '/dashboard/my-tickets', icon: SupportAgentRounded, roles: ['Platform Administrator', 'Support Engineer'] },
-      { label: 'AI Assistant', path: '/dashboard/ai-assistant', icon: SmartToyRounded, roles: ['Platform Administrator', 'Support Engineer', 'Standard User'] },
-    ],
-  },
-  {
-    title: 'Administration',
-    items: [
-      { label: 'Admin Dashboard', path: '/dashboard/admin', icon: ShieldRounded, roles: ['Platform Administrator'] },
+      { label: 'Notifications', path: '/dashboard/notifications', icon: NotificationsRounded },
+      { label: 'Reset History', path: '/dashboard/reset-history', icon: HistoryRounded },
+      { label: 'Settings', path: '/dashboard/settings', icon: ShieldRounded },
+      { label: 'Help', path: '/dashboard/help', icon: SupportAgentRounded },
     ],
   },
 ]
 
 export function Sidebar() {
-  const { user } = useAuth()
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
   
   if (!user) return null
 
@@ -186,6 +178,33 @@ export function Sidebar() {
               ))}
             </Box>
           ))}
+
+          {/* Logout Button */}
+          <ListItem disablePadding sx={{ mt: 3, borderTop: '1px solid', borderColor: 'divider', pt: 2 }}>
+            <ListItemButton
+              onClick={async () => {
+                await logout()
+                navigate('/')
+              }}
+              sx={{
+                borderRadius: 2,
+                py: 0.75,
+                px: 2,
+                color: 'error.main',
+                '&:hover': {
+                  bgcolor: '#ffebee',
+                }
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 36, color: 'error.main' }}>
+                <LogoutRounded />
+              </ListItemIcon>
+              <ListItemText
+                primary="Sign Out"
+                primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: 600 }}
+              />
+            </ListItemButton>
+          </ListItem>
         </List>
       </Box>
     </Drawer>

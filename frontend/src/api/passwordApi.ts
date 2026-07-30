@@ -43,8 +43,12 @@ export async function verifyOtp(email: string, otp: string): Promise<PasswordApi
   return postPasswordRequest('/password/verify-otp', { email, otp }, 'Unable to verify the reset code. Please try again.')
 }
 
-export async function resetPassword(email: string, otp: string, new_password: string): Promise<PasswordApiResult> {
-  return postPasswordRequest('/password/reset-password', { email, otp, new_password }, 'Unable to reset your password. Please try again.')
+export async function resetPassword(email: string, otp: string, new_password: string, confirm_password?: string): Promise<PasswordApiResult> {
+  const payload: Record<string, string> = { email, otp, new_password }
+  if (confirm_password) {
+    payload.confirm_password = confirm_password
+  }
+  return postPasswordRequest('/password/reset-password', payload, 'Unable to reset your password. Please try again.')
 }
 
 export interface PasswordPolicy {

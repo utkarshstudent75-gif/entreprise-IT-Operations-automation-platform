@@ -1,4 +1,4 @@
-import { Box, Stack, Typography, List, ListItem, ListItemIcon, ListItemText } from '@mui/material'
+import { Box, Stack, Typography, List, ListItem, ListItemIcon, ListItemText, LinearProgress } from '@mui/material'
 import { useMemo, useState, useEffect } from 'react'
 import { CheckCircleRounded, RadioButtonUncheckedRounded } from '@mui/icons-material'
 
@@ -20,6 +20,7 @@ export function PasswordResetPage() {
   const [email, setEmail] = useState('')
   const [otp, setOtp] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [statusSeverity, setStatusSeverity] = useState<'success' | 'error' | 'info'>('info')
   const [loading, setLoading] = useState(false)
@@ -54,10 +55,12 @@ export function PasswordResetPage() {
   const canSubmitEmail = email.trim().length > 0
   const canSubmitOtp = otp.trim().length === 6
   
-  // Submit only if ALL policy criteria are satisfied
+  const passwordsMatch = newPassword === confirmPassword
+  
+  // Submit only if ALL policy criteria are satisfied AND passwords match
   const canSubmitPassword = useMemo(() => {
-    return Object.values(criteria).every(Boolean)
-  }, [criteria])
+    return Object.values(criteria).every(Boolean) && passwordsMatch && newPassword.length > 0
+  }, [criteria, passwordsMatch, newPassword])
 
   const passwordStrength = useMemo(() => {
     const satisfiedCount = Object.values(criteria).filter(Boolean).length
@@ -68,6 +71,18 @@ export function PasswordResetPage() {
       return 'Moderate'
     }
     return 'Weak'
+  }, [criteria, newPassword])
+
+  const strengthColor = useMemo(() => {
+    if (passwordStrength === 'Strong') return 'success'
+    if (passwordStrength === 'Moderate') return 'warning'
+    return 'error'
+  }, [passwordStrength])
+  
+  const strengthValue = useMemo(() => {
+    if (!newPassword) return 0
+    const satisfiedCount = Object.values(criteria).filter(Boolean).length
+    return satisfiedCount * 20
   }, [criteria, newPassword])
 
   const clearStatus = () => {
@@ -115,7 +130,7 @@ export function PasswordResetPage() {
     clearStatus()
     setLoading(true)
     try {
-      const response = await resetPassword(email.trim(), otp.trim(), newPassword)
+      const response = await resetPassword(email.trim(), otp.trim(), newPassword, confirmPassword)
       if (response.success) {
         setStatusMessage(response.message)
         setStatusSeverity('success')
@@ -208,8 +223,33 @@ export function PasswordResetPage() {
                   label="New password"
                   value={newPassword}
                   onChange={(event) => setNewPassword(event.target.value)}
-                  helperText={`Password strength: ${passwordStrength}`}
                 />
+
+                <PasswordInput
+                  label="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  error={Boolean(confirmPassword && !passwordsMatch)}
+                  helperText={confirmPassword && !passwordsMatch ? "Passwords do not match." : ""}
+                />
+
+                {/* Visually outstanding password strength indicator */}
+                <Box sx={{ mt: 1, mb: 1 }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                      Password Strength: <span style={{ color: strengthColor === 'success' ? '#2e7d32' : strengthColor === 'warning' ? '#ed6c02' : '#d32f2f' }}>{newPassword ? passwordStrength : 'None'}</span>
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                      {strengthValue}%
+                    </Typography>
+                  </Stack>
+                  <LinearProgress
+                    variant="determinate"
+                    value={strengthValue}
+                    color={strengthColor}
+                    sx={{ height: 8, borderRadius: 4, bgcolor: '#e0e0e0' }}
+                  />
+                </Box>
 
                 {/* Dynamic Password Policy Complexity Checklist */}
                 <Box sx={{ p: 2, bgcolor: '#f4f6fb', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>

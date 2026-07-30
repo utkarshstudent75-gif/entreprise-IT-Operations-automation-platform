@@ -19,6 +19,17 @@ export function Login() {
     }
   }, [isAuthenticated, navigate])
 
+  // Automatically trigger Microsoft Entra SSO redirect if not in mock mode and not authenticated
+  useEffect(() => {
+    if (!isMockMode && !isAuthenticated) {
+      setLoading(true)
+      login().catch((err: unknown) => {
+        setError((err as Error)?.message ?? 'Automatic Entra ID login redirect failed.')
+        setLoading(false)
+      })
+    }
+  }, [isAuthenticated, isMockMode, login])
+
   // Set default test email depending on role selected
   useEffect(() => {
     if (isMockMode) {

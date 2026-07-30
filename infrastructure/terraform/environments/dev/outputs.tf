@@ -185,5 +185,25 @@ output "redis_connection_string" {
   value       = "rediss://${module.redis.redis_cache_hostname}:${module.redis.redis_cache_ssl_port}"
 }
 
+#################################
+# Validation Workstation Outputs
+#################################
+
+output "validation_workstation_name" {
+  description = "The name of the validation workstation VM."
+  value       = module.validation_workstation.vm_name
+}
+
+output "validation_workstation_public_ip" {
+  description = "The public IP address of the validation workstation VM."
+  value       = module.validation_workstation.public_ip
+}
+
+output "validation_workstation_private_ip" {
+  description = "The private IP address of the validation workstation VM."
+  value       = module.validation_workstation.private_ip
+}
+
+
 
 

@@ -27,9 +27,14 @@ class GraphService:
     """
 
     def __init__(self) -> None:
-        self.is_mock = not (settings.ENTRA_CLIENT_ID and settings.ENTRA_TENANT_ID)
         self._in_memory_token: Optional[str] = None
         self._in_memory_expiry: float = 0.0
+
+    @property
+    def is_mock(self) -> bool:
+        client_id = settings.ENTRA_CLIENT_ID or settings.CLIENT_ID
+        tenant_id = settings.ENTRA_TENANT_ID or settings.TENANT_ID
+        return not (client_id and tenant_id)
 
     async def get_access_token(self) -> str:
         """
@@ -110,12 +115,19 @@ class GraphService:
                 )
         else:
             # Obtain token via Client Credentials Flow
-            token_url = f"https://login.microsoftonline.com/{settings.ENTRA_TENANT_ID}/oauth2/v2.0/token"
+            tenant_id = settings.ENTRA_TENANT_ID or settings.TENANT_ID
+            client_id = settings.ENTRA_CLIENT_ID or settings.CLIENT_ID
+            client_secret = settings.ENTRA_CLIENT_SECRET or settings.CLIENT_SECRET
+            scope = settings.GRAPH_SCOPES or "https://graph.microsoft.com/.default"
+
+            token_url = (
+                f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
+            )
             payload = {
                 "grant_type": "client_credentials",
-                "client_id": settings.ENTRA_CLIENT_ID,
-                "client_secret": settings.ENTRA_CLIENT_SECRET,
-                "scope": "https://graph.microsoft.com/.default",
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "scope": scope,
             }
 
             try:
@@ -336,6 +348,39 @@ class GraphService:
                     "An unexpected error occurred while resetting the password.",
                     status_code=500,
                 )
+
+    async def get_user_phone(self, email: str) -> str | None:
+        """
+        Retrieves the business phone number (or mobile phone number) for a user from Microsoft Graph.
+        """
+        if self.is_mock:
+            logger.info("[Mock Mode] Fetching user phone number for %s", email)
+            # Default mock values for local test accounts
+            if "alex.morgan" in email.lower() or "morgan" in email.lower():
+                return "+18005550199"
+            return None
+
+        token = await self.get_access_token()
+        url = f"{settings.GRAPH_ENDPOINT}/users/{email}?$select=businessPhones,mobilePhone"
+        headers = {"Authorization": f"Bearer {token}"}
+
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(url, headers=headers)
+                if response.status_code == 200:
+                    data = response.json()
+                    # mobilePhone takes precedence, fall back to first businessPhone
+                    mobile = data.get("mobilePhone")
+                    if mobile:
+                        return mobile
+
+                    business = data.get("businessPhones", [])
+                    if business and len(business) > 0:
+                        return business[0]
+        except Exception as e:
+            logger.warning("Failed to fetch user phone from Graph API: %s", str(e))
+
+        return None
 
 
 graph_service = GraphService()
