@@ -529,8 +529,12 @@ module "validation_workstation" {
 
 # 5. Assign VM User Login role to Validation Employee in Entra ID
 module "vm_identity_assignment" {
-  source                       = "../../modules/identity-assignment"
-  scope                        = module.validation_workstation.vm_id
-  vm_user_login_principal_ids  = [module.users.user_object_ids["validation-employee"]]
-  vm_admin_login_principal_ids = [data.azurerm_client_config.current.object_id]
+  source                     = "../../modules/identity-assignment"
+  scope                      = module.validation_workstation.vm_id
+  vm_user_login_assignments  = {
+    "validation-employee" = module.users.user_object_ids["validation-employee"]
+  }
+  vm_admin_login_assignments = {
+    "deployer" = data.azurerm_client_config.current.object_id
+  }
 }
