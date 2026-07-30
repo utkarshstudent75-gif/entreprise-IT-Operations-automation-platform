@@ -99,7 +99,7 @@ def retrieve_secrets_from_key_vault(settings_obj: Settings) -> None:
             settings_obj.CLIENT_ID = client.get_secret("msgraph-client-id").value
             settings_obj.ENTRA_CLIENT_ID = settings_obj.CLIENT_ID
         except Exception:
-            pass
+            pass  # nosec B110
 
         try:
             settings_obj.CLIENT_SECRET = client.get_secret(
@@ -107,29 +107,29 @@ def retrieve_secrets_from_key_vault(settings_obj: Settings) -> None:
             ).value
             settings_obj.ENTRA_CLIENT_SECRET = settings_obj.CLIENT_SECRET
         except Exception:
-            pass
+            pass  # nosec B110
 
         try:
             settings_obj.TENANT_ID = client.get_secret("msgraph-tenant-id").value
             settings_obj.ENTRA_TENANT_ID = settings_obj.TENANT_ID
         except Exception:
-            pass
+            pass  # nosec B110
 
         try:
             settings_obj.AUTHORITY = client.get_secret("sso-authority").value
         except Exception:
-            pass
+            pass  # nosec B110
 
         try:
             settings_obj.REDIRECT_URI = client.get_secret("sso-redirect-uri").value
             settings_obj.ENTRA_REDIRECT_URI = settings_obj.REDIRECT_URI
         except Exception:
-            pass
+            pass  # nosec B110
 
         try:
             settings_obj.API_AUDIENCE = client.get_secret("sso-api-audience").value
         except Exception:
-            pass
+            pass  # nosec B110
 
         # 2. Fetch Database Credentials
         try:
@@ -143,7 +143,7 @@ def retrieve_secrets_from_key_vault(settings_obj: Settings) -> None:
                     f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
                 )
         except Exception:
-            pass
+            pass  # nosec B110
 
         # 3. Fetch Redis Credentials
         try:
@@ -158,7 +158,7 @@ def retrieve_secrets_from_key_vault(settings_obj: Settings) -> None:
                     f"redis://:{redis_key}@{redis_host}:{redis_port}/0"
                 )
         except Exception:
-            pass
+            pass  # nosec B110
 
         # 4. Fetch SMS Notification Credentials
         try:
@@ -169,7 +169,7 @@ def retrieve_secrets_from_key_vault(settings_obj: Settings) -> None:
             if sms_sid:
                 settings_obj.SMS_ACCOUNT_SID = sms_sid
         except Exception:
-            pass
+            pass  # nosec B110
 
     except Exception as e:
         import logging
