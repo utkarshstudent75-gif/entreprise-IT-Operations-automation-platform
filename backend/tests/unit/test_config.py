@@ -7,7 +7,7 @@ sys.modules["azure.identity"] = MagicMock()
 sys.modules["azure.keyvault"] = MagicMock()
 sys.modules["azure.keyvault.secrets"] = MagicMock()
 
-from app.core.config import Settings, retrieve_secrets_from_key_vault
+from app.core.config import Settings, retrieve_secrets_from_key_vault  # noqa: E402
 
 
 def test_config_alternate_mapping():
