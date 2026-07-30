@@ -40,7 +40,8 @@ resource "azurerm_network_security_group" "this" {
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "3389"
-    source_address_prefixes    = var.allowed_inbound_rdp_ips
+    source_address_prefix      = length(var.allowed_inbound_rdp_ips) == 1 && var.allowed_inbound_rdp_ips[0] == "*" ? "*" : null
+    source_address_prefixes    = length(var.allowed_inbound_rdp_ips) == 1 && var.allowed_inbound_rdp_ips[0] == "*" ? null : var.allowed_inbound_rdp_ips
     destination_address_prefix = "*"
   }
 }
@@ -69,6 +70,7 @@ resource "azurerm_network_interface_security_group_association" "this" {
 # 5. Windows 11 Virtual Machine (Trusted Launch Enabled)
 resource "azurerm_windows_virtual_machine" "this" {
   name                = var.vm_name
+  computer_name       = "val-workstation"
   resource_group_name = var.resource_group_name
   location            = var.location
   size                = "Standard_D2s_v5"
