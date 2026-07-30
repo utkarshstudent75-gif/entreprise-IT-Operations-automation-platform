@@ -19,7 +19,6 @@ import {
   AssignmentIndRounded,
   HistoryRounded,
   SupportAgentRounded,
-  SmartToyRounded,
   ShieldRounded,
   PersonRounded,
   NotificationsRounded,

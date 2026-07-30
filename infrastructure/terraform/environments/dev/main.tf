@@ -529,9 +529,9 @@ module "validation_workstation" {
 
 # 5. Assign VM User Login role to Validation Employee in Entra ID
 module "vm_identity_assignment" {
-  source                     = "../../modules/identity-assignment"
-  scope                      = module.validation_workstation.vm_id
-  vm_user_login_assignments  = {
+  source = "../../modules/identity-assignment"
+  scope  = module.validation_workstation.vm_id
+  vm_user_login_assignments = {
     "validation-employee" = module.users.user_object_ids["validation-employee"]
   }
   vm_admin_login_assignments = {

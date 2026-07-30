@@ -25,7 +25,6 @@ import {
   HistoryRounded,
   NotificationsRounded,
   PersonRounded,
-  LockOpenRounded,
   SecurityRounded,
   VpnLockRounded,
   AppShortcutRounded,
@@ -53,7 +52,7 @@ interface ActivityItem {
   action: string
   status: string
   ip_address: string | null
-  details: Record<string, any>
+  details: Record<string, unknown>
 }
 
 interface NotificationItem {
@@ -93,9 +92,6 @@ export function Dashboard() {
   ])
   const [inputVal, setInputVal] = useState('')
   const [isTyping, setIsTyping] = useState(false)
-
-  // Retrieve user email from user context
-  const userEmail = user?.email || ''
 
   // Scroll to bottom of chat
   useEffect(() => {
