@@ -143,45 +143,51 @@ The Enterprise IT Operations Automation Platform automates the complete workflow
 
 ---
 
-# High-Level Architecture
+# High-Level Microservices Architecture
 
 ```text
-                    Browser
-                       │
-                       ▼
-                React Frontend
-                       │
-                  REST API Calls
-                       │
-                       ▼
-                FastAPI Backend
+                               ┌────────────────────────────────┐
+                               │        React Frontend          │
+                               └───────────────┬────────────────┘
+                                               │ REST / HTTP
+                                               ▼
+                               ┌────────────────────────────────┐
+                               │          API Gateway           │
+                               │          (Port 8000)           │
+                               └───────┬───┬───┬───┬───┬────────┘
+                                       │   │   │   │   │
+             ┌─────────────────────────┘   │   │   │   └────────────────────────┐
+             ▼                             ▼   │   ▼                            ▼
+┌─────────────────────────┐ ┌────────────────┐ │ ┌──────────────────┐ ┌───────────────────┐
+│      Auth Service       │ │ Ticket Service │ │ │ Workflow Service │ │ Audit Log Service │
+│       (Port 8001)       │ │  (Port 8002)   │ │ │   (Port 8003)    │ │    (Port 8005)    │
+└────────────┬────────────┘ └───────┬────────┘ │ └────────┬─────────┘ └─────────┬─────────┘
+             │                      │          │          │                     │
+             └──────────────────────┴──────────┼──────────┴─────────────────────┘
+                                               ▼
+                               ┌────────────────────────────────┐
+                               │      Notification Service      │
+                               │          (Port 8004)           │
+                               └────────────────────────────────┘
+                                               │
+                                 ┌─────────────┴─────────────┐
+                                 ▼                           ▼
+                           PostgreSQL DB                   Redis
 ```
 
-### Target Production Architecture
+### Microservices Port Specification
 
-```text
-                        Users
-                           │
-                           ▼
-                    Azure Load Balancer
-                           │
-                           ▼
-                    Kubernetes (AKS)
-                           │
-         ┌─────────────────┴─────────────────┐
-         ▼                                   ▼
-    React Frontend                     FastAPI Backend
-                                              │
-                       ┌──────────────────────┴──────────────────────┐
-                       ▼                                             ▼
-                 PostgreSQL                                     Redis
-                       │
-                       ▼
-             Microsoft Graph API
-                       │
-                       ▼
-                Microsoft Entra ID
-```
+| Service Name | Port | Description |
+| ------------ | ---- | ----------- |
+| **Frontend** | `5173` | React + TypeScript + Vite User Interface |
+| **API Gateway** | `8000` | Central Reverse Proxy & Request Router |
+| **Auth Service** | `8001` | Authentication, Identity Verification, Users & Password Reset |
+| **Ticket Service** | `8002` | IT Helpdesk Ticket Management |
+| **Workflow Service** | `8003` | Automation Workflows & Software Approvals |
+| **Notification Service** | `8004` | SMS & Console Alert Dispatch |
+| **Audit Service** | `8005` | Security Event Audit Logs & Compliance Reporting |
+| **PostgreSQL** | `5432` | Relational Database |
+| **Redis** | `6379` | High-Performance OTP & Rate Limiter Cache |
 
 ---
 
@@ -191,17 +197,22 @@ The Enterprise IT Operations Automation Platform automates the complete workflow
 enterprise-it-operations-automation-platform/
 │
 ├── backend/
-│   ├── app/
-│   ├── tests/
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   └── .dockerignore
+│   ├── app/                    # Shared core schemas, models, and repositories
+│   ├── services/               # Microservices implementations
+│   │   ├── api_gateway/        # Port 8000 - Central API Gateway & Proxy
+│   │   ├── auth_service/       # Port 8001 - Auth & User Microservice
+│   │   ├── ticket_service/     # Port 8002 - IT Tickets Microservice
+│   │   ├── workflow_service/   # Port 8003 - Workflows & Software Microservice
+│   │   ├── notification_service/# Port 8004 - Notifications Microservice
+│   │   └── audit_service/      # Port 8005 - Security Audit Microservice
+│   ├── tests/                  # Unit & Integration test suites
+│   ├── Dockerfile              # Multi-stage microservices Docker image build
+│   ├── requirements.txt        # Backend dependencies
+│   └── entrypoint.sh           # Dynamic entrypoint for microservices startup
 │
 ├── frontend/
-│   ├── src/
-│   ├── Dockerfile
-│   ├── package.json
-│   └── .dockerignore
+│   ├── src/                    # React + TypeScript UI codebase
+│   └── Dockerfile              # Frontend container configuration
 │
 ├── deploy/
 │   ├── helm/

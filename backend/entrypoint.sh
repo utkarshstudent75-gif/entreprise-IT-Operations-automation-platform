@@ -29,8 +29,10 @@ check_postgres
 
 alembic upgrade head
 
-if [ "$ENVIRONMENT" = "production" ]; then
-  exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+if [ "$#" -gt 0 ]; then
+  exec "$@"
+elif [ "$ENVIRONMENT" = "production" ]; then
+  exec uvicorn services.api_gateway.main:app --host 0.0.0.0 --port 8000
 else
-  exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+  exec uvicorn services.api_gateway.main:app --host 0.0.0.0 --port 8000 --reload
 fi
