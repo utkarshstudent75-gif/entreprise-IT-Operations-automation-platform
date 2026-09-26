@@ -26,16 +26,38 @@ const theme = createTheme({
   },
 })
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <MsalProvider instance={msalInstance}>
-      <AuthProvider>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <App />
-        </ThemeProvider>
-      </AuthProvider>
-    </MsalProvider>
-  </StrictMode>,
-)
+const root = createRoot(document.getElementById('root')!)
+
+// MSAL Browser v3 requires initialize() before any MSAL calls or MsalProvider mount
+msalInstance
+  .initialize()
+  .then(() => {
+    root.render(
+      <StrictMode>
+        <MsalProvider instance={msalInstance}>
+          <AuthProvider>
+            <ThemeProvider theme={theme}>
+              <CssBaseline />
+              <App />
+            </ThemeProvider>
+          </AuthProvider>
+        </MsalProvider>
+      </StrictMode>,
+    )
+  })
+  .catch((error) => {
+    console.error('Failed to initialize MSAL:', error)
+    root.render(
+      <StrictMode>
+        <MsalProvider instance={msalInstance}>
+          <AuthProvider>
+            <ThemeProvider theme={theme}>
+              <CssBaseline />
+              <App />
+            </ThemeProvider>
+          </AuthProvider>
+        </MsalProvider>
+      </StrictMode>,
+    )
+  })
 
