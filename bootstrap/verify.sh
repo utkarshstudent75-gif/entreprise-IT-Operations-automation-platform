@@ -159,7 +159,7 @@ fi
 if kubectl get pods -n cert-manager 2>/dev/null | grep -q "cert-manager"; then
     report_result "cert-manager" "PASS" "cert-manager pods are running"
 else
-    report_result "cert-manager" "FAIL" "cert-manager not detected (optional)"
+    report_result "cert-manager (optional)" "PASS" "cert-manager not deployed (optional component)"
 fi
 
 
@@ -192,16 +192,16 @@ fi
 # 4. Verify Connectivity and Endpoint Health
 log_info "4. Testing End-to-End Application Health & Connectivity..."
 
-# Find a running backend or frontend pod to run curl checks from inside the cluster
-BACKEND_POD=$(kubectl get pods -n backend -l app.kubernetes.io/name=backend -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+# Find a running backend pod to run checks from inside the cluster
+BACKEND_POD=$(kubectl get pods -n backend -l app=backend --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
 
 if [[ -n "$BACKEND_POD" ]]; then
     # Test Readiness endpoint (checks DB and Redis connectivity)
     log_info "Running backend readiness check from inside backend pod..."
-    READINESS_RESP=$(kubectl exec -n backend pod/$BACKEND_POD -- curl -s http://localhost:8000/api/v1/readiness || echo "failed")
+    READINESS_RESP=$(kubectl exec -n backend pod/$BACKEND_POD -- python3 -c "import urllib.request; print(urllib.request.urlopen('http://localhost:8000/readiness').read().decode())" 2>/dev/null || echo "failed")
     
     if [[ "$READINESS_RESP" == *"\"status\":\"ready\""* ]]; then
-        report_result "Backend Health Endpoint (/api/v1/readiness)" "PASS"
+        report_result "Backend Health Endpoint (/readiness)" "PASS"
         
         # Redis Connectivity Check
         if [[ "$READINESS_RESP" == *"\"redis\":\"connected\""* ]]; then
@@ -217,7 +217,7 @@ if [[ -n "$BACKEND_POD" ]]; then
             report_result "PostgreSQL Connectivity" "FAIL" "Backend reports PostgreSQL is offline"
         fi
     else
-        report_result "Backend Health Endpoint (/api/v1/readiness)" "FAIL" "Response: $READINESS_RESP"
+        report_result "Backend Health Endpoint (/readiness)" "FAIL" "Response: $READINESS_RESP"
         report_result "Redis Connectivity" "FAIL" "Unable to check due to backend failures"
         report_result "PostgreSQL Connectivity" "FAIL" "Unable to check due to backend failures"
     fi
@@ -232,7 +232,7 @@ FRONTEND_SVC_IP=$(kubectl get svc frontend-service -n frontend -o jsonpath='{.sp
 if [[ -n "$FRONTEND_SVC_IP" ]]; then
     # Test frontend service internally
     if [[ -n "$BACKEND_POD" ]]; then
-        FRONTEND_HTTP_CODE=$(kubectl exec -n backend pod/$BACKEND_POD -- curl -s -o /dev/null -w "%{http_code}" http://frontend-service.frontend.svc.cluster.local || echo "000")
+        FRONTEND_HTTP_CODE=$(kubectl exec -n backend pod/$BACKEND_POD -- python3 -c "import urllib.request; resp=urllib.request.urlopen('http://frontend-service.frontend.svc.cluster.local:80'); print(resp.getcode())" 2>/dev/null || echo "000")
         if [ "$FRONTEND_HTTP_CODE" -eq 200 ] || [ "$FRONTEND_HTTP_CODE" -eq 304 ]; then
             report_result "Frontend Internal Availability" "PASS" "Status $FRONTEND_HTTP_CODE"
         else
