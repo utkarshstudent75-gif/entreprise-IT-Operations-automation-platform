@@ -8,9 +8,9 @@ RUN chown node:node /app && \
 
 USER node
 
-COPY --chown=node:node package*.json ./
+COPY --chown=node:node package*.json .npmrc* ./
 
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Copy specific source directories and config files explicitly
 COPY --chown=node:node src/ ./src

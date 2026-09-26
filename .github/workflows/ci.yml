@@ -358,12 +358,12 @@ jobs:
             - name: Log in to Azure Container Registry
               if: github.event_name == 'push' && github.ref == 'refs/heads/master'
               run: |
-                az acr login --name ${{ vars.ACR_NAME || 'enterpriseitoperationsplatformdev397741ac' }}
+                az acr login --name ${{ vars.ACR_NAME || 'enterpriseitoperationsplatformdev1bab46e1' }}
 
             - name: Tag and Push images to ACR
               if: github.event_name == 'push' && github.ref == 'refs/heads/master'
               run: |
-                REGISTRY="${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev397741ac.azurecr.io' }}"
+                REGISTRY="${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev1bab46e1.azurecr.io' }}"
                 
                 # Tag and Push Backend
                 docker tag entreprise-backend:latest $REGISTRY/backend:latest
@@ -425,7 +425,7 @@ jobs:
 
         - name: Log in to Azure Container Registry
           run: |
-            az acr login --name ${{ vars.ACR_NAME || 'enterpriseitoperationsplatformdev397741ac' }}
+            az acr login --name ${{ vars.ACR_NAME || 'enterpriseitoperationsplatformdev1bab46e1' }}
 
         - name: Install Cosign
           run: |
@@ -438,14 +438,14 @@ jobs:
             COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
           run: |
             echo "${{ secrets.COSIGN_PRIVATE_KEY }}" > cosign.key
-            cosign sign --key cosign.key ${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev397741ac.azurecr.io' }}/backend:${{ github.sha }}
+            cosign sign --key cosign.key ${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev1bab46e1.azurecr.io' }}/backend:${{ github.sha }}
 
         - name: Sign Frontend Image
           env:
             COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
           run: |
             echo "${{ secrets.COSIGN_PRIVATE_KEY }}" > cosign.key
-            cosign sign --key cosign.key ${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev397741ac.azurecr.io' }}/frontend:${{ github.sha }}
+            cosign sign --key cosign.key ${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev1bab46e1.azurecr.io' }}/frontend:${{ github.sha }}
 
         - name: Upload Backend Signature
           uses: actions/upload-artifact@v4
@@ -663,7 +663,7 @@ jobs:
               run: |
                 helm upgrade --install frontend deploy/helm/frontend \
                   -f deploy/helm/values/dev.yaml \
-                  --set image.repository=enterpriseitoperationsplatformdev397741ac.azurecr.io/frontend \
+                  --set image.repository=enterpriseitoperationsplatformdev1bab46e1.azurecr.io/frontend \
                   --set image.tag=${{ github.sha }} \
                   -n frontend --create-namespace
 

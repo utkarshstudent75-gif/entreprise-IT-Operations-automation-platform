@@ -6,7 +6,7 @@ metadata:
   labels:
     app: frontend
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ if and .Values.frontend .Values.frontend.replicaCount }}{{ .Values.frontend.replicaCount }}{{ else }}{{ .Values.replicaCount }}{{ end }}
   selector:
     matchLabels:
       app: frontend
@@ -19,8 +19,8 @@ spec:
         {{- toYaml .Values.securityContext.pod | nindent 8 }}
       containers:
         - name: frontend
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          image: "{{ if and .Values.frontend .Values.frontend.image }}{{ .Values.frontend.image.repository }}{{ else }}{{ .Values.image.repository }}{{ end }}:{{ if and .Values.frontend .Values.frontend.image }}{{ .Values.frontend.image.tag }}{{ else }}{{ .Values.image.tag }}{{ end }}"
+          imagePullPolicy: {{ if and .Values.frontend .Values.frontend.image }}{{ .Values.frontend.image.pullPolicy }}{{ else }}{{ .Values.image.pullPolicy }}{{ end }}
           ports:
             - containerPort: 8080
               name: http

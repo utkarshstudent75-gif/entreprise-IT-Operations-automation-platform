@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: eitoap-backend
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: 'https://github.com/utkarshstudent75-gif/entreprise-IT-Operations-automation-platform.git'
+      targetRevision: master
+      ref: repo
+    - repoURL: 'https://github.com/utkarshstudent75-gif/entreprise-IT-Operations-automation-platform.git'
+      targetRevision: master
+      path: deploy/helm/backend
+      helm:
+        valueFiles:
+          - $repo/deploy/helm/values/dev.yaml
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: backend
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
