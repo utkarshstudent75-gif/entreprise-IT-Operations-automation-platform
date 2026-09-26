@@ -58,7 +58,7 @@ config:
   debug: "true"
   notificationProvider: "sms"
   smsBaseUrl: "https://od2.in/api/sms/send"
-  smsSenderId: "+1234567890"
+  smsSenderId: "+15551234567"
   smsTimeoutSeconds: 5.0
   smsRetryCount: 3
   authProvider: "local"
@@ -71,5 +71,5 @@ secrets:
   databaseUrl: "postgresql://psqladmin:KWKa%21MGl%28m5%24UWgN@enterprise-it-operations-platform-dev-db-central-1bab46e1.postgres.database.azure.com:5432/eitoap?sslmode=require"
   redisUrl: "rediss://:knopcpuZM5npOhKtCMlpw402InawT9m2AAzCaDv6dAE%3D@enterprise-it-operations-platform-dev-redis-1bab46e1.redis.cache.windows.net:6380/0"
   jwtSecretKey: "secret-key-change-in-production-dev"
-  smsApiKey: "placeholder-sms-api-key"
-  smsAccountSid: "placeholder-sms-account-sid"
+  smsApiKey: "<injected-from-azure-keyvault>"  # Secret: sms-api-key
+  smsAccountSid: "<injected-from-azure-keyvault>"  # Secret: sms-account-sid
