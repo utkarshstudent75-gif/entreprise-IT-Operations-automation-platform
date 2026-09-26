@@ -79,3 +79,92 @@ def test_retrieve_secrets_from_key_vault():
         assert settings.REDIS_URL == "redis://:kv-redis-key@kv-redis-host:6379/0"
         assert settings.SMS_API_KEY == "kv-sms-key"
         assert settings.SMS_ACCOUNT_SID == "kv-sms-sid"
+
+
+def test_retrieve_secrets_from_key_vault_preserves_tls():
+    """Rebuilding URLs from Key Vault must not drop TLS settings."""
+    settings = Settings(
+        KEYVAULT_NAME="mytestvault",
+        DATABASE_URL="postgresql://psqladmin:pass@db-host:5432/eitoap?sslmode=require",
+        REDIS_URL="rediss://:old-key@redis-host:6380/0",
+    )
+
+    mock_secret_client = MagicMock()
+    mock_secrets = {
+        "database-host": MagicMock(value="kv-db-host"),
+        "database-name": MagicMock(value="kv-db-name"),
+        "database-port": MagicMock(value="5432"),
+        "database-username": MagicMock(value="kv-db-user"),
+        "database-password": MagicMock(value="kv-db-pass"),
+        "redis-host": MagicMock(value="kv-redis-host"),
+        "redis-port": MagicMock(value="6380"),
+        "redis-primary-key": MagicMock(value="kv-redis-key"),
+    }
+    mock_secret_client.get_secret.side_effect = lambda name: mock_secrets.get(name)
+
+    with patch(
+        "azure.keyvault.secrets.SecretClient", return_value=mock_secret_client
+    ), patch("azure.identity.DefaultAzureCredential", return_value=MagicMock()):
+
+        retrieve_secrets_from_key_vault(settings)
+
+        assert settings.DATABASE_URL == (
+            "postgresql://kv-db-user:kv-db-pass@kv-db-host:5432/kv-db-name"
+            "?sslmode=require"
+        )
+        assert settings.REDIS_URL == "rediss://:kv-redis-key@kv-redis-host:6380/0"
+
+
+def test_retrieve_secrets_from_key_vault_ignores_placeholders():
+    """Placeholder values must not override working configuration.
+
+    Terraform seeds the vault with "placeholder-msgraph-*" defaults. Loading them
+    would set a client/tenant id and therefore disable Graph mock mode.
+    """
+    settings = Settings(
+        KEYVAULT_NAME="mytestvault",
+        DATABASE_URL="postgresql://postgres:postgres@postgres:5432/eitoap",
+        SMS_API_KEY="real-sms-key-from-env",
+    )
+    # Values already resolved from .env / the environment before the vault is read
+    env_sms_api_key = settings.SMS_API_KEY
+    env_sms_account_sid = settings.SMS_ACCOUNT_SID
+
+    mock_secret_client = MagicMock()
+    mock_secrets = {
+        "msgraph-client-id": MagicMock(value="placeholder-msgraph-client-id"),
+        "msgraph-client-secret": MagicMock(value="placeholder-msgraph-client-secret"),
+        "msgraph-tenant-id": MagicMock(value="placeholder-msgraph-tenant-id"),
+        "sms-provider-api-key": MagicMock(value="<injected-from-azure-keyvault>"),
+        "sms-provider-account-sid": MagicMock(value="CHANGE_ME_ACCOUNT_SID"),
+        "database-host": MagicMock(value="kv-db-host"),
+        "database-name": MagicMock(value="kv-db-name"),
+        "database-port": MagicMock(value="5432"),
+        "database-username": MagicMock(value="kv-db-user"),
+        "database-password": MagicMock(value="kv-db-pass"),
+    }
+    mock_secret_client.get_secret.side_effect = lambda name: mock_secrets.get(name)
+
+    with patch(
+        "azure.keyvault.secrets.SecretClient", return_value=mock_secret_client
+    ), patch("azure.identity.DefaultAzureCredential", return_value=MagicMock()):
+
+        retrieve_secrets_from_key_vault(settings)
+
+        # Graph credentials skipped -> is_mock stays True
+        assert not settings.CLIENT_ID
+        assert not settings.ENTRA_CLIENT_ID
+        assert not settings.TENANT_ID
+        assert not settings.ENTRA_TENANT_ID
+        assert not settings.CLIENT_SECRET
+
+        # Placeholder SMS values must not clobber the working configuration
+        assert settings.SMS_API_KEY == env_sms_api_key
+        assert settings.SMS_ACCOUNT_SID == env_sms_account_sid
+        assert "<injected-from-azure-keyvault>" != settings.SMS_API_KEY
+        assert "CHANGE_ME_ACCOUNT_SID" != settings.SMS_ACCOUNT_SID
+
+        # Real database values are still applied
+        assert settings.DATABASE_URL == (
+            "postgresql://kv-db-user:kv-db-pass@kv-db-host:5432/kv-db-name"
+        )

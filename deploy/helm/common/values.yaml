@@ -14,10 +14,14 @@ config:
   smsSenderId: "+1234567890"
   smsTimeoutSeconds: 5.0
   smsRetryCount: 3
+  # Fallback OTP destination when a user has no business phone number (empty = disabled)
+  smsTestRecipient: ""
   authProvider: "local"
   jwtAlgorithm: "HS256"
   jwtAccessTokenExpireMinutes: 1440
   viteApiBaseUrl: "/api/v1"
+  # Azure Key Vault name used to load secrets at startup (empty = use env vars only)
+  keyvaultName: ""
 
 redis:
   enabled: true

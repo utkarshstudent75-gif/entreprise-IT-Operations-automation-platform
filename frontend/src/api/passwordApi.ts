@@ -14,9 +14,32 @@ export interface PasswordApiResult {
   success: boolean
 }
 
+/**
+ * Shape of the backend's standard error envelope:
+ *   { "success": false, "error": { "code": "...", "message": "...", "request_id": "..." } }
+ * FastAPI/pydantic validation errors use `detail` instead.
+ */
+interface ApiErrorPayload {
+  detail?: unknown
+  message?: unknown
+  error?: { code?: string; message?: string }
+}
+
 function getErrorMessage(error: unknown, fallback: string): string {
-  if (axios.isAxiosError<{ detail?: string; message?: string }>(error)) {
-    return error.response?.data?.detail ?? error.response?.data?.message ?? fallback
+  if (axios.isAxiosError<ApiErrorPayload>(error)) {
+    const data = error.response?.data
+    if (data && typeof data === 'object') {
+      const envelopeMessage = data.error?.message
+      if (typeof envelopeMessage === 'string' && envelopeMessage) {
+        return envelopeMessage
+      }
+      if (typeof data.detail === 'string' && data.detail) {
+        return data.detail
+      }
+      if (typeof data.message === 'string' && data.message) {
+        return data.message
+      }
+    }
   }
 
   return fallback

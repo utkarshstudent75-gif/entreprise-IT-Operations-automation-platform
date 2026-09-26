@@ -59,10 +59,14 @@ config:
   smsSenderId: "+1234567890"
   smsTimeoutSeconds: 5.0
   smsRetryCount: 3
+  # No shared test number in prod — users must have a business phone number
+  smsTestRecipient: ""
   authProvider: "local"
   jwtAlgorithm: "HS256"
   jwtAccessTokenExpireMinutes: 1440
   viteApiBaseUrl: "/api/v1"
+  # Azure Key Vault name used to load secrets at startup (empty = use env vars only)
+  keyvaultName: ""
 
 # Database & Redis connection secrets
 secrets:

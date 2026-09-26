@@ -94,82 +94,103 @@ def retrieve_secrets_from_key_vault(settings_obj: Settings) -> None:
         credential = DefaultAzureCredential()
         client = SecretClient(vault_url=vault_url, credential=credential)
 
+        def _secret(name: str) -> str | None:
+            """Read a secret, returning None when it is missing or a placeholder.
+
+            Terraform/CI seed the vault with defaults such as
+            "placeholder-msgraph-client-id" or "<injected-from-azure-keyvault>".
+            Those must never override working configuration — in particular the
+            placeholder Graph credentials would otherwise disable mock mode.
+            """
+            try:
+                value = client.get_secret(name).value
+            except Exception:
+                return None  # nosec B110
+            if value is None:
+                return None
+            value = value.strip()
+            if not value:
+                return None
+            lowered = value.lower()
+            if value.startswith("<") or any(
+                marker in lowered for marker in ("placeholder", "change_me", "changeme")
+            ):
+                return None
+            return value
+
         # 1. Fetch MS Graph Credentials
-        try:
-            settings_obj.CLIENT_ID = client.get_secret("msgraph-client-id").value
-            settings_obj.ENTRA_CLIENT_ID = settings_obj.CLIENT_ID
-        except Exception:
-            pass  # nosec B110
+        client_id = _secret("msgraph-client-id")
+        if client_id:
+            settings_obj.CLIENT_ID = client_id
+            settings_obj.ENTRA_CLIENT_ID = client_id
 
-        try:
-            settings_obj.CLIENT_SECRET = client.get_secret(
-                "msgraph-client-secret"
-            ).value
-            settings_obj.ENTRA_CLIENT_SECRET = settings_obj.CLIENT_SECRET
-        except Exception:
-            pass  # nosec B110
+        client_secret = _secret("msgraph-client-secret")
+        if client_secret:
+            settings_obj.CLIENT_SECRET = client_secret
+            settings_obj.ENTRA_CLIENT_SECRET = client_secret
 
-        try:
-            settings_obj.TENANT_ID = client.get_secret("msgraph-tenant-id").value
-            settings_obj.ENTRA_TENANT_ID = settings_obj.TENANT_ID
-        except Exception:
-            pass  # nosec B110
+        tenant_id = _secret("msgraph-tenant-id")
+        if tenant_id:
+            settings_obj.TENANT_ID = tenant_id
+            settings_obj.ENTRA_TENANT_ID = tenant_id
 
-        try:
-            settings_obj.AUTHORITY = client.get_secret("sso-authority").value
-        except Exception:
-            pass  # nosec B110
+        authority = _secret("sso-authority")
+        if authority:
+            settings_obj.AUTHORITY = authority
 
-        try:
-            settings_obj.REDIRECT_URI = client.get_secret("sso-redirect-uri").value
-            settings_obj.ENTRA_REDIRECT_URI = settings_obj.REDIRECT_URI
-        except Exception:
-            pass  # nosec B110
+        redirect_uri = _secret("sso-redirect-uri")
+        if redirect_uri:
+            settings_obj.REDIRECT_URI = redirect_uri
+            settings_obj.ENTRA_REDIRECT_URI = redirect_uri
 
-        try:
-            settings_obj.API_AUDIENCE = client.get_secret("sso-api-audience").value
-        except Exception:
-            pass  # nosec B110
+        api_audience = _secret("sso-api-audience")
+        if api_audience:
+            settings_obj.API_AUDIENCE = api_audience
 
         # 2. Fetch Database Credentials
-        try:
-            db_host = client.get_secret("database-host").value
-            db_port = client.get_secret("database-port").value
-            db_name = client.get_secret("database-name").value
-            db_user = client.get_secret("database-username").value
-            db_pass = client.get_secret("database-password").value
-            if all([db_host, db_port, db_name, db_user, db_pass]):
-                settings_obj.DATABASE_URL = (
-                    f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
-                )
-        except Exception:
-            pass  # nosec B110
+        db_host = _secret("database-host")
+        db_port = _secret("database-port")
+        db_name = _secret("database-name")
+        db_user = _secret("database-username")
+        db_pass = _secret("database-password")
+        if all([db_host, db_port, db_name, db_user, db_pass]):
+            # Preserve any query options (e.g. ?sslmode=require) from the
+            # currently configured URL so TLS is not silently dropped when
+            # the connection string is rebuilt from Key Vault.
+            query = ""
+            current_url = settings_obj.DATABASE_URL or ""
+            if "?" in current_url:
+                query = "?" + current_url.rsplit("?", 1)[1]
+            settings_obj.DATABASE_URL = (
+                f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/"
+                f"{db_name}{query}"
+            )
 
         # 3. Fetch Redis Credentials
-        try:
-            redis_host = client.get_secret("redis-host").value
-            redis_port = client.get_secret("redis-port").value
-            redis_key = client.get_secret("redis-primary-key").value
-            if all([redis_host, redis_port, redis_key]):
-                settings_obj.REDIS_HOST = redis_host
-                settings_obj.REDIS_PORT = int(redis_port)
-                settings_obj.REDIS_PASSWORD = redis_key
-                settings_obj.REDIS_URL = (
-                    f"redis://:{redis_key}@{redis_host}:{redis_port}/0"
-                )
-        except Exception:
-            pass  # nosec B110
+        redis_host = _secret("redis-host")
+        redis_port = _secret("redis-port")
+        redis_key = _secret("redis-primary-key")
+        if all([redis_host, redis_port, redis_key]):
+            settings_obj.REDIS_HOST = redis_host
+            settings_obj.REDIS_PORT = int(redis_port)
+            settings_obj.REDIS_PASSWORD = redis_key
+            # Azure Cache for Redis disables non-TLS traffic, so keep the
+            # scheme (rediss://) of the currently configured URL.
+            scheme = (
+                "rediss://"
+                if (settings_obj.REDIS_URL or "").startswith("rediss://")
+                else "redis://"
+            )
+            settings_obj.REDIS_URL = f"{scheme}:{redis_key}@{redis_host}:{redis_port}/0"
 
         # 4. Fetch SMS Notification Credentials
-        try:
-            sms_api_key = client.get_secret("sms-provider-api-key").value
-            sms_sid = client.get_secret("sms-provider-account-sid").value
-            if sms_api_key:
-                settings_obj.SMS_API_KEY = sms_api_key
-            if sms_sid:
-                settings_obj.SMS_ACCOUNT_SID = sms_sid
-        except Exception:
-            pass  # nosec B110
+        sms_api_key = _secret("sms-provider-api-key")
+        if sms_api_key:
+            settings_obj.SMS_API_KEY = sms_api_key
+
+        sms_account_sid = _secret("sms-provider-account-sid")
+        if sms_account_sid:
+            settings_obj.SMS_ACCOUNT_SID = sms_account_sid
 
     except Exception as e:
         import logging
