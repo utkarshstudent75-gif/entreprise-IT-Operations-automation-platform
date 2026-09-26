@@ -22,7 +22,7 @@ spec:
         fsGroup: 101
       containers:
         - name: frontend
-          image: enterpriseitoperationsplatformdev397741ac.azurecr.io/frontend:latest
+          image: enterpriseitoperationsplatformdev1bab46e1.azurecr.io/frontend:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

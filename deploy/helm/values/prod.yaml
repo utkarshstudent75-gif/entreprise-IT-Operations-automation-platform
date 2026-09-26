@@ -4,14 +4,14 @@
 namespace: prod
 
 image:
-  repository: enterpriseitoperationsplatformdev397741ac.azurecr.io/backend
+  repository: enterpriseitoperationsplatformdev1bab46e1.azurecr.io/backend
   tag: latest
   pullPolicy: Always
 
 # Frontend Chart Overrides
 frontend:
   image:
-    repository: enterpriseitoperationsplatformdev397741ac.azurecr.io/frontend
+    repository: enterpriseitoperationsplatformdev1bab46e1.azurecr.io/frontend
     tag: latest
     pullPolicy: Always
   ingress:

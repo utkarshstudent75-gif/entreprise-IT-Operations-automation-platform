@@ -3,7 +3,7 @@ namespace: backend
 replicaCount: 2
 
 image:
-  repository: enterpriseitoperationsplatformdev397741ac.azurecr.io/backend
+  repository: enterpriseitoperationsplatformdev1bab46e1.azurecr.io/backend
   tag: latest
   pullPolicy: IfNotPresent
 

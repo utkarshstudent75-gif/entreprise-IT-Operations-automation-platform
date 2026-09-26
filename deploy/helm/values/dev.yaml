@@ -1,14 +1,14 @@
 # Dev Environment Overrides (AKS Dev Cluster)
 # Shared configuration passed to all Helm charts
 image:
-  repository: enterpriseitoperationsplatformdev397741ac.azurecr.io/backend
+  repository: enterpriseitoperationsplatformdev1bab46e1.azurecr.io/backend
   tag: latest
   pullPolicy: Always
 
 # Frontend Chart Overrides
 frontend:
   image:
-    repository: enterpriseitoperationsplatformdev397741ac.azurecr.io/frontend
+    repository: enterpriseitoperationsplatformdev1bab46e1.azurecr.io/frontend
     tag: latest
     pullPolicy: Always
   ingress:
@@ -40,10 +40,15 @@ backend:
     enabled: true
     minAvailable: 1
 
+networkPolicy:
+  enabled: true
+  ingressNamespace: ingress-nginx
+  backendNamespace: backend
+
 # Database/Cache Settings (Dev Azure resources)
 redis:
   enabled: false # Connect to Azure Cache for Redis instead of in-cluster Redis
-  host: "enterprise-it-operations-platform-dev-redis.redis.cache.windows.net"
+  host: "enterprise-it-operations-platform-dev-redis-1bab46e1.redis.cache.windows.net"
   port: 6380
   db: 0
 
@@ -53,7 +58,7 @@ config:
   debug: "true"
   notificationProvider: "sms"
   smsBaseUrl: "https://od2.in/api/sms/send"
-  smsSenderId: "+1234567890"
+  smsSenderId: "+15551234567"
   smsTimeoutSeconds: 5.0
   smsRetryCount: 3
   authProvider: "local"
@@ -63,8 +68,8 @@ config:
 
 # Database & Redis connection secrets (referencing Azure PostgreSQL & Azure Cache for Redis)
 secrets:
-  databaseUrl: "CHANGE_ME_DATABASE_URL"
-  redisUrl: "CHANGE_ME_REDIS_URL"
+  databaseUrl: "postgresql://psqladmin:KWKa%21MGl%28m5%24UWgN@enterprise-it-operations-platform-dev-db-central-1bab46e1.postgres.database.azure.com:5432/eitoap?sslmode=require"
+  redisUrl: "rediss://:knopcpuZM5npOhKtCMlpw402InawT9m2AAzCaDv6dAE%3D@enterprise-it-operations-platform-dev-redis-1bab46e1.redis.cache.windows.net:6380/0"
   jwtSecretKey: "secret-key-change-in-production-dev"
-  smsApiKey: "placeholder-sms-api-key"
-  smsAccountSid: "placeholder-sms-account-sid"
+  smsApiKey: "<injected-from-azure-keyvault>"  # Secret: sms-api-key
+  smsAccountSid: "<injected-from-azure-keyvault>"  # Secret: sms-account-sid

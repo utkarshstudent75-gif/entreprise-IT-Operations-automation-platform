@@ -3,7 +3,7 @@ namespace: frontend
 replicaCount: 2
 
 image:
-  repository: enterpriseitoperationsplatformdev397741ac.azurecr.io/frontend
+  repository: enterpriseitoperationsplatformdev1bab46e1.azurecr.io/frontend
   tag: latest
   pullPolicy: IfNotPresent
 

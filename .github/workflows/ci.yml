@@ -65,6 +65,13 @@ jobs:
             JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 1440
             NOTIFICATION_PROVIDER: console
             AUTH_PROVIDER: local
+            # SMS Mock Provider (od2.in) — used by live integration tests only
+            SMS_BASE_URL: ${{ secrets.SMS_BASE_URL || 'https://od2.in/api/sms' }}
+            SMS_ACCOUNT_SID: ${{ secrets.SMS_ACCOUNT_SID }}
+            SMS_API_KEY: ${{ secrets.SMS_API_KEY }}
+            SMS_SENDER_ID: ${{ secrets.SMS_SENDER_ID || '+15551234567' }}
+            SMS_TEST_RECIPIENT: ${{ secrets.SMS_TEST_RECIPIENT || '+18005550199' }}
+            LIVE_SMS_TEST_ENABLED: ${{ secrets.SMS_ACCOUNT_SID != '' && 'true' || 'false' }}
 
         
         name: Backend Build
@@ -110,9 +117,14 @@ jobs:
               run: |
                     PYTHONPATH=. python scripts/wait_for_services.py
 
-            - name: Run Backend tests (pytest) 
+            - name: Run Backend tests (pytest)
               run: |
-                    pytest --junitxml=junit.xml
+                    pytest --junitxml=junit.xml --ignore=tests/integration/test_sms_integration.py
+
+            - name: Run Live SMS Integration Tests (od2.in mock provider)
+              if: ${{ env.SMS_ACCOUNT_SID != '' }}
+              run: |
+                    pytest tests/integration/test_sms_integration.py -v --junitxml=junit-sms.xml
 
             - name: Validate FastAPI app
               run: |
@@ -123,6 +135,13 @@ jobs:
               with:
                 name: pytest-junit-xml
                 path: backend/junit.xml
+              if: always()
+
+            - name: Upload SMS Integration Test JUnit XML Report
+              uses: actions/upload-artifact@v4
+              with:
+                name: pytest-sms-junit-xml
+                path: backend/junit-sms.xml
               if: always()
 
             - name: Upload Coverage XML Report
@@ -358,12 +377,12 @@ jobs:
             - name: Log in to Azure Container Registry
               if: github.event_name == 'push' && github.ref == 'refs/heads/master'
               run: |
-                az acr login --name ${{ vars.ACR_NAME || 'enterpriseitoperationsplatformdev397741ac' }}
+                az acr login --name ${{ vars.ACR_NAME || 'enterpriseitoperationsplatformdev1bab46e1' }}
 
             - name: Tag and Push images to ACR
               if: github.event_name == 'push' && github.ref == 'refs/heads/master'
               run: |
-                REGISTRY="${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev397741ac.azurecr.io' }}"
+                REGISTRY="${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev1bab46e1.azurecr.io' }}"
                 
                 # Tag and Push Backend
                 docker tag entreprise-backend:latest $REGISTRY/backend:latest
@@ -425,7 +444,7 @@ jobs:
 
         - name: Log in to Azure Container Registry
           run: |
-            az acr login --name ${{ vars.ACR_NAME || 'enterpriseitoperationsplatformdev397741ac' }}
+            az acr login --name ${{ vars.ACR_NAME || 'enterpriseitoperationsplatformdev1bab46e1' }}
 
         - name: Install Cosign
           run: |
@@ -438,14 +457,14 @@ jobs:
             COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
           run: |
             echo "${{ secrets.COSIGN_PRIVATE_KEY }}" > cosign.key
-            cosign sign --key cosign.key ${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev397741ac.azurecr.io' }}/backend:${{ github.sha }}
+            cosign sign --key cosign.key ${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev1bab46e1.azurecr.io' }}/backend:${{ github.sha }}
 
         - name: Sign Frontend Image
           env:
             COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
           run: |
             echo "${{ secrets.COSIGN_PRIVATE_KEY }}" > cosign.key
-            cosign sign --key cosign.key ${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev397741ac.azurecr.io' }}/frontend:${{ github.sha }}
+            cosign sign --key cosign.key ${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev1bab46e1.azurecr.io' }}/frontend:${{ github.sha }}
 
         - name: Upload Backend Signature
           uses: actions/upload-artifact@v4
@@ -663,7 +682,7 @@ jobs:
               run: |
                 helm upgrade --install frontend deploy/helm/frontend \
                   -f deploy/helm/values/dev.yaml \
-                  --set image.repository=enterpriseitoperationsplatformdev397741ac.azurecr.io/frontend \
+                  --set image.repository=enterpriseitoperationsplatformdev1bab46e1.azurecr.io/frontend \
                   --set image.tag=${{ github.sha }} \
                   -n frontend --create-namespace
 

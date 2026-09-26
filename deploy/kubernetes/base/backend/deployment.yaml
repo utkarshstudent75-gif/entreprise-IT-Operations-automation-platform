@@ -22,7 +22,7 @@ spec:
         fsGroup: 10001
       containers:
         - name: backend
-          image: enterpriseitoperationsplatformdev397741ac.azurecr.io/backend:latest
+          image: enterpriseitoperationsplatformdev1bab46e1.azurecr.io/backend:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
