@@ -18,9 +18,14 @@ data:
   SMS_SENDER_ID: {{ .Values.config.smsSenderId | quote }}
   SMS_TIMEOUT_SECONDS: {{ .Values.config.smsTimeoutSeconds | quote }}
   SMS_RETRY_COUNT: {{ .Values.config.smsRetryCount | quote }}
+  # Fallback destination when a user has no business phone number in Entra ID
+  SMS_TEST_RECIPIENT: {{ .Values.config.smsTestRecipient | default "" | quote }}
   AUTH_PROVIDER: {{ .Values.config.authProvider | quote }}
   JWT_ALGORITHM: {{ .Values.config.jwtAlgorithm | quote }}
   JWT_ACCESS_TOKEN_EXPIRE_MINUTES: {{ .Values.config.jwtAccessTokenExpireMinutes | quote }}
+  # Optional: set to the Azure Key Vault name to load secrets at startup
+  # using DefaultAzureCredential (Workload/Managed Identity).
+  KEYVAULT_NAME: {{ .Values.config.keyvaultName | default "" | quote }}
 ---
 apiVersion: v1
 kind: ConfigMap

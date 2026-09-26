@@ -61,10 +61,16 @@ config:
   smsSenderId: "+15551234567"
   smsTimeoutSeconds: 5.0
   smsRetryCount: 3
+  # Dev uses the od2.in mock provider; OTPs for users without a phone number
+  # in Entra ID are delivered to this shared test number.
+  smsTestRecipient: "+18005550199"
   authProvider: "local"
   jwtAlgorithm: "HS256"
   jwtAccessTokenExpireMinutes: 1440
   viteApiBaseUrl: "/api/v1"
+  # Load SMS/DB/Redis/Graph secrets from Azure Key Vault at startup.
+  # Requires the pod identity to hold "Key Vault Secrets User" on the vault.
+  keyvaultName: "enterprise-it-operations"
 
 # Database & Redis connection secrets (referencing Azure PostgreSQL & Azure Cache for Redis)
 secrets:
