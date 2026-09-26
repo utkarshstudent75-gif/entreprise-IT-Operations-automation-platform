@@ -36,3 +36,10 @@ variable "postgresql_admin_name" {
   description = "The principal name of the Active Directory administrator of PostgreSQL."
   default     = null
 }
+
+variable "enable_postgresql_ad_admin" {
+  type        = bool
+  description = "Enable Microsoft Entra ID administrator for PostgreSQL."
+  default     = true
+}
+

@@ -318,8 +318,8 @@ module "aks" {
   tags                = local.common_tags
   vm_size             = var.vm_size
 
-  # In dev, restrict API server access to existing AKS subnet by default
-  api_server_authorized_ip_ranges = ["10.10.1.0/24"]
+  # In dev, allow public access with Azure Entra credentials
+  api_server_authorized_ip_ranges = []
 }
 
 module "acr_role_assignment" {
@@ -358,7 +358,7 @@ module "postgresql" {
   tenant_id                     = data.azurerm_client_config.current.tenant_id
   administrator_username        = var.postgresql_admin_username
   administrator_password        = random_password.db_password.result
-  sku_name                      = "B_Standard_B1ms"
+  sku_name                      = "B_Standard_B2s"
   storage_mb                    = 32768
   backup_retention_days         = 7
   public_network_access_enabled = true
@@ -376,7 +376,7 @@ module "postgresql" {
 # 3. Deploy Azure Cache for Redis
 module "redis" {
   source                        = "../../modules/redis"
-  name                          = "${local.resource_prefix}-redis"
+  name                          = "${local.resource_prefix}-redis-${random_id.suffix.hex}"
   resource_group_name           = module.resource_group.resource_group_name
   location                      = module.resource_group.location
   sku_name                      = "Basic"
@@ -396,6 +396,7 @@ module "mi_role_assignments" {
   principal_id                   = module.managed_identity.principal_id
   key_vault_id                   = module.key_vault.key_vault_id
   storage_account_id             = module.storage_account.storage_account_id
+  enable_postgresql_ad_admin     = true
   postgresql_server_name         = module.postgresql.server_name
   postgresql_resource_group_name = module.resource_group.resource_group_name
   postgresql_admin_tenant_id     = data.azurerm_client_config.current.tenant_id
@@ -516,7 +517,7 @@ resource "azurerm_key_vault_secret" "vm_admin_password" {
 module "validation_workstation" {
   source                  = "../../modules/validation-workstation"
   vm_name                 = "${local.resource_prefix}-val-vm"
-  vm_size                 = "Standard_D2as_v5"
+  vm_size                 = var.vm_size
   resource_group_name     = module.resource_group.resource_group_name
   location                = module.resource_group.location
   subnet_id               = module.subnets.subnet_ids["validation"]

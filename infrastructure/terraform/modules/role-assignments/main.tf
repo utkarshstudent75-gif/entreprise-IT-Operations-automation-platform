@@ -11,7 +11,7 @@ resource "azurerm_role_assignment" "mi_storage" {
 }
 
 resource "azurerm_postgresql_flexible_server_active_directory_administrator" "mi_postgres" {
-  count               = var.postgresql_server_name != null && var.postgresql_resource_group_name != null && var.postgresql_admin_name != null && var.postgresql_admin_tenant_id != null ? 1 : 0
+  count               = var.enable_postgresql_ad_admin ? 1 : 0
   server_name         = var.postgresql_server_name
   resource_group_name = var.postgresql_resource_group_name
   tenant_id           = var.postgresql_admin_tenant_id
