@@ -181,9 +181,7 @@ def retrieve_secrets_from_key_vault(settings_obj: Settings) -> None:
                 if (settings_obj.REDIS_URL or "").startswith("rediss://")
                 else "redis://"
             )
-            settings_obj.REDIS_URL = (
-                f"{scheme}:{redis_key}@{redis_host}:{redis_port}/0"
-            )
+            settings_obj.REDIS_URL = f"{scheme}:{redis_key}@{redis_host}:{redis_port}/0"
 
         # 4. Fetch SMS Notification Credentials
         sms_api_key = _secret("sms-provider-api-key")

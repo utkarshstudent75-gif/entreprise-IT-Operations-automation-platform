@@ -135,9 +135,7 @@ def test_retrieve_secrets_from_key_vault_ignores_placeholders():
         "msgraph-client-id": MagicMock(value="placeholder-msgraph-client-id"),
         "msgraph-client-secret": MagicMock(value="placeholder-msgraph-client-secret"),
         "msgraph-tenant-id": MagicMock(value="placeholder-msgraph-tenant-id"),
-        "sms-provider-api-key": MagicMock(
-            value="<injected-from-azure-keyvault>"
-        ),
+        "sms-provider-api-key": MagicMock(value="<injected-from-azure-keyvault>"),
         "sms-provider-account-sid": MagicMock(value="CHANGE_ME_ACCOUNT_SID"),
         "database-host": MagicMock(value="kv-db-host"),
         "database-name": MagicMock(value="kv-db-name"),
