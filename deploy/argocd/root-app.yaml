@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/utkarshstudent75-gif/entreprise-IT-Operations-automation-platform.git'
-    targetRevision: master
+    targetRevision: feature/gitops-argocd-deployment
     path: deploy/argocd/applications
   destination:
     server: 'https://kubernetes.default.svc'
