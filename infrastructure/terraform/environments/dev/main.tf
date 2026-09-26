@@ -117,6 +117,28 @@ module "nsg_aks" {
       destination_port_range     = "*"
       source_address_prefix      = "VirtualNetwork"
       destination_address_prefix = "VirtualNetwork"
+    },
+    {
+      name                       = "allow-http-inbound"
+      priority                   = 110
+      direction                  = "Inbound"
+      access                     = "Allow"
+      protocol                   = "Tcp"
+      source_port_range          = "*"
+      destination_port_range     = "80"
+      source_address_prefix      = "Internet"
+      destination_address_prefix = "*"
+    },
+    {
+      name                       = "allow-https-inbound"
+      priority                   = 120
+      direction                  = "Inbound"
+      access                     = "Allow"
+      protocol                   = "Tcp"
+      source_port_range          = "*"
+      destination_port_range     = "443"
+      source_address_prefix      = "Internet"
+      destination_address_prefix = "*"
     }
   ]
 }
