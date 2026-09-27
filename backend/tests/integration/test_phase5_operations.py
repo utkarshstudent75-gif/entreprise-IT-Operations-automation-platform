@@ -190,9 +190,14 @@ def test_mfa_reset_validates_identity_and_surfaces_graph_failure(
     assert invalid.status_code == 422
     assert mismatch.status_code == 403
     assert failed.status_code == 502
-    assert (
-        db.query(AuditLog).filter_by(action="mfa_reset", status="FAILED").count() == 1
+    failed_audits = (
+        db.query(AuditLog).filter_by(action="mfa_reset", status="FAILED").all()
     )
+    assert len(failed_audits) == 2
+    assert {audit.details["reason"] for audit in failed_audits} == {
+        "identity_verification_failed",
+        "GRAPH_API_ERROR",
+    }
 
 
 def test_software_request_creation_and_own_request_visibility(client, db):
