@@ -678,44 +678,16 @@ jobs:
             - docker
             - trivy
             - sign
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: >-
+            github.event_name == 'push' &&
+            github.ref == 'refs/heads/master' &&
+            !startsWith(github.event.head_commit.message, 'chore(gitops): deploy ')
         
         steps:
             - name: Checkout repository
               uses: actions/checkout@v4
 
-<<<<<<< HEAD
             - name: Update declared image versions
-=======
-            - name: Install Helm
-              uses: azure/setup-helm@v4
-              with:
-                version: 'v3.14.0'
-
-            - name: Azure Login
-              uses: azure/login@v2
-              with:
-                client-id: ${{ secrets.AZURE_CLIENT_ID }}
-                tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-                subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-            - name: Install kubelogin
-              # azure/aks-set-context writes a kubeconfig that uses kubelogin as
-              # its exec credential plugin; it is not preinstalled on the runner.
-              run: |
-                curl -sSL -o /tmp/kubelogin.zip https://github.com/Azure/kubelogin/releases/download/v0.2.20/kubelogin-linux-amd64.zip
-                unzip -oq /tmp/kubelogin.zip -d /tmp/kubelogin
-                sudo install -m 0755 /tmp/kubelogin/bin/linux_amd64/kubelogin /usr/local/bin/kubelogin
-                kubelogin --version
-
-            - name: Set AKS Context
-              uses: azure/aks-set-context@v4
-              with:
-                resource-group: 'enterprise-it-operations-platform-dev-rg'
-                cluster-name: 'enterprise-dev-aks'
-
-            - name: Deploy Common Chart
->>>>>>> c13f4c17e36de2605d9c913e24ebdfef40b167e4
               run: |
                 python scripts/update-gitops-image-tags.py \
                   "${GITHUB_SHA}" \
@@ -723,44 +695,11 @@ jobs:
 
             - name: Commit desired state for Argo CD
               run: |
-<<<<<<< HEAD
                 git config user.name "github-actions[bot]"
                 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
                 if git diff --quiet -- deploy/helm/values/dev.yaml; then
                   echo "Image tags already match this commit."
                   exit 0
-=======
-                helm upgrade --install backend deploy/helm/backend \
-                  -f deploy/helm/values/dev.yaml \
-                  --set image.repository=enterpriseitoperationsplatformdev1bab46e1.azurecr.io/backend \
-                  --set image.tag=${{ github.sha }} \
-                  -n backend --create-namespace
-
-            - name: Deploy Frontend Chart
-              run: |
-                helm upgrade --install frontend deploy/helm/frontend \
-                  -f deploy/helm/values/dev.yaml \
-                  --set image.repository=enterpriseitoperationsplatformdev1bab46e1.azurecr.io/frontend \
-                  --set image.tag=${{ github.sha }} \
-                  -n frontend --create-namespace
-
-            - name: Post-Deployment Validation
-              run: |
-                echo "Validating deployments rollout..."
-                kubectl rollout status deployment/backend-deployment -n backend --timeout=5m
-                kubectl rollout status deployment/frontend-deployment -n frontend --timeout=5m
-                
-                echo "Validating pod database and cache connectivity..."
-                FRONTEND_POD=$(kubectl get pods -n frontend -l app.kubernetes.io/name=frontend -o jsonpath='{.items[0].metadata.name}')
-                echo "Selected frontend pod: $FRONTEND_POD"
-                
-                RESPONSE=$(kubectl exec -n frontend "pod/$FRONTEND_POD" -- curl -s http://backend-service.backend.svc.cluster.local:8000/api/v1/readiness)
-                echo "Readiness response: $RESPONSE"
-                
-                if [[ $RESPONSE != *"\"status\":\"ready\""* || $RESPONSE != *"\"database\":\"connected\""* || $RESPONSE != *"\"redis\":\"connected\""* ]]; then
-                  echo "Error: Application readiness check failed or PostgreSQL/Redis connectivity is offline!"
-                  exit 1
->>>>>>> c13f4c17e36de2605d9c913e24ebdfef40b167e4
                 fi
                 git add deploy/helm/values/dev.yaml
                 git commit -m "chore(gitops): deploy ${GITHUB_SHA}"
