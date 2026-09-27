@@ -2,6 +2,7 @@ import asyncio
 import logging
 import time
 from typing import Optional
+from urllib.parse import quote
 
 import httpx
 
@@ -344,6 +345,108 @@ class GraphService:
                     "An unexpected error occurred while resetting the password.",
                     status_code=500,
                 )
+
+    async def reset_mfa_methods(self, email: str) -> int:
+        """Remove supported non-password authentication methods for one user."""
+        if self.is_mock:
+            logger.info("[Mock Mode] MFA reset requested via Microsoft Graph.")
+            return 1
+
+        token = await self.get_access_token()
+        encoded_email = quote(email, safe="")
+        url = (
+            f"{settings.GRAPH_ENDPOINT}/users/{encoded_email}/authentication/methods"
+        )
+        headers = {"Authorization": f"Bearer {token}"}
+        deletable_methods = {
+            "#microsoft.graph.emailAuthenticationMethod": "emailMethods",
+            "#microsoft.graph.externalAuthenticationMethod": "externalAuthenticationMethods",
+            "#microsoft.graph.fido2AuthenticationMethod": "fido2Methods",
+            "#microsoft.graph.microsoftAuthenticatorAuthenticationMethod": "microsoftAuthenticatorMethods",
+            "#microsoft.graph.phoneAuthenticationMethod": "phoneMethods",
+            "#microsoft.graph.platformCredentialAuthenticationMethod": "platformCredentialMethods",
+            "#microsoft.graph.softwareOathAuthenticationMethod": "softwareOathMethods",
+            "#microsoft.graph.temporaryAccessPassAuthenticationMethod": "temporaryAccessPassMethods",
+            "#microsoft.graph.windowsHelloForBusinessAuthenticationMethod": "windowsHelloForBusinessMethods",
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, headers=headers)
+                if response.status_code != 200:
+                    logger.error(
+                        "Graph MFA methods lookup returned HTTP %d.",
+                        response.status_code,
+                    )
+                    raise GraphAPIException(
+                        "Unable to reset authentication methods for this account.",
+                        status_code=502,
+                    )
+
+                try:
+                    result = response.json()
+                except ValueError as exc:
+                    raise GraphAPIException(
+                        "Microsoft Graph returned an invalid response.",
+                        status_code=502,
+                    ) from exc
+
+                methods = result.get("value") if isinstance(result, dict) else None
+                if not isinstance(methods, list):
+                    raise GraphAPIException(
+                        "Microsoft Graph returned an invalid response.",
+                        status_code=502,
+                    )
+
+                deletions: list[tuple[str, str]] = []
+                for method in methods:
+                    if not isinstance(method, dict):
+                        raise GraphAPIException(
+                            "Microsoft Graph returned an invalid response.",
+                            status_code=502,
+                        )
+                    method_type = method.get("@odata.type")
+                    if method_type == "#microsoft.graph.passwordAuthenticationMethod":
+                        continue
+                    if not isinstance(method_type, str):
+                        raise GraphAPIException(
+                            "Microsoft Graph returned an invalid authentication method.",
+                            status_code=502,
+                        )
+                    collection = deletable_methods.get(method_type)
+                    method_id = method.get("id")
+                    if not collection or not isinstance(method_id, str) or not method_id:
+                        raise GraphAPIException(
+                            "The account has an authentication method this service cannot reset.",
+                            status_code=502,
+                        )
+                    deletions.append((collection, quote(method_id, safe="")))
+
+                for collection, method_id in deletions:
+                    delete_url = (
+                        f"{settings.GRAPH_ENDPOINT}/users/{encoded_email}"
+                        f"/authentication/{collection}/{method_id}"
+                    )
+                    delete_response = await client.delete(
+                        delete_url, headers=headers
+                    )
+                    if delete_response.status_code not in (200, 202, 204, 404):
+                        logger.error(
+                            "Graph MFA method deletion returned HTTP %d.",
+                            delete_response.status_code,
+                        )
+                        raise GraphAPIException(
+                            "Unable to reset authentication methods for this account.",
+                            status_code=502,
+                        )
+
+                return len(deletions)
+        except (httpx.TimeoutException, httpx.NetworkError) as exc:
+            logger.error("Graph MFA reset failed (%s).", type(exc).__name__)
+            raise GraphAPIException(
+                "Microsoft Graph could not process the authentication reset.",
+                status_code=504,
+            ) from exc
 
     async def get_user_phone(self, email: str) -> str | None:
         """
