@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Response
+from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
@@ -20,8 +20,8 @@ def check_db_health() -> bool:
     try:
         db.execute(text("SELECT 1"))
         return True
-    except Exception as e:
-        logger.error("Database connectivity check failed: %s", str(e), exc_info=True)
+    except Exception:
+        logger.error("Database connectivity check failed.")
         return False
     finally:
         db.close()
@@ -57,8 +57,8 @@ def check_sms_health() -> bool:
 
     try:
         return notification_service.is_ready()
-    except Exception as e:
-        logger.error("SMS provider health check failed: %s", str(e), exc_info=True)
+    except Exception:
+        logger.error("SMS provider health check failed.")
         return False
 
 
@@ -153,19 +153,3 @@ async def startup_check():
             status="started",
         )
     )
-
-
-@router.get("/metrics", tags=["Health"])
-async def metrics_check():
-    """
-    Exposes basic platform info as Prometheus metrics.
-    """
-    prometheus_data = (
-        "# HELP eitoap_api_info Information about EITOAP api.\n"
-        "# TYPE eitoap_api_info gauge\n"
-        f'eitoap_api_info{{version="{settings.APP_VERSION}"}} 1\n'
-        "# HELP eitoap_health_status Platform general health status (1 for healthy, 0 for unhealthy).\n"
-        "# TYPE eitoap_health_status gauge\n"
-        "eitoap_health_status 1\n"
-    )
-    return Response(content=prometheus_data, media_type="text/plain")

@@ -68,8 +68,8 @@ class JWTValidator:
             raise JWTValidationError(
                 "Session has expired. Please sign in again.", error_code="TOKEN_EXPIRED"
             )
-        except jwt.InvalidTokenError as e:
-            logger.warning("Mock JWT validation failed: %s", str(e))
+        except jwt.InvalidTokenError:
+            logger.warning("Mock JWT validation failed.")
             raise JWTValidationError("Invalid mock authorization token.")
 
     async def _validate_entra_token(self, token: str) -> Dict[str, Any]:
@@ -135,11 +135,11 @@ class JWTValidator:
             raise JWTValidationError(
                 "Session has expired. Please sign in again.", error_code="TOKEN_EXPIRED"
             )
-        except jwt.InvalidTokenError as e:
-            logger.warning("OIDC JWT validation failed: %s", str(e))
+        except jwt.InvalidTokenError:
+            logger.warning("OIDC JWT validation failed.")
             raise JWTValidationError("Invalid corporate access token.")
         except Exception as e:
-            logger.error("Authentication check failed: %s", str(e))
+            logger.error("Authentication check failed (%s).", type(e).__name__)
             raise JWTValidationError("Access token validation failed.")
 
     async def _get_public_key(self, kid: str) -> Any:
@@ -188,7 +188,7 @@ class JWTValidator:
                     "Successfully cached %d public keys from Entra ID.", len(new_cache)
                 )
         except Exception as e:
-            logger.error("Failed to fetch OIDC public keys: %s", str(e))
+            logger.error("Failed to fetch OIDC public keys (%s).", type(e).__name__)
             # Ensure we don't throw on network blips if cache already has data
             if not self.jwks_cache:
                 raise JWTValidationError(

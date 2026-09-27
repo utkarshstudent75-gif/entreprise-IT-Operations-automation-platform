@@ -1,4 +1,5 @@
 import contextvars
+import uuid
 from contextlib import contextmanager
 
 # Context variables to hold request-scoped metadata
@@ -17,6 +18,15 @@ user_id: contextvars.ContextVar[str | int | None] = contextvars.ContextVar(
 action: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "action", default=None
 )
+
+
+def get_or_create_request_id(value: str | None) -> str:
+    if value:
+        try:
+            return str(uuid.UUID(value))
+        except ValueError:
+            pass
+    return str(uuid.uuid4())
 
 
 @contextmanager

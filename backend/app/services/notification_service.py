@@ -18,7 +18,7 @@ from app.schemas.sms import SmsRequest
 
 def mask_phone_number(phone: str) -> str:
     """
-    Masks phone numbers to protect user privacy in log output.
+    Masks a phone number when a caller needs to display it safely.
     Example: '+15551234567' -> '+1******4567'
     """
     if not phone:
@@ -84,11 +84,7 @@ class ConsoleNotificationProvider(NotificationProvider):
     """
 
     def send_sms(self, request: SmsRequest) -> None:
-        masked_phone = mask_phone_number(request.phone_number)
-        if settings.DEBUG:
-            logger.info("Console SMS to %s: %s", masked_phone, request.message)
-        else:
-            logger.info("Console SMS dispatched to %s", masked_phone)
+        logger.info("Console SMS dispatched")
 
     def validate_configuration(self) -> None:
         # Development console provider requires no secrets
@@ -107,7 +103,7 @@ class ThirdPartySmsNotificationProvider(NotificationProvider):
     - Loads authentication and base URL dynamically from environment configuration.
     - Handles transient HTTP errors (5xx, timeouts, 429) with exponential backoff retries.
     - Does NOT retry non-transient failures (400, 401, 403).
-    - Masks destination phone numbers in logs.
+    - Keeps destination phone numbers and message contents out of logs.
     - Never logs secrets, tokens, or raw credentials.
     - Fails fast on invalid configuration during startup.
     - Supports readiness health checks without sending actual SMS messages.
@@ -177,7 +173,7 @@ class ThirdPartySmsNotificationProvider(NotificationProvider):
                     return True
                 return False
         except Exception as e:
-            logger.warning("SMS Provider health check failed: %s", str(e))
+            logger.warning("SMS provider health check failed (%s).", type(e).__name__)
             return False
 
     def send_sms(self, request: SmsRequest) -> None:
@@ -189,7 +185,6 @@ class ThirdPartySmsNotificationProvider(NotificationProvider):
                 "Invalid payload: must be an instance of SmsRequest DTO."
             )
 
-        masked_phone = mask_phone_number(request.phone_number)
         endpoint = (
             self.base_url
             if self.base_url.endswith("/send") or self.base_url.endswith("/messages")
@@ -212,10 +207,7 @@ class ThirdPartySmsNotificationProvider(NotificationProvider):
         if self.account_sid:
             headers["X-Account-SID"] = self.account_sid
 
-        logger.info(
-            "Attempting SMS delivery to %s via ThirdPartySmsNotificationProvider",
-            masked_phone,
-        )
+        logger.info("Attempting SMS delivery via third-party provider.")
 
         attempt = 0
         max_attempts = max(1, self.retry_count)
@@ -231,8 +223,7 @@ class ThirdPartySmsNotificationProvider(NotificationProvider):
                 # Process HTTP Status Codes
                 if response.status_code in (200, 201, 202):
                     logger.info(
-                        "SMS successfully dispatched to %s (attempt %d/%d)",
-                        masked_phone,
+                        "SMS successfully dispatched (attempt %d/%d).",
                         attempt,
                         max_attempts,
                     )
@@ -241,16 +232,14 @@ class ThirdPartySmsNotificationProvider(NotificationProvider):
                 # Non-transient errors (Do NOT retry)
                 if response.status_code in (401, 403):
                     logger.error(
-                        "SMS provider authentication failed (HTTP %d) for recipient %s",
+                        "SMS provider authentication failed (HTTP %d).",
                         response.status_code,
-                        masked_phone,
                     )
                     raise SMSAuthenticationError("SMS provider authentication failed.")
 
                 if response.status_code == 400:
                     logger.error(
-                        "SMS provider rejected request as bad request (HTTP 400) for recipient %s",
-                        masked_phone,
+                        "SMS provider rejected request as bad request (HTTP 400)."
                     )
                     raise SMSInvalidPhoneNumberError(
                         "Invalid recipient phone number or message format."
@@ -259,10 +248,9 @@ class ThirdPartySmsNotificationProvider(NotificationProvider):
                 # Transient errors (Retry candidates)
                 if response.status_code == 429:
                     logger.warning(
-                        "SMS provider rate limited (HTTP 429) on attempt %d/%d for %s",
+                        "SMS provider rate limited (HTTP 429) on attempt %d/%d.",
                         attempt,
                         max_attempts,
-                        masked_phone,
                     )
                     if attempt >= max_attempts:
                         raise SMSRateLimitError(
@@ -270,11 +258,10 @@ class ThirdPartySmsNotificationProvider(NotificationProvider):
                         )
                 elif response.status_code >= 500:
                     logger.warning(
-                        "SMS provider server error (HTTP %d) on attempt %d/%d for %s",
+                        "SMS provider server error (HTTP %d) on attempt %d/%d.",
                         response.status_code,
                         attempt,
                         max_attempts,
-                        masked_phone,
                     )
                     if attempt >= max_attempts:
                         raise SMSDeliveryError(
@@ -287,10 +274,9 @@ class ThirdPartySmsNotificationProvider(NotificationProvider):
 
             except (httpx.TimeoutException, httpx.NetworkError) as e:
                 logger.warning(
-                    "SMS provider network/timeout error on attempt %d/%d for %s: %s",
+                    "SMS provider network/timeout error on attempt %d/%d (%s).",
                     attempt,
                     max_attempts,
-                    masked_phone,
                     type(e).__name__,
                 )
                 if attempt >= max_attempts:

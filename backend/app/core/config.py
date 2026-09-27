@@ -197,8 +197,8 @@ def retrieve_secrets_from_key_vault(settings_obj: Settings) -> None:
 
         logger = logging.getLogger("itpa")
         logger.warning(
-            "Azure Key Vault client initialization failed: %s. Using environment variables.",
-            str(e),
+            "Azure Key Vault client initialization failed (%s); using environment variables.",
+            type(e).__name__,
         )
 
 

@@ -45,8 +45,7 @@ def test_notification_service_delegates_to_provider():
 
 def test_console_notification_provider_debug_true(monkeypatch, caplog):
     """
-    Verify that in DEBUG mode, the ConsoleNotificationProvider logs the
-    SMS message alongside the masked recipient.
+    Verify that console notifications never log recipient or message contents.
     """
     from app.core.config import settings
 
@@ -54,20 +53,19 @@ def test_console_notification_provider_debug_true(monkeypatch, caplog):
 
     provider = ConsoleNotificationProvider()
     caplog.clear()
+    caplog.set_level("INFO")
 
     sms_req = SmsRequest(phone_number="+15551234567", message="Your OTP is 111222")
     provider.send_sms(sms_req)
 
-    assert any(
-        "Console SMS to +1******4567: Your OTP is 111222" in record.message
-        for record in caplog.records
-    )
+    assert "Console SMS dispatched" in caplog.text
+    assert "+15551234567" not in caplog.text
+    assert "111222" not in caplog.text
 
 
 def test_console_notification_provider_debug_false(monkeypatch, caplog):
     """
-    Verify that in production (DEBUG=False) mode, the ConsoleNotificationProvider
-    logs a generic message with masked recipient.
+    Verify that production console notifications log no recipient data.
     """
     from app.core.config import settings
 
@@ -75,14 +73,14 @@ def test_console_notification_provider_debug_false(monkeypatch, caplog):
 
     provider = ConsoleNotificationProvider()
     caplog.clear()
+    caplog.set_level("INFO")
 
     sms_req = SmsRequest(phone_number="+15551234567", message="Your OTP is 333444")
     provider.send_sms(sms_req)
 
-    assert any(
-        "Console SMS dispatched to +1******4567" in record.message
-        for record in caplog.records
-    )
+    assert "Console SMS dispatched" in caplog.text
+    assert "+15551234567" not in caplog.text
+    assert "333444" not in caplog.text
 
 
 def test_notification_service_routes_email_to_test_recipient(monkeypatch):

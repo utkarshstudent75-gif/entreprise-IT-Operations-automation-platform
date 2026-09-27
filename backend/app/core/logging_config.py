@@ -1,9 +1,10 @@
 import json
 import logging
 import sys
+from copy import copy
 from datetime import UTC, datetime
 
-from app.core.context import action, request_id, user_id
+from app.core.context import action, request_id
 
 UTC_TZ_SUFFIX = "+00:00"
 
@@ -17,36 +18,26 @@ class StructuredJSONFormatter(logging.Formatter):
     Enterprise-grade JSON formatter for python logging.
     """
 
-    def _fallback_format(self, record: logging.LogRecord, e: Exception) -> str:
+    def _fallback_format(self, record: logging.LogRecord) -> str:
         try:
             level = getattr(record, "levelname", "ERROR")
             module = getattr(record, "module", "unknown")
-            msg = "unknown message"
-            if record is not None:
-                try:
-                    msg = record.getMessage()
-                except Exception:
-                    msg = str(getattr(record, "msg", "unknown message"))
-
             fallback_log = {
                 "timestamp": _format_timestamp(datetime.now(UTC)),
                 "level": level,
                 "request_id": request_id.get(),
                 "module": module,
                 "action": action.get(),
-                "user_id": user_id.get(),
-                "message": (
-                    f"Logging formatter failure: {str(e)}. Original message: {msg}"
-                ),
+                "message": "Structured logging formatter failure.",
             }
             return json.dumps(fallback_log)
-        except Exception as inner_e:
+        except Exception:
             try:
                 return json.dumps(
                     {
                         "timestamp": _format_timestamp(datetime.now(UTC)),
                         "level": "ERROR",
-                        "message": f"Logging critical failure: {str(inner_e)}",
+                        "message": "Critical structured logging failure.",
                     }
                 )
             except Exception:
@@ -60,58 +51,24 @@ class StructuredJSONFormatter(logging.Formatter):
             # Resolve properties
             req_id = getattr(record, "request_id", None) or request_id.get()
             act = getattr(record, "action", None) or action.get()
-            u_id = getattr(record, "user_id", None) or user_id.get()
-
             log_data = {
                 "timestamp": timestamp,
                 "level": record.levelname,
                 "request_id": req_id,
                 "module": record.module,
                 "action": act,
-                "user_id": u_id,
                 "message": record.getMessage(),
             }
 
             if record.exc_info:
-                log_data["exception"] = self.formatException(record.exc_info)
-
-            # Retrieve any extra properties passed via extra={...}
-            standard_attrs = {
-                "name",
-                "msg",
-                "args",
-                "levelname",
-                "levelno",
-                "pathname",
-                "filename",
-                "module",
-                "exc_info",
-                "exc_text",
-                "stack_info",
-                "lineno",
-                "funcName",
-                "created",
-                "msecs",
-                "relativeCreated",
-                "thread",
-                "threadName",
-                "processName",
-                "process",
-                "message",
-                "request_id",
-                "action",
-                "user_id",
-            }
-            extra_data = {
-                k: v for k, v in record.__dict__.items() if k not in standard_attrs
-            }
-            if extra_data:
-                log_data["extra"] = extra_data
+                exception_type = record.exc_info[0]
+                if exception_type:
+                    log_data["exception_type"] = exception_type.__name__
 
             return json.dumps(log_data)
-        except Exception as e:
+        except Exception:
             # Requirement 7: Logging failures must never interrupt business operations.
-            return self._fallback_format(record, e)
+            return self._fallback_format(record)
 
 
 class StructuredTextFormatter(logging.Formatter):
@@ -120,9 +77,13 @@ class StructuredTextFormatter(logging.Formatter):
     """
 
     def format(self, record: logging.LogRecord) -> str:
-        req_id = getattr(record, "request_id", None) or request_id.get() or "N/A"
-        record.request_id = req_id
-        return super().format(record)
+        safe_record = copy(record)
+        req_id = getattr(safe_record, "request_id", None) or request_id.get() or "N/A"
+        safe_record.request_id = req_id
+        safe_record.exc_info = None
+        safe_record.exc_text = None
+        safe_record.stack_info = None
+        return super().format(safe_record)
 
 
 def setup_logging():
@@ -156,6 +117,8 @@ def setup_logging():
         uvicorn_logger = logging.getLogger(name)
         uvicorn_logger.handlers = []
         uvicorn_logger.propagate = True
+        if name == "uvicorn.access":
+            uvicorn_logger.disabled = True
 
 
 # Initialize logger named "itpa"
