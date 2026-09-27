@@ -49,9 +49,10 @@ The bootstrap process sets up the foundational Azure resources needed for state 
 3. **Active Subscription:** Lists all available subscriptions, prompts for selection if multiple exist, and updates active Azure context.
 4. **Terraform Remote Backend:** Creates a Resource Group (default: `eitoap-tfstate-rg`) and a globally unique Storage Account and Blob Container.
 5. **Service Principal Creation/Reuse:** Creates a dedicated AD application with `Contributor` scope for CI/CD pipeline runs. It reuse credentials if they exist.
-6. **GitHub Secret Export:** If the GitHub CLI (`gh`) is authenticated, it sets repository action secrets directly. Otherwise, it writes them securely to `bootstrap/github-secrets.txt`.
-7. **Terraform Plan & Init:** Runs `terraform init` using dynamic backend inputs and performs `terraform validate` and `terraform plan`.
-8. **Terraform Apply Prompt:** Asks if you want to deploy the resources immediately.
+6. **Federated Identity Credentials (OIDC):** Configures GitHub Actions OIDC federated identity credentials on the service principal, enabling passwordless authentication for the `azure/login@v2` action on specified branches and events (e.g. `workflow_dispatch`).
+7. **GitHub Secret Export:** If the GitHub CLI (`gh`) is authenticated, it sets repository action secrets directly. Otherwise, it writes them securely to `bootstrap/github-secrets.txt`.
+8. **Terraform Plan & Init:** Runs `terraform init` using dynamic backend inputs and performs `terraform validate` and `terraform plan`.
+9. **Terraform Apply Prompt:** Asks if you want to deploy the resources immediately.
 
 ---
 
@@ -59,7 +60,6 @@ The bootstrap process sets up the foundational Azure resources needed for state 
 
 To trigger automatic GitHub Action builds, configure the repository secrets listed in `bootstrap/github-secrets.txt`:
 * `AZURE_CLIENT_ID`
-* `AZURE_CLIENT_SECRET`
 * `AZURE_SUBSCRIPTION_ID`
 * `AZURE_TENANT_ID`
 * `ACR_NAME`
@@ -68,6 +68,8 @@ To trigger automatic GitHub Action builds, configure the repository secrets list
 * `POSTGRES_HOST`
 * `REDIS_HOST`
 * `KEYVAULT_NAME`
+
+> **Note:** The CI workflows authenticate to Azure via **OIDC federated identity credentials** (not client secrets). The bootstrap script automatically configures these on the Azure AD app registration. The `AZURE_CLIENT_SECRET` is still created and exported for local/tooling use, but the `azure/login@v2` steps in CI only require `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, and `AZURE_SUBSCRIPTION_ID`.
 
 ---
 

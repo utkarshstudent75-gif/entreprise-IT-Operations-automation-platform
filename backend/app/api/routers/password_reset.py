@@ -96,7 +96,8 @@ async def clear_failures(email: str, ip: str) -> None:
     description=(
         "Initiates the password reset flow. If the account with the "
         "provided email exists, a reset code (OTP) will be generated "
-        "and logged to console. To prevent user enumeration and maintain "
+        "and sent to the business phone number associated with their profile in Entra ID. "
+        "To prevent user enumeration and maintain "
         "security, a successful response (200 OK) is returned regardless "
         "of whether the email exists in the database."
     ),
@@ -182,7 +183,7 @@ async def forgot_password(
     summary="Verify Password Reset OTP",
     description=(
         "Verifies the correctness and validity of the OTP code sent to the "
-        "user's email. This step does not consume or invalidate the OTP; it "
+        "user's business phone number in Entra ID. This step does not consume or invalidate the OTP; it "
         "only checks if the OTP matches, has not expired, and has not been "
         "used yet. A successful verification allows the user to proceed to "
         "the password reset endpoint."

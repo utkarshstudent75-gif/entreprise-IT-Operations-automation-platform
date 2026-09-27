@@ -283,6 +283,95 @@ chmod 600 "$BOOTSTRAP_OUTPUT"
 log_info "Secrets written securely to local metadata: $BOOTSTRAP_OUTPUT"
 
 # ------------------------------------------------------------------------------
+# 4b. Configure Federated Identity Credentials for GitHub Actions OIDC
+# ------------------------------------------------------------------------------
+log_info "Configuring Federated Identity Credentials for GitHub Actions OIDC..."
+
+GITHUB_REPO="${EITOAP_GITHUB_REPOSITORY:-utkarshstudent75-gif/entreprise-IT-Operations-automation-platform}"
+GITHUB_BRANCHES="${EITOAP_GITHUB_BRANCHES:-master,main}"
+
+IFS=',' read -ra _BRANCHES <<< "$GITHUB_BRANCHES"
+
+_FEDERATED_OK=true
+for _branch in "${_BRANCHES[@]}"; do
+    _branch="$(echo "$_branch" | xargs)"
+    _cred_name="github-actions-oidc-${_branch}"
+    _subject="repo:${GITHUB_REPO}:ref:refs/heads/${_branch}"
+
+    _existing=$(az ad app federated-credential list --id "$SP_APP_ID" \
+        --query "[?name=='${_cred_name}'] | length(@)" -o tsv 2>/dev/null || echo "0")
+
+    if [ "$_existing" = "1" ]; then
+        log_info "Federated identity credential for branch '${_branch}' already exists. Skipping."
+        continue
+    fi
+
+    log_info "Creating federated identity credential for branch '${_branch}'..."
+    if az ad app federated-credential create \
+        --id "$SP_APP_ID" \
+        --parameters "$(cat <<FEOF
+{
+  "name": "${_cred_name}",
+  "subject": "${_subject}",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "subjectType": "LineOfSight",
+  "audiences": ["api://AzureADTokenExchange"]
+}
+FEOF
+)" >/dev/null 2>&1; then
+        log_success "Federated identity credential created for branch '${_branch}'."
+    else
+        log_warn "Failed to create federated identity credential for branch '${_branch}'."
+        _FEDERATED_OK=false
+    fi
+done
+
+# Configure federated identity credentials for event-based triggers (workflow_dispatch, etc.)
+GITHUB_EVENTS="${EITOAP_GITHUB_EVENTS:-workflow_dispatch}"
+if [ -n "$GITHUB_EVENTS" ]; then
+    IFS=',' read -ra _EVENTS <<< "$GITHUB_EVENTS"
+    for _event in "${_EVENTS[@]}"; do
+        _event="$(echo "$_event" | xargs)"
+        [ -z "$_event" ] && continue
+        _cred_name="github-actions-oidc-${_event}"
+        _subject="repo:${GITHUB_REPO}:${_event}"
+
+        _existing=$(az ad app federated-credential list --id "$SP_APP_ID" \
+            --query "[?name=='${_cred_name}'] | length(@)" -o tsv 2>/dev/null || echo "0")
+
+        if [ "$_existing" = "1" ]; then
+            log_info "Federated identity credential for event '${_event}' already exists. Skipping."
+            continue
+        fi
+
+        log_info "Creating federated identity credential for event '${_event}'..."
+        if az ad app federated-credential create \
+            --id "$SP_APP_ID" \
+            --parameters "$(cat <<FEOF
+{
+  "name": "${_cred_name}",
+  "subject": "${_subject}",
+  "issuer": "https://token.actions.githubusercontent.com",
+  "subjectType": "LineOfSight",
+  "audiences": ["api://AzureADTokenExchange"]
+}
+FEOF
+)" >/dev/null 2>&1; then
+            log_success "Federated identity credential created for event '${_event}'."
+        else
+            log_warn "Failed to create federated identity credential for event '${_event}'."
+            _FEDERATED_OK=false
+        fi
+    done
+fi
+
+if [ "$_FEDERATED_OK" = true ]; then
+    log_success "All federated identity credentials configured successfully."
+else
+    log_warn "Some federated identity credentials could not be created. Check the output above."
+fi
+
+# ------------------------------------------------------------------------------
 # 5. GitHub Secrets Integration
 # ------------------------------------------------------------------------------
 log_info "5. Configuring GitHub Secrets..."

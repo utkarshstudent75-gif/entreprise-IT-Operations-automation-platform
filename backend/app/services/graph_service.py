@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 from typing import Optional
@@ -168,6 +169,8 @@ class GraphService:
                 or "@enterprise.com" in email_lower
                 or "riya" in email_lower
                 or "arsh" in email_lower
+                or "alex.morgan" in email_lower
+                or "morgan" in email_lower
             ):
                 return True
             return False
@@ -191,13 +194,13 @@ class GraphService:
                     # Trigger retry for transient status codes
                     if response.status_code in (429, 502, 503, 504):
                         if attempt < attempts - 1:
-                            time.sleep(0.5 * (2**attempt))
+                            await asyncio.sleep(0.5 * (2**attempt))
                             continue
 
                     response.raise_for_status()
             except (httpx.TimeoutException, httpx.NetworkError) as e:
                 if attempt < attempts - 1:
-                    time.sleep(0.5 * (2**attempt))
+                    await asyncio.sleep(0.5 * (2**attempt))
                     continue
                 logger.error(
                     "Graph API lookup user failed due to network/timeout error: %s",
@@ -276,7 +279,7 @@ class GraphService:
                     # Trigger retry for transient status codes
                     if response.status_code in (429, 502, 503, 504):
                         if attempt < attempts - 1:
-                            time.sleep(0.5 * (2**attempt))
+                            await asyncio.sleep(0.5 * (2**attempt))
                             continue
 
                     # Process specific errors
@@ -331,7 +334,7 @@ class GraphService:
 
             except (httpx.TimeoutException, httpx.NetworkError) as e:
                 if attempt < attempts - 1:
-                    time.sleep(0.5 * (2**attempt))
+                    await asyncio.sleep(0.5 * (2**attempt))
                     continue
                 logger.error(
                     "Graph API password reset failed due to network/timeout error: %s",
@@ -357,7 +360,7 @@ class GraphService:
             logger.info("[Mock Mode] Fetching user phone number for %s", email)
             # Default mock values for local test accounts
             if "alex.morgan" in email.lower() or "morgan" in email.lower():
-                return "+18005550199"
+                return "+911800123456"
             return None
 
         token = await self.get_access_token()
@@ -369,14 +372,14 @@ class GraphService:
                 response = await client.get(url, headers=headers)
                 if response.status_code == 200:
                     data = response.json()
-                    # mobilePhone takes precedence, fall back to first businessPhone
-                    mobile = data.get("mobilePhone")
-                    if mobile:
-                        return mobile
-
+                    # businessPhones takes precedence for Entra ID business phone number
                     business = data.get("businessPhones", [])
                     if business and len(business) > 0:
                         return business[0]
+
+                    mobile = data.get("mobilePhone")
+                    if mobile:
+                        return mobile
         except Exception as e:
             logger.warning("Failed to fetch user phone from Graph API: %s", str(e))
 

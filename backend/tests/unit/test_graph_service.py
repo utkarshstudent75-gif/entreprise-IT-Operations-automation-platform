@@ -118,3 +118,46 @@ async def test_graph_service_real_credentials_token_acquisition(monkeypatch):
         assert (
             captured_payload["scope"] == "https://graph.microsoft.com/.default-custom"
         )
+
+
+@pytest.mark.asyncio
+async def test_get_user_phone_prioritizes_business_phone(monkeypatch):
+    """Tests that get_user_phone prioritizes businessPhones over mobilePhone."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "ENTRA_CLIENT_ID", "test-client-id")
+    monkeypatch.setattr(settings, "ENTRA_TENANT_ID", "test-tenant-id")
+    monkeypatch.setattr(settings, "ENTRA_CLIENT_SECRET", "test-client-secret")
+
+    service = GraphService()
+    monkeypatch.setattr(service, "get_access_token", AsyncMock(return_value="mock_token"))
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "businessPhones": ["+12025550199", "+12025550188"],
+        "mobilePhone": "+12025550100",
+    }
+
+    mock_client = MagicMock()
+    mock_client.get = AsyncMock(return_value=mock_response)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock()
+
+    with patch("httpx.AsyncClient", return_value=mock_client):
+        phone = await service.get_user_phone("testuser@enterprise.com")
+        assert phone == "+12025550199"
+
+
+@pytest.mark.asyncio
+async def test_get_user_phone_mock_mode():
+    """Tests get_user_phone returns business phone in mock mode for test users."""
+    service = GraphService()
+    phone = await service.get_user_phone("alex.morgan@example.com")
+    assert phone == "+911800123456"
+
+    phone_none = await service.get_user_phone("unknown@example.com")
+    assert phone_none is None
+

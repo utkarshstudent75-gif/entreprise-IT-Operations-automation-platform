@@ -103,7 +103,7 @@ export function ForgotPasswordPage() {
               </Typography>
               <Typography color="text.secondary" sx={{ lineHeight: 1.6, mt: 1 }}>
                 {step === 0 && 'Use the email address associated with your organization account.'}
-                {step === 1 && `We sent a code to ${email}. Enter it below to continue.`}
+                {step === 1 && 'We sent a 6-digit code to the business phone number associated with your profile in Entra ID. Enter it below to continue.'}
                 {step === 2 && 'Your identity has been confirmed. You can now continue with your password reset.'}
               </Typography>
 

@@ -106,7 +106,7 @@ export function ResetPassword() {
                   label="Verification code"
                   value={otp}
                   onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                  helperText="Enter the code you received by email."
+                  helperText="Enter the 6-digit code sent to your business phone number in Entra ID."
                   inputProps={{ inputMode: 'numeric', maxLength: 6 }}
                 />
                 <PasswordInput
