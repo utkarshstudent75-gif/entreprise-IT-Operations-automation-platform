@@ -29,9 +29,7 @@ class SoftwareRequestRead(BaseModel):
 
     id: int
     software_name: str
-    justification: str = Field(
-        validation_alias=AliasChoices("reason", "justification")
-    )
+    justification: str = Field(validation_alias=AliasChoices("reason", "justification"))
     requester_email: EmailStr | None
     status: str
     decided_by_email: EmailStr | None

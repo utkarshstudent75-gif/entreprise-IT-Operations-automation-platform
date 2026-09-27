@@ -18,7 +18,7 @@ async def test_jwt_validator_mock_mode():
     # Generate a valid mock token payload
     email = "admin@example.com"
     role = "Platform Administrator"
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.timezone.utc)
     payload = {
         "preferred_username": email,
         "name": "admin",
@@ -43,7 +43,7 @@ async def test_jwt_validator_expired_token():
     validator = JWTValidator()
 
     # Token expired 10 minutes ago
-    now = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
+    now = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=10)
     payload = {
         "preferred_username": "user@example.com",
         "roles": ["StandardUser"],
@@ -71,7 +71,10 @@ async def test_jwt_validator_invalid_signature():
         "roles": ["StandardUser"],
         "aud": "MOCK_CLIENT_ID",
         "exp": int(
-            (datetime.datetime.utcnow() + datetime.timedelta(hours=1)).timestamp()
+            (
+                datetime.datetime.now(datetime.timezone.utc)
+                + datetime.timedelta(hours=1)
+            ).timestamp()
         ),
     }
 

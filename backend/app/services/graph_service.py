@@ -354,9 +354,7 @@ class GraphService:
 
         token = await self.get_access_token()
         encoded_email = quote(email, safe="")
-        url = (
-            f"{settings.GRAPH_ENDPOINT}/users/{encoded_email}/authentication/methods"
-        )
+        url = f"{settings.GRAPH_ENDPOINT}/users/{encoded_email}/authentication/methods"
         headers = {"Authorization": f"Bearer {token}"}
         deletable_methods = {
             "#microsoft.graph.emailAuthenticationMethod": "emailMethods",
@@ -415,7 +413,11 @@ class GraphService:
                         )
                     collection = deletable_methods.get(method_type)
                     method_id = method.get("id")
-                    if not collection or not isinstance(method_id, str) or not method_id:
+                    if (
+                        not collection
+                        or not isinstance(method_id, str)
+                        or not method_id
+                    ):
                         raise GraphAPIException(
                             "The account has an authentication method this service cannot reset.",
                             status_code=502,
@@ -427,9 +429,7 @@ class GraphService:
                         f"{settings.GRAPH_ENDPOINT}/users/{encoded_email}"
                         f"/authentication/{collection}/{method_id}"
                     )
-                    delete_response = await client.delete(
-                        delete_url, headers=headers
-                    )
+                    delete_response = await client.delete(delete_url, headers=headers)
                     if delete_response.status_code not in (200, 202, 204, 404):
                         logger.error(
                             "Graph MFA method deletion returned HTTP %d.",

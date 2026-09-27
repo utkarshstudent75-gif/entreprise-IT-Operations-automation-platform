@@ -102,9 +102,7 @@ class SoftwareRequestService:
 
         db.commit()
         request = (
-            db.query(SoftwareRequest)
-            .filter(SoftwareRequest.id == request_id)
-            .one()
+            db.query(SoftwareRequest).filter(SoftwareRequest.id == request_id).one()
         )
         action = f"software_request_{decision.casefold()}"
         audit_service.record_event(
@@ -145,9 +143,7 @@ class SoftwareRequestService:
                 status="FAILED",
                 details={"request_id": request.id, "reason": exc.error_code},
             )
-            logger.error(
-                "Software request decision was saved but notification failed."
-            )
+            logger.error("Software request decision was saved but notification failed.")
             raise BaseAppException(
                 "The decision was saved, but the requester notification could not be delivered.",
                 status_code=502,

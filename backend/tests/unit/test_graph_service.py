@@ -132,7 +132,9 @@ async def test_get_user_phone_prioritizes_business_phone(monkeypatch):
     monkeypatch.setattr(settings, "ENTRA_CLIENT_SECRET", "test-client-secret")
 
     service = GraphService()
-    monkeypatch.setattr(service, "get_access_token", AsyncMock(return_value="mock_token"))
+    monkeypatch.setattr(
+        service, "get_access_token", AsyncMock(return_value="mock_token")
+    )
 
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -160,4 +162,3 @@ async def test_get_user_phone_mock_mode():
 
     phone_none = await service.get_user_phone("unknown@example.com")
     assert phone_none is None
-

@@ -219,7 +219,10 @@ class ThirdPartySmsNotificationProvider(NotificationProvider):
         if self.account_sid:
             headers["X-Account-SID"] = self.account_sid
 
-        logger.info("Attempting SMS delivery via third-party provider.")
+        logger.info(
+            "Attempting SMS delivery to %s via third-party provider.",
+            mask_phone_number(request.phone_number),
+        )
 
         attempt = 0
         max_attempts = max(1, self.retry_count)

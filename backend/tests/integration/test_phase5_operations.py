@@ -68,9 +68,7 @@ def test_account_unlock_request_requires_authentication(client):
 
 def test_only_approvers_can_view_pending_unlock_requests(client):
     employee_headers = token_headers(client, "employee@example.com")
-    approver_headers = token_headers(
-        client, "approver@example.com", "Support Engineer"
-    )
+    approver_headers = token_headers(client, "approver@example.com", "Support Engineer")
     submitted = client.post(
         "/api/v1/identity/unlock-requests",
         headers=employee_headers,
@@ -193,10 +191,7 @@ def test_mfa_reset_validates_identity_and_surfaces_graph_failure(
     assert mismatch.status_code == 403
     assert failed.status_code == 502
     assert (
-        db.query(AuditLog)
-        .filter_by(action="mfa_reset", status="FAILED")
-        .count()
-        == 1
+        db.query(AuditLog).filter_by(action="mfa_reset", status="FAILED").count() == 1
     )
 
 
@@ -225,13 +220,9 @@ def test_software_request_creation_and_own_request_visibility(client, db):
     assert db.query(SoftwareRequest).count() == 1
 
 
-def test_only_approvers_can_list_pending_and_approve_requests(
-    client, monkeypatch
-):
+def test_only_approvers_can_list_pending_and_approve_requests(client, monkeypatch):
     employee_headers = token_headers(client, "employee@example.com")
-    approver_headers = token_headers(
-        client, "approver@example.com", "Support Engineer"
-    )
+    approver_headers = token_headers(client, "approver@example.com", "Support Engineer")
     monkeypatch.setattr(
         graph_service, "get_user_phone", AsyncMock(return_value="+15555550123")
     )
@@ -275,9 +266,7 @@ def test_only_approvers_can_list_pending_and_approve_requests(
     assert duplicate.status_code == 409
 
 
-def test_approver_can_reject_and_duplicate_rejection_is_conflict(
-    client, monkeypatch
-):
+def test_approver_can_reject_and_duplicate_rejection_is_conflict(client, monkeypatch):
     employee_headers = token_headers(client, "employee@example.com")
     approver_headers = token_headers(
         client, "approver@example.com", "Platform Administrator"
@@ -313,9 +302,7 @@ def test_approver_can_reject_and_duplicate_rejection_is_conflict(
 
 def test_software_request_validation_and_notification_failure(client, monkeypatch):
     employee_headers = token_headers(client, "employee@example.com")
-    approver_headers = token_headers(
-        client, "approver@example.com", "Support Engineer"
-    )
+    approver_headers = token_headers(client, "approver@example.com", "Support Engineer")
     invalid = client.post(
         "/api/v1/software",
         headers=employee_headers,
@@ -329,9 +316,7 @@ def test_software_request_validation_and_notification_failure(client, monkeypatc
             "justification": "Required for a project deliverable.",
         },
     )
-    monkeypatch.setattr(
-        graph_service, "get_user_phone", AsyncMock(return_value=None)
-    )
+    monkeypatch.setattr(graph_service, "get_user_phone", AsyncMock(return_value=None))
 
     failure = client.post(
         f"/api/v1/software/{created.json()['data']['id']}/approve",
@@ -341,6 +326,7 @@ def test_software_request_validation_and_notification_failure(client, monkeypatc
     assert invalid.status_code == 422
     assert failure.status_code == 502
     assert "decision was saved" in failure.json()["error"]["message"]
-    assert client.get(
-        "/api/v1/software/pending", headers=approver_headers
-    ).json()["data"] == []
+    assert (
+        client.get("/api/v1/software/pending", headers=approver_headers).json()["data"]
+        == []
+    )
