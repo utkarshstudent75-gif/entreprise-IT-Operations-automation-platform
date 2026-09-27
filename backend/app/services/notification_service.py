@@ -162,17 +162,30 @@ class ThirdPartySmsNotificationProvider(NotificationProvider):
 
     def health_check(self) -> bool:
         """
-        Checks provider readiness without sending a real SMS.
+        Checks provider readiness without sending an SMS when a test recipient
+        is configured; otherwise validates local provider configuration only.
         """
         try:
-            health_url = f"{self.base_url}/health"
-            headers = self._build_headers()
+            self.validate_configuration()
+            recipient = settings.SMS_TEST_RECIPIENT
+            if not recipient:
+                return True
+
+            if self.base_url.endswith("/send"):
+                health_url = f"{self.base_url[:-len('/send')]}/messages"
+            elif self.base_url.endswith("/messages"):
+                health_url = self.base_url
+            else:
+                health_url = f"{self.base_url}/messages"
+
             with httpx.Client(timeout=self.timeout) as client:
-                response = client.get(health_url, headers=headers)
-                if response.status_code < 500:
-                    return True
-                return False
-        except Exception as e:
+                response = client.get(
+                    health_url,
+                    params={"to": recipient},
+                    auth=(self.account_sid, self.api_key),
+                )
+                return 200 <= response.status_code < 300
+        except (SMSConfigurationError, httpx.HTTPError) as e:
             logger.warning("SMS provider health check failed (%s).", type(e).__name__)
             return False
 

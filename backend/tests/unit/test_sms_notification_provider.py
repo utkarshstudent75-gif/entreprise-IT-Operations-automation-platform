@@ -237,26 +237,72 @@ def test_privacy_and_logging_masking(caplog):
     assert not any("$${{secrets.ACCOUNT_ID}}" in msg for msg in log_messages)
 
 
-def test_provider_health_check_success():
-    """Verify health_check returns True when provider endpoint is responsive."""
+def test_provider_health_check_success(monkeypatch):
+    """Check the documented message-log endpoint without sending an SMS."""
+    from app.core.config import settings
+
     provider = ThirdPartySmsNotificationProvider(
         api_key=" $${{secrets.SMS_API_KEYY}}",
         account_sid=" $${{secrets.ACCOUNT_ID}}",
         base_url="https://od2.in/api/sms/send",
     )
+    monkeypatch.setattr(settings, "SMS_TEST_RECIPIENT", "+18005550199")
     mock_response = MagicMock()
     mock_response.status_code = 200
 
-    with patch("httpx.Client.get", return_value=mock_response):
+    with patch("httpx.Client.get", return_value=mock_response) as mock_get:
         assert provider.health_check() is True
+    mock_get.assert_called_once_with(
+        "https://od2.in/api/sms/messages",
+        params={"to": "+18005550199"},
+        auth=("$${{secrets.ACCOUNT_ID}}", "$${{secrets.SMS_API_KEYY}}"),
+    )
 
 
-def test_provider_health_check_failure():
-    """Verify health_check returns False when provider request fails."""
+def test_provider_health_check_failure(monkeypatch):
+    """Treat non-success responses from the documented endpoint as unhealthy."""
+    from app.core.config import settings
+
     provider = ThirdPartySmsNotificationProvider(
         api_key=" $${{secrets.SMS_API_KEYY}}",
         account_sid=" $${{secrets.ACCOUNT_ID}}",
         base_url="https://od2.in/api/sms/send",
     )
+    monkeypatch.setattr(settings, "SMS_TEST_RECIPIENT", "+18005550199")
+    mock_response = MagicMock()
+    mock_response.status_code = 404
+
+    with patch("httpx.Client.get", return_value=mock_response):
+        assert provider.health_check() is False
+
+
+def test_provider_health_check_network_failure(monkeypatch):
+    """Return unhealthy when the provider inbox endpoint cannot be reached."""
+    from app.core.config import settings
+
+    provider = ThirdPartySmsNotificationProvider(
+        api_key=" $${{secrets.SMS_API_KEYY}}",
+        account_sid=" $${{secrets.ACCOUNT_ID}}",
+        base_url="https://od2.in/api/sms/send",
+    )
+    monkeypatch.setattr(settings, "SMS_TEST_RECIPIENT", "+18005550199")
     with patch("httpx.Client.get", side_effect=httpx.NetworkError("Network down")):
         assert provider.health_check() is False
+
+
+def test_provider_health_check_without_test_recipient_validates_configuration(
+    monkeypatch,
+):
+    """Avoid an undocumented endpoint call when no test recipient is configured."""
+    from app.core.config import settings
+
+    provider = ThirdPartySmsNotificationProvider(
+        api_key=" $${{secrets.SMS_API_KEYY}}",
+        account_sid=" $${{secrets.ACCOUNT_ID}}",
+        base_url="https://od2.in/api/sms/send",
+    )
+    monkeypatch.setattr(settings, "SMS_TEST_RECIPIENT", None)
+
+    with patch("httpx.Client.get") as mock_get:
+        assert provider.health_check() is True
+    mock_get.assert_not_called()
