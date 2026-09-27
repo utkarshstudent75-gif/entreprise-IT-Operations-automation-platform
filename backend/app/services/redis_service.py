@@ -70,7 +70,7 @@ class RedisService:
         # Meta key persists longer to track that an OTP was indeed generated
         await client.set(meta_key, "1", ex=int(expires_in_seconds) * 24)
 
-        logger.info("OTP stored for email: %s", email)
+        logger.info("Password reset OTP stored.")
 
     async def get_otp(self, email: str) -> dict | None:
         """
@@ -106,7 +106,7 @@ class RedisService:
         client: Redis = await get_redis()
         await client.delete(self._get_key(email))
         await client.delete(self._get_meta_key(email))
-        logger.info("OTP deleted for email: %s", email)
+        logger.info("Password reset OTP deleted.")
 
     async def verify_otp(
         self,

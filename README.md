@@ -108,12 +108,12 @@ The Enterprise IT Operations Automation Platform automates the complete workflow
 * Microsoft Entra ID
 * Microsoft Graph API
 
-## Monitoring *(Upcoming)*
+## Monitoring
 
 * Prometheus
 * Grafana
-* Azure Monitor
-* OpenTelemetry
+* Azure Application Insights / Log Analytics (already provisioned for the development environment)
+* OpenTelemetry tracing is not configured; add it when a trace collector/backend is selected.
 
 ## AI *(Future)*
 
@@ -132,12 +132,12 @@ The Enterprise IT Operations Automation Platform automates the complete workflow
 * Redis caching & rate limiter integration
 * Multi-stage Docker containerization and Docker Compose setup
 * Production-ready Kubernetes manifests & Helm charts (backend, frontend, common)
+* Prometheus application/Kubernetes metrics, provisioned Grafana dashboards, and Prometheus alert rules
 * Terraform-managed Azure infrastructure (AKS, Postgres, Redis, ACR)
 * CI/CD automation workflow (linting, image build/push via OIDC)
 
 ## Planned
 
-* Monitoring & Observability (Prometheus, Grafana, OpenTelemetry, Azure Monitor)
 * Microsoft Entra ID integration
 * Microsoft Graph API integration
 
@@ -188,6 +188,48 @@ The Enterprise IT Operations Automation Platform automates the complete workflow
 | **Audit Service** | `8005` | Security Event Audit Logs & Compliance Reporting |
 | **PostgreSQL** | `5432` | Relational Database |
 | **Redis** | `6379` | High-Performance OTP & Rate Limiter Cache |
+
+---
+
+## Observability (Phase 4)
+
+The application exports HTTP request, status, latency, authentication-failure, password-reset, and OTP metrics. Prometheus also scrapes Kubernetes workload state and pod/container resource usage. Grafana dashboards are provisioned from version-controlled JSON.
+
+```text
+Application
+    ↓
+Prometheus metrics (/metrics)
+    ↓
+Prometheus
+    ↓
+Grafana
+    ↓
+Dashboards / Alerts
+```
+
+Full architecture, SLI/SLO targets, alert rationale, privacy choices, deployment steps, and troubleshooting are documented in [docs/phase-4-observability.md](./docs/phase-4-observability.md).
+
+Deploy the monitoring chart after updating the existing backend Helm release and creating the `grafana-admin` Secret from a secure source outside the repository:
+
+```sh
+helm upgrade <existing-backend-release> deploy/helm/backend \
+  --namespace backend --reuse-values --wait
+
+helm upgrade --install observability deploy/helm/observability \
+  --namespace monitoring --create-namespace --wait
+```
+
+Check workloads and services, then port-forward Prometheus and Grafana:
+
+```sh
+kubectl get pods -n backend
+kubectl get pods -n monitoring
+kubectl get svc -n monitoring
+kubectl port-forward -n monitoring svc/prometheus 9090:9090
+kubectl port-forward -n monitoring svc/grafana 3000:80
+```
+
+Open Prometheus at `http://localhost:9090` and Grafana at `http://localhost:3000`. To verify application exposition, port-forward the backend service and run `curl.exe http://localhost:8000/metrics`. Prometheus evaluates the provisioned HTTP error, latency, availability, restart, and replica alerts; external notifications are not configured until an operator supplies an Alertmanager receiver.
 
 ---
 
@@ -599,7 +641,7 @@ sequenceDiagram
     participant MSAL as React MSAL Client
     participant Entra as Microsoft Entra ID
     participant Backend as FastAPI Backend
-    
+
     User->>MSAL: Click "Sign In with Microsoft"
     MSAL->>Entra: Authorization Request + Code Challenge (PKCE)
     Entra->>User: Authenticate & Request Consent
@@ -872,7 +914,7 @@ When `KEYVAULT_NAME` is configured, the application retrieves the following secr
 The repository includes a complete Enterprise Validation Workstation configuration designed to simulate a real employee workstation. This dedicated environment is used for end-to-end platform validation, user acceptance testing (UAT), and portfolio demonstrations.
 
 ## 1. Validation Architecture
-The validation workstation is deployed as a Windows 11 Enterprise Gen2 Virtual Machine in a dedicated subnet (`validation-subnet`) within the existing virtual network. 
+The validation workstation is deployed as a Windows 11 Enterprise Gen2 Virtual Machine in a dedicated subnet (`validation-subnet`) within the existing virtual network.
 
 ```mermaid
 graph TD

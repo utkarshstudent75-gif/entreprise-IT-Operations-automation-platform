@@ -1,6 +1,5 @@
 # ruff: noqa: E402
 import os
-import uuid
 from contextlib import asynccontextmanager
 
 import httpx
@@ -11,9 +10,17 @@ from fastapi.responses import JSONResponse
 from app.api.v1.health import router as health_router
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.context import action, request_id, request_ip, request_user_agent, user_id
+from app.core.context import (
+    action,
+    get_or_create_request_id,
+    request_id,
+    request_ip,
+    request_user_agent,
+    user_id,
+)
 from app.core.exception_handlers import register_exception_handlers
 from app.core.logging_config import logger, setup_logging
+from app.core.metrics import instrument_app
 from app.core.redis import redis_manager
 
 setup_logging()
@@ -66,7 +73,7 @@ async def add_audit_context_middleware(request: Request, call_next):
         else (request.client.host if request.client else None)
     )
     user_agent = request.headers.get("user-agent")
-    req_id = request.headers.get("x-request-id") or str(uuid.uuid4())
+    req_id = get_or_create_request_id(request.headers.get("x-request-id"))
 
     token_ip = request_ip.set(ip)
     token_ua = request_user_agent.set(user_agent)
@@ -98,6 +105,7 @@ app.include_router(health_router)
 
 # Mount local API router for in-process monolithic mode / test fallback
 app.include_router(api_router, prefix="/api/v1")
+instrument_app(app)
 
 
 def get_target_service_url(path: str) -> str | None:
@@ -138,6 +146,8 @@ async def proxy_request(request: Request, path: str):
     url = f"{target_host}{full_path}"
     headers = dict(request.headers)
     headers.pop("host", None)
+    if correlation_id := request_id.get():
+        headers["x-request-id"] = correlation_id
 
     body = await request.body()
     try:
@@ -153,7 +163,9 @@ async def proxy_request(request: Request, path: str):
             content=res.content, status_code=res.status_code, headers=dict(res.headers)
         )
     except httpx.RequestError as exc:
-        logger.error(f"Gateway failed to reach microservice at {url}: {exc}")
+        logger.error(
+            "Gateway failed to reach downstream service (%s).", type(exc).__name__
+        )
         return JSONResponse(
             status_code=503, content={"error": "Downstream microservice unavailable"}
         )
@@ -162,4 +174,4 @@ async def proxy_request(request: Request, path: str):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, access_log=False)

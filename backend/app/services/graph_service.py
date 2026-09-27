@@ -59,8 +59,8 @@ class GraphService:
                     return cached_token.decode("utf-8")
         except Exception as e:
             logger.warning(
-                "Redis access token retrieval failed: %s. Falling back to memory.",
-                str(e),
+                "Redis access token retrieval failed (%s); falling back to memory.",
+                type(e).__name__,
             )
 
         # 2. Try retrieving from in-memory cache
@@ -80,7 +80,9 @@ class GraphService:
             # Set key to expire in 3500 seconds
             await redis_client.set("entra:access_token", token, ex=3500)
         except Exception as e:
-            logger.warning("Failed to store access token in Redis: %s", str(e))
+            logger.warning(
+                "Failed to store access token in Redis (%s).", type(e).__name__
+            )
 
         return token
 
@@ -109,7 +111,10 @@ class GraphService:
                     data = response.json()
                     return data["access_token"]
             except Exception as e:
-                logger.error("Managed Identity token acquisition failed: %s", str(e))
+                logger.error(
+                    "Managed Identity token acquisition failed (%s).",
+                    type(e).__name__,
+                )
                 raise GraphAPIException(
                     "Failed to acquire token from Managed Identity service.",
                     status_code=502,
@@ -138,7 +143,7 @@ class GraphService:
                     data = response.json()
                     return data["access_token"]
             except Exception as e:
-                logger.error("Client credentials flow failed: %s", str(e))
+                logger.error("Client credentials flow failed (%s).", type(e).__name__)
                 raise GraphAPIException(
                     "Authentication failed: Unable to connect to Microsoft Entra ID.",
                     status_code=502,
@@ -150,7 +155,7 @@ class GraphService:
         Returns True if user exists, False if not.
         """
         if self.is_mock:
-            logger.info("[Mock Mode] Looking up user %s in Entra ID", email)
+            logger.info("[Mock Mode] Looking up user in Entra ID.")
             email_lower = email.lower()
             if any(
                 prefix in email_lower
@@ -202,18 +207,13 @@ class GraphService:
                 if attempt < attempts - 1:
                     await asyncio.sleep(0.5 * (2**attempt))
                     continue
-                logger.error(
-                    "Graph API lookup user failed due to network/timeout error: %s",
-                    str(e),
-                )
+                logger.error("Graph API user lookup failed (%s).", type(e).__name__)
                 raise GraphAPIException(
                     "Network connection error to Microsoft Graph API.", status_code=504
                 )
             except httpx.HTTPStatusError:
                 logger.error(
-                    "Graph API lookup returned error %d: %s",
-                    response.status_code,
-                    response.text,
+                    "Graph API user lookup returned HTTP %d.", response.status_code
                 )
                 raise GraphAPIException(
                     f"Graph query returned status {response.status_code}.",
@@ -228,9 +228,7 @@ class GraphService:
         Translates OData error messages into user-friendly security alerts.
         """
         if self.is_mock:
-            logger.info(
-                "[Mock Mode] Password reset requested for %s via MS Graph", email
-            )
+            logger.info("[Mock Mode] Password reset requested via Microsoft Graph.")
             if "violation" in new_password.lower():
                 raise GraphAPIException(
                     "The password does not meet corporate complexity requirements.",
@@ -271,9 +269,7 @@ class GraphService:
                     response = await client.patch(url, json=payload, headers=headers)
 
                     if response.status_code == 204:
-                        logger.info(
-                            "Password updated successfully via Graph API for %s", email
-                        )
+                        logger.info("Password updated successfully via Graph API.")
                         return
 
                     # Trigger retry for transient status codes
@@ -289,10 +285,8 @@ class GraphService:
                     error_msg = error_details.get("message", "")
 
                     logger.error(
-                        "Microsoft Graph password reset failed for %s. Code: %s, Message: %s",
-                        email,
-                        error_code,
-                        error_msg,
+                        "Microsoft Graph password reset failed with HTTP %d.",
+                        response.status_code,
                     )
 
                     # Map OData errors to specific business rules
@@ -336,17 +330,16 @@ class GraphService:
                 if attempt < attempts - 1:
                     await asyncio.sleep(0.5 * (2**attempt))
                     continue
-                logger.error(
-                    "Graph API password reset failed due to network/timeout error: %s",
-                    str(e),
-                )
+                logger.error("Graph API password reset failed (%s).", type(e).__name__)
                 raise GraphAPIException(
                     "Network connection error to Microsoft Graph API.", status_code=504
                 )
             except GraphAPIException:
                 raise
             except Exception as e:
-                logger.error("Unexpected error during Graph password reset: %s", str(e))
+                logger.error(
+                    "Unexpected Graph password reset error (%s).", type(e).__name__
+                )
                 raise GraphAPIException(
                     "An unexpected error occurred while resetting the password.",
                     status_code=500,
@@ -357,7 +350,7 @@ class GraphService:
         Retrieves the business phone number (or mobile phone number) for a user from Microsoft Graph.
         """
         if self.is_mock:
-            logger.info("[Mock Mode] Fetching user phone number for %s", email)
+            logger.info("[Mock Mode] Fetching user phone number.")
             # Default mock values for local test accounts
             if "alex.morgan" in email.lower() or "morgan" in email.lower():
                 return "+911800123456"
@@ -381,7 +374,9 @@ class GraphService:
                     if mobile:
                         return mobile
         except Exception as e:
-            logger.warning("Failed to fetch user phone from Graph API: %s", str(e))
+            logger.warning(
+                "Failed to fetch user phone from Graph API (%s).", type(e).__name__
+            )
 
         return None
 

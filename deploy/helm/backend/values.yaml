@@ -46,3 +46,4 @@ pdb:
 networkPolicy:
   enabled: true
   ingressNamespace: ingress
+  monitoringNamespace: monitoring

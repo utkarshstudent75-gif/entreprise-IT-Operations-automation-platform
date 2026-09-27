@@ -27,11 +27,9 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(BaseAppException)
     async def base_app_exception_handler(request: Request, exc: BaseAppException):
         logger.warning(
-            "App Exception %s: %s - %s (%s)",
-            exc.error_code,
+            "Application exception with status %s and code %s.",
             exc.status_code,
-            exc.message,
-            request.url.path,
+            exc.error_code,
         )
         return JSONResponse(
             status_code=exc.status_code,
@@ -48,10 +46,8 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException):
         logger.warning(
-            "HTTP %s - %s (%s)",
+            "HTTP exception with status %s.",
             exc.status_code,
-            exc.detail,
-            request.url.path,
         )
         return JSONResponse(
             status_code=exc.status_code,
@@ -69,11 +65,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def validation_exception_handler(
         request: Request, exc: RequestValidationError
     ):
-        logger.warning(
-            "Validation Error - %s (%s)",
-            exc.errors(),
-            request.url.path,
-        )
+        logger.warning("Request validation failed.")
         # Format the validation errors into a single readable message
         errors_list = []
         for err in exc.errors():
@@ -96,7 +88,7 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception):
-        logger.exception("Unhandled Exception while processing %s", request.url.path)
+        logger.error("Unhandled exception (%s).", type(exc).__name__)
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={
