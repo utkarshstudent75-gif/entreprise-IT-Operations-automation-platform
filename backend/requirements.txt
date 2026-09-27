@@ -5,6 +5,8 @@ click==8.4.2
 dnspython==2.8.0
 email-validator==2.2.0
 fastapi==0.139.0
+prometheus-fastapi-instrumentator==8.1.0
+prometheus-client==0.23.1
 h11==0.16.0
 idna==3.18
 passlib[bcrypt]==1.7.4

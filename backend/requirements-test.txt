@@ -659,6 +659,16 @@ pluggy==1.6.0 \
     # via
     #   pytest
     #   pytest-cov
+prometheus-client==0.23.1 \
+    --hash=sha256:6ae8f9081eaaaf153a2e959d2e6c4f4fb57b12ef76c8c7980202f1e57b48b2ce \
+    --hash=sha256:dd1913e6e76b59cfe44e7a4b83e01afc9873c1bdfd2ed8739f1e76aeca115f99
+    # via
+    #   -r requirements.txt
+    #   prometheus-fastapi-instrumentator
+prometheus-fastapi-instrumentator==8.1.0 \
+    --hash=sha256:b77f3043665e8d28e2bbd21017506195a43d9adf1d402d01bf95b494b7e560e1 \
+    --hash=sha256:b9f40b2cff3f7891ca0610b3ae4fc6ec723fd326b04bb659819aaeb821a0fc7d
+    # via -r requirements.txt
 psycopg[binary]==3.2.9 \
     --hash=sha256:01a8dadccdaac2123c916208c96e06631641c0566b22005493f09663c7a8d3b6 \
     --hash=sha256:2fbb46fcd17bc81f993f28c47f1ebea38d66ae97cc2dbc3cad73b37cefbff700

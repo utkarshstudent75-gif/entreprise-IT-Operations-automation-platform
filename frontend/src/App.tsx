@@ -16,6 +16,7 @@ import { ProtectedPasswordReset } from './pages/protected/PasswordReset'
 import { MFAReset } from './pages/protected/MFAReset'
 import { UnlockAccount } from './pages/protected/UnlockAccount'
 import { SoftwareRequest } from './pages/protected/SoftwareRequest'
+import { SoftwareApprovals } from './pages/protected/SoftwareApprovals'
 import { AccessRequest } from './pages/protected/AccessRequest'
 import { LicenseAssignment } from './pages/protected/LicenseAssignment'
 import { MyRequests } from './pages/protected/MyRequests'
@@ -151,7 +152,7 @@ function App() {
         <Route
           path="/dashboard/mfa-reset"
           element={
-            <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer']}>
+            <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer', 'Standard User']}>
               <DashboardLayout>
                 <MFAReset />
               </DashboardLayout>
@@ -161,7 +162,7 @@ function App() {
         <Route
           path="/dashboard/unlock-account"
           element={
-            <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer']}>
+            <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer', 'Standard User']}>
               <DashboardLayout>
                 <UnlockAccount />
               </DashboardLayout>
@@ -174,6 +175,16 @@ function App() {
             <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer', 'Standard User']}>
               <DashboardLayout>
                 <SoftwareRequest />
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/software-approvals"
+          element={
+            <ProtectedRoute allowedRoles={['Platform Administrator', 'Support Engineer']}>
+              <DashboardLayout>
+                <SoftwareApprovals />
               </DashboardLayout>
             </ProtectedRoute>
           }
@@ -309,4 +320,3 @@ function App() {
 }
 
 export default App
-

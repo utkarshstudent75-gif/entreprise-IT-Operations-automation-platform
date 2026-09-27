@@ -44,10 +44,16 @@ for var in "${var_names[@]}"; do
     fi
 done
 
-# Verify we have at least Azure credentials
-if [[ -z "${secrets[AZURE_CLIENT_ID]:-}" || -z "${secrets[AZURE_CLIENT_SECRET]:-}" ]]; then
-    log_warn "Azure Service Principal credentials (AZURE_CLIENT_ID or AZURE_CLIENT_SECRET) not found in bootstrap output or environment."
-    log_warn "Some secrets may be empty. Please ensure you ran bootstrap.sh first."
+# Verify we have at least the Azure client ID (required for OIDC auth in CI)
+if [[ -z "${secrets[AZURE_CLIENT_ID]:-}" ]]; then
+    log_warn "Azure Service Principal client ID (AZURE_CLIENT_ID) not found in bootstrap output or environment."
+    log_warn "Please ensure you ran bootstrap.sh first."
+fi
+
+# Warn (but do not block) if client secret is missing — CI uses OIDC federated identity,
+# so AZURE_CLIENT_SECRET is not required for the GitHub Actions pipeline
+if [[ -z "${secrets[AZURE_CLIENT_SECRET]:-}" ]]; then
+    log_info "AZURE_CLIENT_SECRET is not set. CI uses OIDC federated identity; this is only needed for local tooling."
 fi
 
 # Check if gh CLI is available and authenticated

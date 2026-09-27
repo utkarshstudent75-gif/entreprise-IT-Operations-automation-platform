@@ -1,5 +1,4 @@
 # ruff: noqa: E402
-import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI, Request, status
@@ -8,9 +7,17 @@ from pydantic import BaseModel
 
 from app.api.v1.health import router as health_router
 from app.core.config import settings
-from app.core.context import action, request_id, request_ip, request_user_agent, user_id
+from app.core.context import (
+    action,
+    get_or_create_request_id,
+    request_id,
+    request_ip,
+    request_user_agent,
+    user_id,
+)
 from app.core.exception_handlers import register_exception_handlers
 from app.core.logging_config import logger, setup_logging
+from app.core.metrics import instrument_app
 from app.schemas.response import StandardResponse
 from app.services.notification_service import notification_service
 
@@ -43,7 +50,7 @@ async def add_audit_context_middleware(request: Request, call_next):
         else (request.client.host if request.client else None)
     )
     user_agent = request.headers.get("user-agent")
-    req_id = request.headers.get("x-request-id") or str(uuid.uuid4())
+    req_id = get_or_create_request_id(request.headers.get("x-request-id"))
 
     token_ip = request_ip.set(ip)
     token_ua = request_user_agent.set(user_agent)
@@ -92,8 +99,9 @@ async def send_sms(payload: SMSDispatchPayload):
 
 app.include_router(health_router)
 app.include_router(router, prefix="/api/v1")
+instrument_app(app)
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8004)
+    uvicorn.run(app, host="0.0.0.0", port=8004, access_log=False)

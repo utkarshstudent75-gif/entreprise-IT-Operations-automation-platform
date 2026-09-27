@@ -53,9 +53,20 @@ async def get_current_user(
         if (
             "PlatformAdministrator" in raw_roles
             or "Platform Administrator" in raw_roles
+            or "ITAdmin" in raw_roles
+            or "IT Admin" in raw_roles
         ):
             role = "Platform Administrator"
-        elif "SupportEngineer" in raw_roles or "Support Engineer" in raw_roles:
+        elif any(
+            role_name in raw_roles
+            for role_name in (
+                "SupportEngineer",
+                "Support Engineer",
+                "SoftwareRequestApprover",
+                "Approver",
+                "Manager",
+            )
+        ):
             role = "Support Engineer"
         elif "Auditor" in raw_roles or "Auditor" in raw_roles:
             role = "Auditor"

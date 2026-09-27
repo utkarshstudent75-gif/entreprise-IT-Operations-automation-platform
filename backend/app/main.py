@@ -1,6 +1,4 @@
 # ruff: noqa: E402
-import uuid
-
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -14,9 +12,17 @@ from contextlib import asynccontextmanager
 from app.api.v1.health import router as health_router
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.context import action, request_id, request_ip, request_user_agent, user_id
+from app.core.context import (
+    action,
+    get_or_create_request_id,
+    request_id,
+    request_ip,
+    request_user_agent,
+    user_id,
+)
 from app.core.exception_handlers import register_exception_handlers
 from app.core.logging_config import logger
+from app.core.metrics import instrument_app
 from app.core.redis import redis_manager
 
 
@@ -49,7 +55,7 @@ async def add_audit_context_middleware(request: Request, call_next):
         ip = request.client.host if request.client else None
 
     user_agent = request.headers.get("user-agent")
-    req_id = request.headers.get("x-request-id") or str(uuid.uuid4())
+    req_id = get_or_create_request_id(request.headers.get("x-request-id"))
 
     token_ip = request_ip.set(ip)
     token_ua = request_user_agent.set(user_agent)
@@ -79,3 +85,4 @@ app.add_middleware(
 
 app.include_router(health_router)
 app.include_router(api_router, prefix="/api/v1")
+instrument_app(app)

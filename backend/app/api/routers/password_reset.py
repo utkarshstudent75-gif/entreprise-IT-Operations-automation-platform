@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.core.config import settings
 from app.core.logging_config import logger
+from app.core.metrics import otp_verifications, password_reset_events
 from app.core.rate_limiter import rate_limiter
 from app.database.dependencies import get_db
 from app.schemas.password import (
@@ -63,14 +64,12 @@ async def record_failure(email: str, ip: str) -> None:
         if fails >= 5:
             await redis_client.set(f"block:otp:{email}", "1", ex=900)
             logger.warning(
-                "Email %s blocked from password resets for 15 minutes due to excessive failures.",
-                email,
+                "Password reset email cooldown applied after repeated failures."
             )
         if ip_fails >= 5:
             await redis_client.set(f"block:ip:{ip}", "1", ex=900)
             logger.warning(
-                "IP %s blocked from password resets for 15 minutes due to excessive failures.",
-                ip,
+                "Password reset IP cooldown applied after repeated failures."
             )
     except Exception:  # nosec B110
         pass
@@ -96,7 +95,8 @@ async def clear_failures(email: str, ip: str) -> None:
     description=(
         "Initiates the password reset flow. If the account with the "
         "provided email exists, a reset code (OTP) will be generated "
-        "and logged to console. To prevent user enumeration and maintain "
+        "and sent to the business phone number associated with their profile in Entra ID. "
+        "To prevent user enumeration and maintain "
         "security, a successful response (200 OK) is returned regardless "
         "of whether the email exists in the database."
     ),
@@ -161,12 +161,18 @@ async def clear_failures(email: str, ip: str) -> None:
 async def forgot_password(
     request: ForgotPasswordRequest, db: Annotated[Session, Depends(get_db)]
 ):
-    rate_limiter.check_limit(
-        key=f"forgot-password:{request.email}",
-        limit=5,
-        window_seconds=600,
-    )
-    await password_reset_service.request_password_reset(db, request.email)
+    password_reset_events.labels(stage="request", outcome="attempt").inc()
+    try:
+        rate_limiter.check_limit(
+            key=f"forgot-password:{request.email}",
+            limit=5,
+            window_seconds=600,
+        )
+        await password_reset_service.request_password_reset(db, request.email)
+    except Exception:
+        password_reset_events.labels(stage="request", outcome="failure").inc()
+        raise
+    password_reset_events.labels(stage="request", outcome="success").inc()
 
     return StandardResponse(
         data=PasswordResponse(
@@ -182,7 +188,7 @@ async def forgot_password(
     summary="Verify Password Reset OTP",
     description=(
         "Verifies the correctness and validity of the OTP code sent to the "
-        "user's email. This step does not consume or invalidate the OTP; it "
+        "user's business phone number in Entra ID. This step does not consume or invalidate the OTP; it "
         "only checks if the OTP matches, has not expired, and has not been "
         "used yet. A successful verification allows the user to proceed to "
         "the password reset endpoint."
@@ -287,21 +293,27 @@ async def forgot_password(
 async def verify_otp(
     request: VerifyOtpRequest, req_obj: Request, db: Annotated[Session, Depends(get_db)]
 ):
+    otp_verifications.labels(outcome="attempt").inc()
     ip = req_obj.client.host if req_obj.client else "unknown"
-    await check_cooldown(request.email, ip)
-
-    rate_limiter.check_limit(
-        key=f"verify-otp:{request.email}",
-        limit=10,
-        window_seconds=600,
-    )
+    try:
+        await check_cooldown(request.email, ip)
+        rate_limiter.check_limit(
+            key=f"verify-otp:{request.email}",
+            limit=10,
+            window_seconds=600,
+        )
+    except Exception:
+        otp_verifications.labels(outcome="failure").inc()
+        raise
 
     try:
         await password_reset_service.verify_otp(db, request.email, request.otp)
         await clear_failures(request.email, ip)
     except Exception:
         await record_failure(request.email, ip)
+        otp_verifications.labels(outcome="failure").inc()
         raise
+    otp_verifications.labels(outcome="success").inc()
 
     return StandardResponse(data=PasswordResponse(message="OTP verified successfully."))
 
@@ -401,8 +413,13 @@ async def reset_password(
     req_obj: Request,
     db: Annotated[Session, Depends(get_db)],
 ):
+    password_reset_events.labels(stage="completion", outcome="attempt").inc()
     ip = req_obj.client.host if req_obj.client else "unknown"
-    await check_cooldown(request.email, ip)
+    try:
+        await check_cooldown(request.email, ip)
+    except Exception:
+        password_reset_events.labels(stage="completion", outcome="failure").inc()
+        raise
 
     try:
         await password_reset_service.reset_password(
@@ -415,7 +432,9 @@ async def reset_password(
         await clear_failures(request.email, ip)
     except Exception:
         await record_failure(request.email, ip)
+        password_reset_events.labels(stage="completion", outcome="failure").inc()
         raise
+    password_reset_events.labels(stage="completion", outcome="success").inc()
 
     return StandardResponse(
         data=PasswordResponse(message="Password has been reset successfully.")

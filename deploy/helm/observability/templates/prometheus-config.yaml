@@ -1,0 +1,117 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: prometheus
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    rule_files:
+      - /etc/prometheus/alerts.yml
+    scrape_configs:
+      - job_name: prometheus
+        static_configs:
+          - targets: ["localhost:9090"]
+      - job_name: eitoap-backend
+        metrics_path: /metrics
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: [{{ .Values.backend.namespace | quote }}]
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: {{ .Values.backend.appLabel | quote }}
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+          - source_labels: [__meta_kubernetes_pod_container_port_name]
+            action: keep
+            regex: {{ .Values.backend.portName | quote }}
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+      - job_name: kube-state-metrics
+        static_configs:
+          - targets: ["kube-state-metrics.{{ .Release.Namespace }}.svc.cluster.local:8080"]
+      - job_name: kubernetes-cadvisor
+        scheme: https
+        metrics_path: /metrics/cadvisor
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        tls_config:
+          insecure_skip_verify: true
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - source_labels: [__address__]
+            action: replace
+            regex: "([^:]+)(:[0-9]+)?"
+            replacement: "$1:10250"
+            target_label: __address__
+          - source_labels: [__meta_kubernetes_node_name]
+            target_label: node
+  alerts.yml: |
+    groups:
+      - name: eitoap.application
+        rules:
+          - alert: HighHttp5xxRate
+            expr: |
+              (
+                sum(rate(http_requests_total{job="eitoap-backend",status=~"5.."}[5m]))
+                /
+                clamp_min(sum(rate(http_requests_total{job="eitoap-backend"}[5m])), 0.001)
+              ) > 0.05
+              and sum(rate(http_requests_total{job="eitoap-backend"}[5m])) > 0.2
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Backend HTTP 5xx rate is elevated"
+              description: "More than 5% of backend requests returned 5xx for 5 minutes; check application and dependency logs."
+          - alert: HighHttpRequestLatency
+            expr: histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{job="eitoap-backend"}[5m]))) > 1
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Backend p95 request latency is above one second"
+              description: "Inspect slow endpoints, database/Redis latency, and resource saturation."
+          - alert: BackendUnavailable
+            expr: absent(up{job="eitoap-backend"}) or up{job="eitoap-backend"} == 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Backend metrics endpoint is unavailable"
+              description: "Check backend pod readiness, service discovery, and NetworkPolicy access from monitoring."
+      - name: eitoap.kubernetes
+        rules:
+          - alert: BackendPodUnavailable
+            expr: kube_pod_status_ready{namespace="backend",pod=~"backend-deployment-.*",condition="true"} == 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "A backend pod is not ready"
+              description: "Inspect pod events, readiness probe failures, and application dependencies."
+          - alert: BackendPodRestarting
+            expr: increase(kube_pod_container_status_restarts_total{namespace="backend",pod=~"backend-deployment-.*"}[15m]) >= 3
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "A backend pod restarted repeatedly"
+              description: "Check kubectl logs --previous, pod events, and memory/CPU limits for crash loops or OOM kills."
+          - alert: BackendReplicasUnavailable
+            expr: kube_deployment_spec_replicas{namespace="backend",deployment="backend-deployment"} > kube_deployment_status_replicas_available{namespace="backend",deployment="backend-deployment"}
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Backend deployment has unavailable replicas"
+              description: "Compare desired and available replicas; investigate scheduling, image pulls, probes, and cluster capacity."

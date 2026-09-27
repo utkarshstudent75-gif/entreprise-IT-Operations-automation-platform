@@ -47,7 +47,9 @@ async def test_password_reset_flow_works_end_to_end(db, monkeypatch, caplog):
     assert otp_data is not None
     assert "otp_hash" in otp_data
     assert int(otp_data["attempts"]) == 0
-    assert "Password reset request created for email" in caplog.text
+    assert "Password reset request created." in caplog.text
+    assert user.email not in caplog.text
+    assert sent_notifications[0][1] not in caplog.text
 
     # Verify TTL exists in Redis
     client = await get_redis()

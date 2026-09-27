@@ -43,7 +43,7 @@ class RedisManager:
             await self.client.ping()
             return True
         except Exception as e:
-            logger.error("Redis unavailable: %s", str(e))
+            logger.error("Redis unavailable (%s).", type(e).__name__)
             return False
 
     async def check_health_and_reconnect(self) -> bool:
@@ -57,7 +57,7 @@ class RedisManager:
         try:
             await self.close()
         except Exception as e:
-            logger.debug("Failed to close Redis connection: %s", e)
+            logger.debug("Failed to close Redis connection (%s).", type(e).__name__)
 
         self.init_redis()
 

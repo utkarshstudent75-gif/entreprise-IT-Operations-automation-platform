@@ -21,7 +21,7 @@ export function OtpForm({ email, isSubmitting, otp, onOtpChange, onSubmit }: Rea
       <TextField
         autoComplete="one-time-code"
         fullWidth
-        helperText={email ? `Code sent for ${email}` : 'Enter your email address first.'}
+        helperText={email ? 'Enter the 6-digit code sent to your business phone number in Entra ID.' : 'Enter your email address first.'}
         id="otp"
         inputProps={{ inputMode: 'numeric', maxLength: 6, pattern: '[0-9]*' }}
         label="Six-digit verification code"

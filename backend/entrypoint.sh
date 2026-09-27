@@ -32,7 +32,7 @@ alembic upgrade head
 if [ "$#" -gt 0 ]; then
   exec "$@"
 elif [ "$ENVIRONMENT" = "production" ]; then
-  exec uvicorn services.api_gateway.main:app --host 0.0.0.0 --port 8000
+  exec uvicorn services.api_gateway.main:app --host 0.0.0.0 --port 8000 --no-access-log
 else
-  exec uvicorn services.api_gateway.main:app --host 0.0.0.0 --port 8000 --reload
+  exec uvicorn services.api_gateway.main:app --host 0.0.0.0 --port 8000 --reload --no-access-log
 fi

@@ -46,7 +46,8 @@ const sidebarGroups: SidebarGroup[] = [
     items: [
       { label: 'Password Reset', path: '/dashboard/password-reset', icon: LockResetRounded, roles: ['Platform Administrator', 'Support Engineer', 'Standard User'] },
       { label: 'MFA Management', path: '/dashboard/mfa-management', icon: VpnKeyRounded, roles: ['Platform Administrator', 'Support Engineer', 'Standard User'] },
-      { label: 'Unlock Account', path: '/dashboard/unlock-account', icon: LockOpenRounded, roles: ['Platform Administrator', 'Support Engineer'] },
+      { label: 'Reset MFA Methods', path: '/dashboard/mfa-reset', icon: VpnKeyRounded, roles: ['Platform Administrator', 'Support Engineer', 'Standard User'] },
+      { label: 'Unlock Account', path: '/dashboard/unlock-account', icon: LockOpenRounded, roles: ['Platform Administrator', 'Support Engineer', 'Standard User'] },
       { label: 'My Profile', path: '/dashboard/profile', icon: PersonRounded },
       { label: 'Session Information', path: '/dashboard/session-info', icon: VpnKeyRounded },
     ],
@@ -55,6 +56,7 @@ const sidebarGroups: SidebarGroup[] = [
     title: 'Requests',
     items: [
       { label: 'Software Request', path: '/dashboard/software-request', icon: AppShortcutRounded, roles: ['Platform Administrator', 'Support Engineer', 'Standard User'] },
+      { label: 'Software Approvals', path: '/dashboard/software-approvals', icon: AppShortcutRounded, roles: ['Platform Administrator', 'Support Engineer'] },
       { label: 'VPN Request', path: '/dashboard/vpn-request', icon: VpnLockRounded, roles: ['Platform Administrator', 'Support Engineer', 'Standard User'] },
       { label: 'Shared Mailbox', path: '/dashboard/mailbox-request', icon: AppShortcutRounded, roles: ['Platform Administrator', 'Support Engineer', 'Standard User'] },
       { label: 'Access Request', path: '/dashboard/access-request', icon: VpnLockRounded, roles: ['Platform Administrator', 'Support Engineer'] },
@@ -209,4 +211,3 @@ export function Sidebar() {
     </Drawer>
   )
 }
-

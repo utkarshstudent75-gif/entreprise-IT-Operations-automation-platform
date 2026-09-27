@@ -136,11 +136,7 @@ class PasswordResetService:
                 user_id.set(local_user.id)
 
             if not user_exists:
-                logger.info(
-                    "Password reset requested for unknown Entra ID email %s; "
-                    "returning success to avoid enumeration.",
-                    email,
-                )
+                logger.info("Password reset requested for an unregistered account.")
                 audit_service.record_event(
                     action="forgot_password",
                     status="FAILED",
@@ -157,7 +153,10 @@ class PasswordResetService:
                     expires_in_seconds=settings.OTP_EXPIRY_MINUTES * 60,
                 )
             except Exception as e:
-                logger.error("Failed to create password reset request: %s", str(e))
+                logger.error(
+                    "Failed to create password reset request (%s).",
+                    type(e).__name__,
+                )
                 audit_service.record_event(
                     action="forgot_password",
                     status="FAILED",
@@ -173,7 +172,7 @@ class PasswordResetService:
             # Send the OTP using notification_service
             notification_service.send_otp(recipient, otp)
 
-            logger.info("Password reset request created for email %s", email)
+            logger.info("Password reset request created.")
             audit_service.record_event(
                 action="forgot_password",
                 status="SUCCESS",
@@ -190,9 +189,7 @@ class PasswordResetService:
                 user_id.set(local_user.id)
 
             if not user_exists:
-                logger.warning(
-                    "Password reset verify failed for unknown Entra ID email %s", email
-                )
+                logger.warning("Password reset OTP verification failed.")
                 audit_service.record_event(
                     action="otp_verification",
                     status="FAILED",
@@ -212,9 +209,7 @@ class PasswordResetService:
                     expires_in_seconds=settings.OTP_EXPIRY_MINUTES * 60,
                 )
             except Exception as e:
-                logger.warning(
-                    "OTP verification failed for email %s: %s", email, str(e)
-                )
+                logger.warning("OTP verification failed (%s).", type(e).__name__)
                 from app.core.exceptions import (
                     ExpiredOTPException,
                     OTPAlreadyUsedException,
@@ -248,7 +243,7 @@ class PasswordResetService:
                 )
                 raise PasswordResetInvalidRequest(INVALID_EMAIL_OR_OTP)
 
-            logger.info("Password reset OTP verified for email %s", email)
+            logger.info("Password reset OTP verified.")
             audit_service.record_event(
                 action="otp_verification",
                 status="SUCCESS",
@@ -282,9 +277,7 @@ class PasswordResetService:
                 user_id.set(local_user.id)
 
             if not user_exists:
-                logger.warning(
-                    "Password reset failed for unknown Entra ID email %s", email
-                )
+                logger.warning("Password reset failed for an unregistered account.")
                 audit_service.record_event(
                     action="password_reset",
                     status="FAILED",
@@ -306,9 +299,8 @@ class PasswordResetService:
                 )
             except Exception as e:
                 logger.warning(
-                    "OTP verification for reset failed for email %s: %s",
-                    email,
-                    str(e),
+                    "OTP verification for password reset failed (%s).",
+                    type(e).__name__,
                 )
                 from app.core.exceptions import (
                     ExpiredOTPException,
@@ -380,9 +372,7 @@ class PasswordResetService:
                 )
                 raise
 
-            logger.info(
-                "Password reset completed successfully via Graph for email %s", email
-            )
+            logger.info("Password reset completed successfully via Graph.")
             audit_service.record_event(
                 action="password_reset",
                 status="SUCCESS",

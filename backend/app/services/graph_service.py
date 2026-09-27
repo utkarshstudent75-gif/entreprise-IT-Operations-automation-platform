@@ -1,6 +1,8 @@
+import asyncio
 import logging
 import time
 from typing import Optional
+from urllib.parse import quote
 
 import httpx
 
@@ -58,8 +60,8 @@ class GraphService:
                     return cached_token.decode("utf-8")
         except Exception as e:
             logger.warning(
-                "Redis access token retrieval failed: %s. Falling back to memory.",
-                str(e),
+                "Redis access token retrieval failed (%s); falling back to memory.",
+                type(e).__name__,
             )
 
         # 2. Try retrieving from in-memory cache
@@ -79,7 +81,9 @@ class GraphService:
             # Set key to expire in 3500 seconds
             await redis_client.set("entra:access_token", token, ex=3500)
         except Exception as e:
-            logger.warning("Failed to store access token in Redis: %s", str(e))
+            logger.warning(
+                "Failed to store access token in Redis (%s).", type(e).__name__
+            )
 
         return token
 
@@ -108,7 +112,10 @@ class GraphService:
                     data = response.json()
                     return data["access_token"]
             except Exception as e:
-                logger.error("Managed Identity token acquisition failed: %s", str(e))
+                logger.error(
+                    "Managed Identity token acquisition failed (%s).",
+                    type(e).__name__,
+                )
                 raise GraphAPIException(
                     "Failed to acquire token from Managed Identity service.",
                     status_code=502,
@@ -137,7 +144,7 @@ class GraphService:
                     data = response.json()
                     return data["access_token"]
             except Exception as e:
-                logger.error("Client credentials flow failed: %s", str(e))
+                logger.error("Client credentials flow failed (%s).", type(e).__name__)
                 raise GraphAPIException(
                     "Authentication failed: Unable to connect to Microsoft Entra ID.",
                     status_code=502,
@@ -149,7 +156,7 @@ class GraphService:
         Returns True if user exists, False if not.
         """
         if self.is_mock:
-            logger.info("[Mock Mode] Looking up user %s in Entra ID", email)
+            logger.info("[Mock Mode] Looking up user in Entra ID.")
             email_lower = email.lower()
             if any(
                 prefix in email_lower
@@ -168,6 +175,8 @@ class GraphService:
                 or "@enterprise.com" in email_lower
                 or "riya" in email_lower
                 or "arsh" in email_lower
+                or "alex.morgan" in email_lower
+                or "morgan" in email_lower
             ):
                 return True
             return False
@@ -191,26 +200,21 @@ class GraphService:
                     # Trigger retry for transient status codes
                     if response.status_code in (429, 502, 503, 504):
                         if attempt < attempts - 1:
-                            time.sleep(0.5 * (2**attempt))
+                            await asyncio.sleep(0.5 * (2**attempt))
                             continue
 
                     response.raise_for_status()
             except (httpx.TimeoutException, httpx.NetworkError) as e:
                 if attempt < attempts - 1:
-                    time.sleep(0.5 * (2**attempt))
+                    await asyncio.sleep(0.5 * (2**attempt))
                     continue
-                logger.error(
-                    "Graph API lookup user failed due to network/timeout error: %s",
-                    str(e),
-                )
+                logger.error("Graph API user lookup failed (%s).", type(e).__name__)
                 raise GraphAPIException(
                     "Network connection error to Microsoft Graph API.", status_code=504
                 )
             except httpx.HTTPStatusError:
                 logger.error(
-                    "Graph API lookup returned error %d: %s",
-                    response.status_code,
-                    response.text,
+                    "Graph API user lookup returned HTTP %d.", response.status_code
                 )
                 raise GraphAPIException(
                     f"Graph query returned status {response.status_code}.",
@@ -225,9 +229,7 @@ class GraphService:
         Translates OData error messages into user-friendly security alerts.
         """
         if self.is_mock:
-            logger.info(
-                "[Mock Mode] Password reset requested for %s via MS Graph", email
-            )
+            logger.info("[Mock Mode] Password reset requested via Microsoft Graph.")
             if "violation" in new_password.lower():
                 raise GraphAPIException(
                     "The password does not meet corporate complexity requirements.",
@@ -268,15 +270,13 @@ class GraphService:
                     response = await client.patch(url, json=payload, headers=headers)
 
                     if response.status_code == 204:
-                        logger.info(
-                            "Password updated successfully via Graph API for %s", email
-                        )
+                        logger.info("Password updated successfully via Graph API.")
                         return
 
                     # Trigger retry for transient status codes
                     if response.status_code in (429, 502, 503, 504):
                         if attempt < attempts - 1:
-                            time.sleep(0.5 * (2**attempt))
+                            await asyncio.sleep(0.5 * (2**attempt))
                             continue
 
                     # Process specific errors
@@ -286,10 +286,8 @@ class GraphService:
                     error_msg = error_details.get("message", "")
 
                     logger.error(
-                        "Microsoft Graph password reset failed for %s. Code: %s, Message: %s",
-                        email,
-                        error_code,
-                        error_msg,
+                        "Microsoft Graph password reset failed with HTTP %d.",
+                        response.status_code,
                     )
 
                     # Map OData errors to specific business rules
@@ -331,33 +329,134 @@ class GraphService:
 
             except (httpx.TimeoutException, httpx.NetworkError) as e:
                 if attempt < attempts - 1:
-                    time.sleep(0.5 * (2**attempt))
+                    await asyncio.sleep(0.5 * (2**attempt))
                     continue
-                logger.error(
-                    "Graph API password reset failed due to network/timeout error: %s",
-                    str(e),
-                )
+                logger.error("Graph API password reset failed (%s).", type(e).__name__)
                 raise GraphAPIException(
                     "Network connection error to Microsoft Graph API.", status_code=504
                 )
             except GraphAPIException:
                 raise
             except Exception as e:
-                logger.error("Unexpected error during Graph password reset: %s", str(e))
+                logger.error(
+                    "Unexpected Graph password reset error (%s).", type(e).__name__
+                )
                 raise GraphAPIException(
                     "An unexpected error occurred while resetting the password.",
                     status_code=500,
                 )
+
+    async def reset_mfa_methods(self, email: str) -> int:
+        """Remove supported non-password authentication methods for one user."""
+        if self.is_mock:
+            logger.info("[Mock Mode] MFA reset requested via Microsoft Graph.")
+            return 1
+
+        token = await self.get_access_token()
+        encoded_email = quote(email, safe="")
+        url = (
+            f"{settings.GRAPH_ENDPOINT}/users/{encoded_email}/authentication/methods"
+        )
+        headers = {"Authorization": f"Bearer {token}"}
+        deletable_methods = {
+            "#microsoft.graph.emailAuthenticationMethod": "emailMethods",
+            "#microsoft.graph.externalAuthenticationMethod": "externalAuthenticationMethods",
+            "#microsoft.graph.fido2AuthenticationMethod": "fido2Methods",
+            "#microsoft.graph.microsoftAuthenticatorAuthenticationMethod": "microsoftAuthenticatorMethods",
+            "#microsoft.graph.phoneAuthenticationMethod": "phoneMethods",
+            "#microsoft.graph.platformCredentialAuthenticationMethod": "platformCredentialMethods",
+            "#microsoft.graph.softwareOathAuthenticationMethod": "softwareOathMethods",
+            "#microsoft.graph.temporaryAccessPassAuthenticationMethod": "temporaryAccessPassMethods",
+            "#microsoft.graph.windowsHelloForBusinessAuthenticationMethod": "windowsHelloForBusinessMethods",
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url, headers=headers)
+                if response.status_code != 200:
+                    logger.error(
+                        "Graph MFA methods lookup returned HTTP %d.",
+                        response.status_code,
+                    )
+                    raise GraphAPIException(
+                        "Unable to reset authentication methods for this account.",
+                        status_code=502,
+                    )
+
+                try:
+                    result = response.json()
+                except ValueError as exc:
+                    raise GraphAPIException(
+                        "Microsoft Graph returned an invalid response.",
+                        status_code=502,
+                    ) from exc
+
+                methods = result.get("value") if isinstance(result, dict) else None
+                if not isinstance(methods, list):
+                    raise GraphAPIException(
+                        "Microsoft Graph returned an invalid response.",
+                        status_code=502,
+                    )
+
+                deletions: list[tuple[str, str]] = []
+                for method in methods:
+                    if not isinstance(method, dict):
+                        raise GraphAPIException(
+                            "Microsoft Graph returned an invalid response.",
+                            status_code=502,
+                        )
+                    method_type = method.get("@odata.type")
+                    if method_type == "#microsoft.graph.passwordAuthenticationMethod":
+                        continue
+                    if not isinstance(method_type, str):
+                        raise GraphAPIException(
+                            "Microsoft Graph returned an invalid authentication method.",
+                            status_code=502,
+                        )
+                    collection = deletable_methods.get(method_type)
+                    method_id = method.get("id")
+                    if not collection or not isinstance(method_id, str) or not method_id:
+                        raise GraphAPIException(
+                            "The account has an authentication method this service cannot reset.",
+                            status_code=502,
+                        )
+                    deletions.append((collection, quote(method_id, safe="")))
+
+                for collection, method_id in deletions:
+                    delete_url = (
+                        f"{settings.GRAPH_ENDPOINT}/users/{encoded_email}"
+                        f"/authentication/{collection}/{method_id}"
+                    )
+                    delete_response = await client.delete(
+                        delete_url, headers=headers
+                    )
+                    if delete_response.status_code not in (200, 202, 204, 404):
+                        logger.error(
+                            "Graph MFA method deletion returned HTTP %d.",
+                            delete_response.status_code,
+                        )
+                        raise GraphAPIException(
+                            "Unable to reset authentication methods for this account.",
+                            status_code=502,
+                        )
+
+                return len(deletions)
+        except (httpx.TimeoutException, httpx.NetworkError) as exc:
+            logger.error("Graph MFA reset failed (%s).", type(exc).__name__)
+            raise GraphAPIException(
+                "Microsoft Graph could not process the authentication reset.",
+                status_code=504,
+            ) from exc
 
     async def get_user_phone(self, email: str) -> str | None:
         """
         Retrieves the business phone number (or mobile phone number) for a user from Microsoft Graph.
         """
         if self.is_mock:
-            logger.info("[Mock Mode] Fetching user phone number for %s", email)
+            logger.info("[Mock Mode] Fetching user phone number.")
             # Default mock values for local test accounts
             if "alex.morgan" in email.lower() or "morgan" in email.lower():
-                return "+18005550199"
+                return "+911800123456"
             return None
 
         token = await self.get_access_token()
@@ -369,16 +468,18 @@ class GraphService:
                 response = await client.get(url, headers=headers)
                 if response.status_code == 200:
                     data = response.json()
-                    # mobilePhone takes precedence, fall back to first businessPhone
-                    mobile = data.get("mobilePhone")
-                    if mobile:
-                        return mobile
-
+                    # businessPhones takes precedence for Entra ID business phone number
                     business = data.get("businessPhones", [])
                     if business and len(business) > 0:
                         return business[0]
+
+                    mobile = data.get("mobilePhone")
+                    if mobile:
+                        return mobile
         except Exception as e:
-            logger.warning("Failed to fetch user phone from Graph API: %s", str(e))
+            logger.warning(
+                "Failed to fetch user phone from Graph API (%s).", type(e).__name__
+            )
 
         return None
 
