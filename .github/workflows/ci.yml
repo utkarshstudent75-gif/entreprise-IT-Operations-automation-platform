@@ -456,28 +456,18 @@ jobs:
             COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
           run: |
             echo "${{ secrets.COSIGN_PRIVATE_KEY }}" > cosign.key
+            chmod 600 cosign.key
             cosign sign --key cosign.key ${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev1bab46e1.azurecr.io' }}/backend:${{ github.sha }}
+            rm -f cosign.key
 
         - name: Sign Frontend Image
           env:
             COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
           run: |
             echo "${{ secrets.COSIGN_PRIVATE_KEY }}" > cosign.key
+            chmod 600 cosign.key
             cosign sign --key cosign.key ${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev1bab46e1.azurecr.io' }}/frontend:${{ github.sha }}
-
-        - name: Upload Backend Signature
-          uses: actions/upload-artifact@v4
-          with:
-            name: backend-signature
-            path: cosign.key
-            retention-days: 30
-
-        - name: Upload Frontend Signature
-          uses: actions/upload-artifact@v4
-          with:
-            name: frontend-signature
-            path: cosign.key
-            retention-days: 30
+            rm -f cosign.key
 
     trivy:
         permissions:
@@ -640,6 +630,7 @@ jobs:
             - terraform
             - docker
             - trivy
+            - sign
         if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
         
         steps:
@@ -674,6 +665,7 @@ jobs:
               run: |
                 helm upgrade --install backend deploy/helm/backend \
                   -f deploy/helm/values/dev.yaml \
+                  --set image.repository=enterpriseitoperationsplatformdev1bab46e1.azurecr.io/backend \
                   --set image.tag=${{ github.sha }} \
                   -n backend --create-namespace
 
