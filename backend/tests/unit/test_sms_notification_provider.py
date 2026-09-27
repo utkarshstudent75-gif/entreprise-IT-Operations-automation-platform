@@ -98,6 +98,8 @@ def test_send_sms_success(httpx_mock=None):
         provider.send_sms(sms_req)
         assert mock_post.call_count == 1
         args, kwargs = mock_post.call_args
+        assert args == ("https://od2.in/api/sms/send",)
+        assert set(kwargs["json"]) == {"from", "to", "body"}
         assert kwargs["json"]["to"] == "+911800123456"
         assert kwargs["json"]["from"] == "+1234567890"
         assert kwargs["json"]["body"] == "Your password reset code is 123456."

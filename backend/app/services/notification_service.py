@@ -194,7 +194,6 @@ class ThirdPartySmsNotificationProvider(NotificationProvider):
             "from": self.sender_id,
             "to": request.phone_number,
             "body": request.message,
-            "message": request.message,
         }
         headers = {"Content-Type": "application/json"}
         auth = (

@@ -82,12 +82,12 @@ spec:
               drop: ["ALL"]
           livenessProbe:
             httpGet:
-              path: /healthz
-              port: telemetry
+              path: /livez
+              port: metrics
             periodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /readyz
               port: telemetry
             periodSeconds: 10
 ---
