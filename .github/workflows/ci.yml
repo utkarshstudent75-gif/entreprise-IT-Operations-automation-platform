@@ -267,7 +267,7 @@ jobs:
                 terraform_version: 1.9.0
 
             - name: Create Terraform plugin cache directory
-              run: mkdir -p $TF_PLUGIN_CACHE_DIR
+              run: mkdir -p "$TF_PLUGIN_CACHE_DIR"
 
             - name: Cache Terraform providers
               uses: actions/cache@v4
@@ -435,7 +435,22 @@ jobs:
         - name: Checkout repository
           uses: actions/checkout@v4
 
+        # The COSIGN_PRIVATE_KEY secret is not configured yet; skip signing
+        # instead of failing the pipeline until it is added.
+        - name: Check signing key
+          id: signing-key
+          env:
+            COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          run: |
+            if [ -n "$COSIGN_PRIVATE_KEY" ]; then
+              echo "available=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "available=false" >> "$GITHUB_OUTPUT"
+              echo "::notice title=Cosign Image Signing::COSIGN_PRIVATE_KEY secret is not set - skipping image signing"
+            fi
+
         - name: Azure Login
+          if: steps.signing-key.outputs.available == 'true'
           uses: azure/login@v2
           with:
             client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -443,42 +458,70 @@ jobs:
             subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
         - name: Log in to Azure Container Registry
+          if: steps.signing-key.outputs.available == 'true'
           run: |
             az acr login --name ${{ vars.ACR_NAME || 'enterpriseitoperationsplatformdev1bab46e1' }}
 
         - name: Install Cosign
+          if: steps.signing-key.outputs.available == 'true'
           run: |
             curl -sLO https://github.com/sigstore/cosign/releases/download/v2.2.2/cosign-linux-amd64
             chmod +x cosign-linux-amd64
             sudo mv cosign-linux-amd64 /usr/local/bin/cosign
 
+        # Accepts COSIGN_PRIVATE_KEY stored as either base64 or raw PEM.
+        - name: Prepare cosign key
+          if: steps.signing-key.outputs.available == 'true'
+          env:
+            COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          run: |
+            printf '%s' "$COSIGN_PRIVATE_KEY" | base64 -d > cosign.key 2>/dev/null || true
+            if ! grep -q "PRIVATE KEY" cosign.key; then
+              printf '%s\n' "$COSIGN_PRIVATE_KEY" > cosign.key
+            fi
+            chmod 600 cosign.key
+            if ! grep -q "PRIVATE KEY" cosign.key; then
+              echo "::error::COSIGN_PRIVATE_KEY is neither valid base64 nor a PEM private key"
+              exit 1
+            fi
+
         - name: Sign Backend Image
+          if: steps.signing-key.outputs.available == 'true'
           env:
             COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
           run: |
-            echo "${{ secrets.COSIGN_PRIVATE_KEY }}" > cosign.key
-            cosign sign --key cosign.key ${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev1bab46e1.azurecr.io' }}/backend:${{ github.sha }}
+            cosign sign --key cosign.key --output-signature backend.sig \
+              ${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev1bab46e1.azurecr.io' }}/backend:${{ github.sha }}
 
         - name: Sign Frontend Image
+          if: steps.signing-key.outputs.available == 'true'
           env:
             COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
           run: |
-            echo "${{ secrets.COSIGN_PRIVATE_KEY }}" > cosign.key
-            cosign sign --key cosign.key ${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev1bab46e1.azurecr.io' }}/frontend:${{ github.sha }}
+            cosign sign --key cosign.key --output-signature frontend.sig \
+              ${{ vars.ACR_LOGIN_SERVER || 'enterpriseitoperationsplatformdev1bab46e1.azurecr.io' }}/frontend:${{ github.sha }}
 
         - name: Upload Backend Signature
+          if: steps.signing-key.outputs.available == 'true'
           uses: actions/upload-artifact@v4
           with:
             name: backend-signature
-            path: cosign.key
+            path: backend.sig
             retention-days: 30
+            if-no-files-found: error
 
         - name: Upload Frontend Signature
+          if: steps.signing-key.outputs.available == 'true'
           uses: actions/upload-artifact@v4
           with:
             name: frontend-signature
-            path: cosign.key
+            path: frontend.sig
             retention-days: 30
+            if-no-files-found: error
+
+        - name: Clean up cosign key
+          if: always() && steps.signing-key.outputs.available == 'true'
+          run: rm -f cosign.key
 
     trivy:
         permissions:
@@ -659,6 +702,15 @@ jobs:
                 tenant-id: ${{ secrets.AZURE_TENANT_ID }}
                 subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+            - name: Install kubelogin
+              # azure/aks-set-context writes a kubeconfig that uses kubelogin as
+              # its exec credential plugin; it is not preinstalled on the runner.
+              run: |
+                curl -sSL -o /tmp/kubelogin.zip https://github.com/Azure/kubelogin/releases/download/v0.2.20/kubelogin-linux-amd64.zip
+                unzip -oq /tmp/kubelogin.zip -d /tmp/kubelogin
+                sudo install -m 0755 /tmp/kubelogin/bin/linux_amd64/kubelogin /usr/local/bin/kubelogin
+                kubelogin --version
+
             - name: Set AKS Context
               uses: azure/aks-set-context@v4
               with:
@@ -696,7 +748,7 @@ jobs:
                 FRONTEND_POD=$(kubectl get pods -n frontend -l app.kubernetes.io/name=frontend -o jsonpath='{.items[0].metadata.name}')
                 echo "Selected frontend pod: $FRONTEND_POD"
                 
-                RESPONSE=$(kubectl exec -n frontend pod/$FRONTEND_POD -- curl -s http://backend-service.backend.svc.cluster.local:8000/api/v1/readiness)
+                RESPONSE=$(kubectl exec -n frontend "pod/$FRONTEND_POD" -- curl -s http://backend-service.backend.svc.cluster.local:8000/api/v1/readiness)
                 echo "Readiness response: $RESPONSE"
                 
                 if [[ $RESPONSE != *"\"status\":\"ready\""* || $RESPONSE != *"\"database\":\"connected\""* || $RESPONSE != *"\"redis\":\"connected\""* ]]; then

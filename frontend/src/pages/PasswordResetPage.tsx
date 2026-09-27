@@ -194,7 +194,7 @@ export function PasswordResetPage() {
                   label="Verification code"
                   value={otp}
                   onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                  helperText="Enter the 6-digit code sent to your email."
+                  helperText="Enter the 6-digit code sent to the business phone number associated with your profile in Entra ID."
                   inputProps={{ inputMode: 'numeric', maxLength: 6 }}
                 />
                 <LoadingButton variant="contained" loading={loading} onClick={handleVerifyOtp} disabled={!canSubmitOtp}>
@@ -216,7 +216,7 @@ export function PasswordResetPage() {
                   label="Verification code"
                   value={otp}
                   onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                  helperText="Enter the code you received by email."
+                  helperText="Enter the 6-digit code sent to your business phone number in Entra ID."
                   inputProps={{ inputMode: 'numeric', maxLength: 6 }}
                 />
                 <PasswordInput

@@ -22,7 +22,7 @@ export function EmailForm({ email, isSubmitting, onEmailChange, onSubmit }: Read
         autoFocus
         fullWidth
         id="email"
-        helperText="We’ll send a one-time verification code to this address."
+        helperText="A 6-digit verification code will be sent to the business phone number associated with your profile in Entra ID."
         label="Work email address"
         onChange={(event) => onEmailChange(event.target.value)}
         required

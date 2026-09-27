@@ -28,6 +28,30 @@ class RedisService:
     def _hash_otp(self, otp: str) -> str:
         return hashlib.sha256(otp.encode("utf-8")).hexdigest()
 
+    @staticmethod
+    def _to_str(value: bytes | str | None) -> str | None:
+        """Decode bytes to str; leave str as-is; return None for None."""
+        if value is None:
+            return None
+        if isinstance(value, bytes):
+            return value.decode("utf-8")
+        return value
+
+    @staticmethod
+    def _decode_hash(data: dict) -> dict:
+        """Normalize hgetall response: decode bytes keys/values to str.
+
+        Real Redis (decode_responses=False) returns bytes keys and values.
+        Unit-test AsyncMock returns str keys and values.
+        This helper makes both cases behave identically.
+        """
+        result = {}
+        for k, v in data.items():
+            key = k.decode("utf-8") if isinstance(k, bytes) else k
+            val = v.decode("utf-8") if isinstance(v, bytes) else v
+            result[key] = val
+        return result
+
     async def store_otp(self, email: str, otp: str, expires_in_seconds: int) -> None:
         """
         Store the hashed OTP in Redis.
@@ -113,7 +137,8 @@ class RedisService:
         client: Redis = await get_redis()
         used_key = self._get_used_key(email)
         used_val = await client.get(used_key)
-        if used_val == otp_hash:
+        used_val_str = self._to_str(used_val)
+        if used_val_str is not None and used_val_str == otp_hash:
             raise OTPAlreadyUsedException("OTP has already been used.")
 
         # 2. Check if active OTP exists
@@ -125,8 +150,11 @@ class RedisService:
                 raise ExpiredOTPException("OTP has expired.")
             raise InvalidOTPException("Invalid email or OTP.")
 
-        stored_hash = data.get("otp_hash")
-        attempts = int(data.get("attempts", 0))
+        # Normalize hgetall response: real Redis returns bytes keys/values,
+        # test mocks return str keys/values — _decode_hash handles both.
+        decoded = self._decode_hash(data)
+        stored_hash = decoded.get("otp_hash", "")
+        attempts = int(decoded.get("attempts", 0))
 
         # 3. Check if attempts already exceeded before comparison
         if attempts >= max_attempts:
