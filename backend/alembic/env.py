@@ -6,6 +6,7 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 from app.core.config import settings
 from app.database.base import Base
+from app.models.account_unlock_request import AccountUnlockRequest  # noqa: F401
 from app.models.audit_log import AuditLog  # noqa: F401
 from app.models.mfa_request import MFARequest  # noqa: F401
 from app.models.software_request import SoftwareRequest  # noqa: F401

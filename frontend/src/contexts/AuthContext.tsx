@@ -23,6 +23,24 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export const isMockAuthMode = msalConfig.auth.clientId === 'MOCK_CLIENT_ID'
 
+function mapEntraRole(rawRoles: unknown): UserProfile['role'] {
+  const roles = Array.isArray(rawRoles) ? rawRoles : []
+  if (roles.some((role) => ['PlatformAdministrator', 'ITAdmin', 'IT Admin'].includes(String(role)))) {
+    return 'Platform Administrator'
+  }
+  if (
+    roles.some((role) =>
+      ['SupportEngineer', 'Support Engineer', 'SoftwareRequestApprover', 'Approver', 'Manager'].includes(
+        String(role),
+      ),
+    )
+  ) {
+    return 'Support Engineer'
+  }
+  if (roles.includes('Auditor')) return 'Auditor'
+  return 'Standard User'
+}
+
 // MSAL Implementation for production Entra ID
 function MsalAuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const { instance, accounts } = useMsal()
@@ -36,16 +54,7 @@ function MsalAuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     if (account) {
       setIsAuthenticated(true)
       const idTokenClaims = account.idTokenClaims as Record<string, unknown>
-      const rawRoles = (idTokenClaims?.roles as string[]) ?? []
-      
-      let role: UserProfile['role'] = 'Standard User'
-      if (rawRoles.includes('PlatformAdministrator')) {
-        role = 'Platform Administrator'
-      } else if (rawRoles.includes('SupportEngineer')) {
-        role = 'Support Engineer'
-      } else if (rawRoles.includes('Auditor')) {
-        role = 'Auditor'
-      }
+      const role = mapEntraRole(idTokenClaims?.roles)
       
       setUser({
         name: account.name ?? account.username,
@@ -60,16 +69,7 @@ function MsalAuthProvider({ children }: Readonly<{ children: ReactNode }>) {
           if (silentResult && silentResult.account) {
             instance.setActiveAccount(silentResult.account)
             const idTokenClaims = silentResult.account.idTokenClaims as Record<string, unknown>
-            const rawRoles = (idTokenClaims?.roles as string[]) ?? []
-            
-            let role: UserProfile['role'] = 'Standard User'
-            if (rawRoles.includes('PlatformAdministrator')) {
-              role = 'Platform Administrator'
-            } else if (rawRoles.includes('SupportEngineer')) {
-              role = 'Support Engineer'
-            } else if (rawRoles.includes('Auditor')) {
-              role = 'Auditor'
-            }
+            const role = mapEntraRole(idTokenClaims?.roles)
             
             setUser({
               name: silentResult.account.name ?? silentResult.account.username,

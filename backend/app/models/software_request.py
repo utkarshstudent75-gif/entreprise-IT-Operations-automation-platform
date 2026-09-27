@@ -35,6 +35,18 @@ class SoftwareRequest(Base):
         index=True,
     )
 
+    requester_email: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True,
+    )
+
+    decided_by_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    decision_note: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(UTC).replace(tzinfo=None),
