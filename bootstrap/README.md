@@ -78,7 +78,14 @@ Once the infrastructure is created and the secrets are configured:
    ```bash
    git push origin master
    ```
-2. The GitHub Action pipeline (`ci.yml`) will run, build Docker images, push them to ACR, sign them using Cosign, run security vulnerability scans via Trivy, and deploy to AKS via Helm.
+2. The GitHub Action pipeline (`ci.yml`) will build and test the application, push SHA-tagged images to ACR, sign them using Cosign, and scan them using Trivy.
+3. After those checks pass, CI commits the image SHA tags to `deploy/helm/values/dev.yaml`. Argo CD watches `master`, detects this desired-state change, and syncs the Helm releases to AKS. CI does not deploy directly to the cluster.
+
+After these GitOps configuration changes have been merged to `master`, install Argo CD in AKS and apply `deploy/argocd/root-app.yaml` once:
+```bash
+kubectl apply -f deploy/argocd/root-app.yaml -n argocd
+```
+The root Application discovers the backend, frontend, and common child Applications. Ensure AKS can pull from ACR and that the GitHub Actions workflow token can push to `master` (`contents: write`); if branch protection prohibits that push, use a pull-request-based promotion instead. After updating the root Application configuration to track `master`, apply the updated root Application so it switches from its previous tracked branch.
 
 ---
 

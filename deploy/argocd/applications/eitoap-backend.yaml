@@ -9,10 +9,10 @@ spec:
   project: default
   sources:
     - repoURL: 'https://github.com/utkarshstudent75-gif/entreprise-IT-Operations-automation-platform.git'
-      targetRevision: feature/gitops-argocd-deployment
+      targetRevision: master
       ref: repo
     - repoURL: 'https://github.com/utkarshstudent75-gif/entreprise-IT-Operations-automation-platform.git'
-      targetRevision: feature/gitops-argocd-deployment
+      targetRevision: master
       path: deploy/helm/backend
       helm:
         valueFiles:
