@@ -73,7 +73,7 @@ jobs:
             SMS_TEST_RECIPIENT: ${{ secrets.SMS_TEST_RECIPIENT || '+18005550199' }}
             LIVE_SMS_TEST_ENABLED: ${{ secrets.SMS_ACCOUNT_SID != '' && 'true' || 'false' }}
 
-        
+
         name: Backend Build
     
         defaults:
@@ -93,10 +93,9 @@ jobs:
                   
             - name: Install dependencies
               run: |
-                python -m pip install pip==26.1.2
-                pip install --only-binary :all: --require-hashes -r requirements-test.txt
+                python -m pip install --upgrade pip==26.1.2
+                pip install --require-hashes -r requirements-test.txt
                 
-            
             - name: Run Ruff
               run: |
                     ruff check .    
@@ -684,6 +683,7 @@ jobs:
             - terraform
             - docker
             - trivy
+            - sign
         if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
         
         steps:
@@ -727,6 +727,7 @@ jobs:
               run: |
                 helm upgrade --install backend deploy/helm/backend \
                   -f deploy/helm/values/dev.yaml \
+                  --set image.repository=enterpriseitoperationsplatformdev1bab46e1.azurecr.io/backend \
                   --set image.tag=${{ github.sha }} \
                   -n backend --create-namespace
 
