@@ -1,934 +1,266 @@
 # Enterprise IT Operations Automation Platform (EITOAP)
 
-## Overview
+EITOAP is a self-service IT operations application that automates routine helpdesk work, especially password resets with one-time-passcode (OTP) verification. It combines a React frontend with a FastAPI backend and PostgreSQL/Redis data services.
 
-The **Enterprise IT Operations Automation Platform (EITOAP)** is a self-service IT operations application for automating routine helpdesk tasks, especially password resets and related identity verification. The deployed application has two application workloads: a React frontend and a single FastAPI backend. The backend is organized into feature modules; its features are not separate microservices in the Kubernetes deployment.
+The AKS deployment is a **two-workload application**: one frontend and one modular backend. Backend features such as authentication, password reset, tickets, workflows, notifications, and audit records are modules, not separate AKS microservices. The repository also retains a separate, older multi-container Docker Compose topology for local development.
 
-The application and its supporting platform are delivered with Docker, Kubernetes on Azure Kubernetes Service (AKS), Terraform, GitHub Actions, and Argo CD. Prometheus and Grafana provide application and Kubernetes monitoring.
+## Architecture
 
----
+![EITOAP architecture: user traffic, Azure infrastructure, CI/CD, GitOps, and monitoring](./docs/architecture/eitoap-architecture.svg)
 
-# Problem Statement
+The diagram shows how browser traffic reaches the application, how GitHub Actions builds and publishes images for Argo CD to deploy, how Terraform provisions Azure infrastructure, and how Prometheus/Grafana provide monitoring. In the Azure development configuration, PostgreSQL and Redis are managed Azure services; local development uses containers.
 
-Users who cannot access their accounts often need a helpdesk technician to verify their identity, issue a password reset, and follow up with them. This manual Level 1 workflow consumes support time, delays users, and makes it harder to apply consistent verification and audit practices.
+## Run locally
 
----
+### Prerequisites
 
-# Solution
+- Git
+- Python 3.12 and `pip`
+- Node.js and npm
+- Docker with the Docker Compose plugin
 
-EITOAP provides a self-service portal and backend workflow for password reset requests, one-time-passcode (OTP) verification, and password updates. PostgreSQL persists application records, Redis supports short-lived OTP and rate-limit state, and the notification integration can deliver verification messages. The API also includes IT operations features such as tickets, workflows, and audit records. This reduces routine manual handling while keeping the user-facing application and its supporting services deployable and observable as a small, maintainable system.
+### Start the data services
 
----
-
-# Project Goals
-
-* Build an enterprise-grade cloud-native application.
-* Demonstrate modern DevOps and Cloud Engineering practices.
-* Showcase Infrastructure as Code.
-* Implement secure and scalable application architecture.
-* Build a portfolio-quality project suitable for technical interviews.
-* Follow production engineering best practices.
-
----
-
-# Technology Stack
-
-## Frontend
-
-* React
-* TypeScript
-* Vite
-
-## Backend
-
-* Python
-* FastAPI
-* Uvicorn
-* Pydantic
-
-## Database
-
-* PostgreSQL
-* SQLAlchemy
-* Alembic
-
-## Cache
-
-* Redis
-
-## Containerization
-
-* Docker
-* Docker Compose
-
-## Orchestration
-
-* Kubernetes
-* Minikube (Development)
-* Azure Kubernetes Service (Production)
-
-## Cloud
-
-* Microsoft Azure
-
-## Infrastructure as Code
-
-* Terraform
-
-## CI/CD
-
-* GitHub Actions
-
-## Monitoring
-
-* Prometheus
-* Grafana
-* Azure Monitor / Log Analytics resources for Azure infrastructure diagnostics
-
-## AI *(Future)*
-
-* Microsoft Copilot Studio
-
----
-
-# Current Features
-
-## Implemented
-
-* FastAPI backend & React frontend implementation
-* Forgot Password & OTP-based password reset workflow
-* Notification service abstraction (with SMS delivery support)
-* PostgreSQL integration with SQLAlchemy & Alembic migrations
-* Redis caching & rate limiter integration
-* Multi-stage Docker containerization and Docker Compose setup
-* Production-ready Kubernetes manifests & Helm charts (backend, frontend, common)
-* Prometheus application/Kubernetes metrics, provisioned Grafana dashboards, and Prometheus alert rules
-* Terraform-managed Azure infrastructure (AKS, Postgres, Redis, ACR)
-* CI/CD automation workflow (linting, image build/push via OIDC)
-
-## Planned
-
-* Microsoft Entra ID integration
-* Microsoft Graph API integration
-
----
-
-## Deployed Architecture
-
-The Kubernetes/Helm deployment consists of a React frontend and one FastAPI backend. The backend contains application modules for authentication, password reset, tickets, workflows, notifications, and auditing; these are not independently deployed services. PostgreSQL and Redis are supporting data services. In the Azure development environment, PostgreSQL and Redis are managed Azure services; local development can use containers.
-
-The frontend is exposed through Kubernetes ingress and sends API requests to the backend service. Argo CD watches the repository's deployment configuration and reconciles the Helm releases in AKS. GitHub Actions validates the code, builds frontend/backend container images, publishes images to Azure Container Registry (ACR), and updates the image tags in Git for Argo CD to deploy. Terraform provisions the Azure infrastructure. Prometheus collects backend and Kubernetes metrics, and Grafana presents dashboards and alerts.
-
-![EITOAP project and infrastructure architecture](./docs/architecture/eitoap-architecture.svg)
-
-> **Architecture scope:** This diagram shows the AKS deployment represented by the Helm charts and Argo CD applications. `docker-compose.yml` still describes a separate local multi-container topology; it is not the deployed AKS architecture shown here.
-
-## DevOps Concepts Demonstrated
-
-* **CI and quality gates:** GitHub Actions runs backend/frontend checks, tests, security analysis, and Helm/Terraform validation before the image publishing job.
-* **Containerization and artifact management:** Docker builds the frontend and backend images; ACR stores versioned images, including commit-SHA tags.
-* **Infrastructure as Code:** Reusable Terraform modules define Azure networking, AKS, registry, data services, identity, and supporting resources.
-* **Kubernetes delivery:** Helm charts package the frontend, backend, and shared resources, with health checks, resource requests/limits, autoscaling, disruption budgets, and network policies.
-* **GitOps and continuous delivery:** Git is the desired-state source; Argo CD detects configuration changes and syncs the cluster rather than CI deploying directly to AKS.
-* **Secrets and workload identity:** Azure identity and Key Vault integrations avoid storing production credentials in application configuration.
-* **Observability and SRE practices:** Prometheus metrics, Grafana dashboards, alert rules, health endpoints, and structured logs support operational visibility and troubleshooting.
-* **Security and supply-chain checks:** CI includes static/security scanning, container image scanning, and SBOM generation.
-
-The top-level architecture is intentionally a two-workload application, not a microservices deployment. Some older local-development configuration and backend service entry points remain in the repository and should not be read as the AKS topology.
-
----
-
-## Observability (Phase 4)
-
-The application exports HTTP request, status, latency, authentication-failure, password-reset, and OTP metrics. Prometheus also scrapes Kubernetes workload state and pod/container resource usage. Grafana dashboards are provisioned from version-controlled JSON.
-
-```text
-Application
-    ↓
-Prometheus metrics (/metrics)
-    ↓
-Prometheus
-    ↓
-Grafana
-    ↓
-Dashboards / Alerts
-```
-
-Full architecture, SLI/SLO targets, alert rationale, privacy choices, deployment steps, and troubleshooting are documented in [docs/phase-4-observability.md](./docs/phase-4-observability.md).
-
-Deploy the monitoring chart after updating the existing backend Helm release and creating the `grafana-admin` Secret from a secure source outside the repository:
-
-```sh
-helm upgrade <existing-backend-release> deploy/helm/backend \
-  --namespace backend --reuse-values --wait
-
-helm upgrade --install observability deploy/helm/observability \
-  --namespace monitoring --create-namespace --wait
-```
-
-Check workloads and services, then port-forward Prometheus and Grafana:
-
-```sh
-kubectl get pods -n backend
-kubectl get pods -n monitoring
-kubectl get svc -n monitoring
-kubectl port-forward -n monitoring svc/prometheus 9090:9090
-kubectl port-forward -n monitoring svc/grafana 3000:80
-```
-
-Open Prometheus at `http://localhost:9090` and Grafana at `http://localhost:3000`. To verify application exposition, port-forward the backend service and run `curl.exe http://localhost:8000/metrics`. Prometheus evaluates the provisioned HTTP error, latency, availability, restart, and replica alerts; external notifications are not configured until an operator supplies an Alertmanager receiver.
-
----
-
-# Repository Structure
-
-```text
-enterprise-it-operations-automation-platform/
-│
-├── backend/
-│   ├── app/                    # FastAPI application and feature modules
-│   ├── tests/                  # Unit and integration tests
-│   └── Dockerfile              # Backend container image
-│
-├── frontend/
-│   ├── src/                    # React + TypeScript application
-│   └── Dockerfile
-│
-├── deploy/
-│   ├── argocd/                 # Argo CD root and application definitions
-│   ├── helm/                   # Frontend, backend, common, observability charts
-│   └── kubernetes/             # Kubernetes base manifests and overlays
-│
-├── infrastructure/
-│   └── terraform/              # Azure infrastructure modules/environments
-│
-├── docs/                       # Architecture and operations documentation
-├── scripts/                    # Provisioning, health-check, and VM scripts
-├── docker-compose.yml
-├── LICENSE
-└── README.md
-```
-
----
-
-# Running the Project
-
-## Prerequisites
-
-* Docker Desktop
-* Docker Compose
-* Git
-
-## Clone the Repository
+From the repository root, create a local backend environment file:
 
 ```bash
-git clone https://github.com/<your-github-username>/entreprise-IT-Operations-automation-platform.git
-
-cd entreprise-IT-Operations-automation-platform
+cp backend/.env.example backend/.env
 ```
 
-## Build and Start the Application
+Edit `backend/.env` for local development. Set `DATABASE_URL` to use the Compose service hostname `postgres:5432/eitoap` with the local Compose credentials, `REDIS_HOST=redis`, `REDIS_URL=redis://redis:6379/0`, and `NOTIFICATION_PROVIDER=console` unless you have configured a real SMS provider. The backend maps these Compose hostnames to loopback when run directly on the host; in containers, Docker DNS resolves them to the Compose services. Never put production credentials in this file.
 
-```bash
-docker compose up --build
-```
+Start just PostgreSQL and Redis:
 
-## Application URLs
-
-| Service            | URL                        |
-| ------------------ | -------------------------- |
-| Frontend           | http://localhost:5173      |
-| Backend API        | http://localhost:8000      |
-| FastAPI Swagger UI | http://localhost:8000/docs |
-
-## Redis & Password Reset Architecture
-
-The platform integrates **Redis 7** (using `redis:7-alpine`) to serve as the high-performance storage backend for the password reset workflow. Redis serves as the single source of truth for all temporary OTP states.
-
-### Redis Key Design & Lifecycle
-All Redis keys are centrally namespaced to prevent key collisions:
-1. **Active OTP Hash (`otp:<email>`)**:
-   - **Type**: Redis Hash
-   - **Fields**: `otp_hash` (SHA-256 hash of the 6-digit OTP code) and `attempts` (count of failed verification attempts).
-   - **TTL**: `settings.OTP_EXPIRY_MINUTES * 60` seconds (defaults to 5 minutes).
-2. **Expiry Metadata Tracker (`otp:meta:<email>`)**:
-   - **Type**: Redis String (`"1"`)
-   - **TTL**: `settings.OTP_EXPIRY_MINUTES * 60 * 24` seconds (24 hours).
-   - **Purpose**: Distinguishes between an expired OTP (meta key present, active key expired) and an invalid/non-existent request (neither key present).
-3. **Consumed Anti-Replay Guard (`otp:used:<email>`)**:
-   - **Type**: Redis String (`otp_hash`)
-   - **TTL**: `settings.OTP_EXPIRY_MINUTES * 60` seconds.
-   - **Purpose**: Prevents replay attacks by rejecting attempts to reuse a consumed OTP within the original expiration window.
-
-### Security Controls
-- **One-Way Hashing**: OTP values are never stored or logged in plaintext. They are hashed using SHA-256 before storing.
-- **Secure Comparison**: OTP hashes are compared using constant-time string comparison (`secrets.compare_digest`) to prevent timing attacks.
-- **Attempts Counter & Lockout**: Atomic increments (`hincrby`) track failed verification attempts. If `attempts >= settings.OTP_MAX_ATTEMPTS`, the OTP is immediately deleted from Redis and the user is locked out.
-- **Immediate Consumption**: Upon successful password reset, the active OTP key is deleted immediately and marked in the anti-replay tracker.
-
----
-
-## Environment Variables Configuration
-
-The following table documents all environment variables used by the application backend. These are configured in the `backend/.env` file (copied from `backend/.env.example`).
-
-| Variable Name | Description | Default Value | Example Value |
-| --- | --- | --- | --- |
-| **Database** | | | |
-| `DATABASE_URL` | SQLAlchemy PostgreSQL connection URL | N/A | `postgresql://postgres:postgres@localhost:5432/eitoap` |
-| **Redis** | | | |
-| `REDIS_URL` | Full Redis connection URL (overrides individual options if set) | N/A | `redis://localhost:6379/0` |
-| `REDIS_HOST` | Hostname of the Redis server | `localhost` | `redis` |
-| `REDIS_PORT` | Port of the Redis server | `6379` | `6379` |
-| `REDIS_DB` | Redis database index | `0` | `0` |
-| `REDIS_PASSWORD` | Optional password for Redis authentication | `""` | `mysecretpassword` |
-| **OTP Settings** | | | |
-| `OTP_LENGTH` | Length of generated OTP code | `6` | `6` |
-| `OTP_EXPIRY_MINUTES` | Time limit in minutes for active OTP verification | `5` | `5` |
-| `OTP_MAX_ATTEMPTS` | Maximum allowed failed attempts before OTP deletion | `3` | `3` |
-| **SMS Notification** | | | |
-| `NOTIFICATION_PROVIDER`| Notification dispatch provider (`console` or `sms`) | `console` | `sms` |
-| `SMS_API_KEY` | Authentication API key for the third-party SMS provider | `""` | `sk_sms_0e3d6...` |
-| `SMS_ACCOUNT_SID` | Twilio-style Account SID for the third-party SMS provider | `""` | `AC555682c8...` |
-| `SMS_BASE_URL` | Endpoint URL of the third-party SMS API | `https://api.sms-provider.com/v1` | `https://od2.in/api/sms/send` |
-| `SMS_SENDER_ID` | Sender name/number for dispatched SMS messages | `IT-OPS` | `+1234567890` |
-| `SMS_TIMEOUT_SECONDS` | HTTP request timeout for SMS delivery requests | `5.0` | `5.0` |
-| `SMS_RETRY_COUNT` | Number of times to retry transient SMS API failures | `3` | `3` |
-| `SMS_TEST_RECIPIENT` | Fallback phone number used for OTP delivery when email is used | `""` | `+911800123456` |
-
----
-
-## Testing Guide
-
-The codebase enforces strict test coverage and static analysis verification. 
-
-### Running Tests Locally
-Ensure that the PostgreSQL and Redis containers are running:
 ```bash
 docker compose up -d postgres redis
 ```
 
-Navigate to the `backend` directory and run the test suite using pytest:
+### Start the API and frontend
+
+In a terminal:
+
 ```bash
 cd backend
-.venv/bin/pytest --cov=app --cov-report=xml --cov-report=html --junitxml=junit.xml
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+alembic upgrade head
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-This command runs the full test suite and automatically generates:
-1. **Console Report**: Printed directly in the shell terminal.
-2. **JUnit XML Report**: Created at `junit.xml` (useful for CI/CD integrations).
-3. **Coverage XML**: Created at `coverage/coverage.xml`.
-4. **Coverage HTML**: Generated in the `coverage/html/` directory (open `coverage/html/index.html` in a web browser to view).
+In a second terminal:
 
-### Security Analysis Scan
-Run Bandit to check for common security bugs:
 ```bash
-.venv/bin/bandit -r app -f json -o bandit-report.json
+cd frontend
+npm ci
+npm run dev -- --host 0.0.0.0
 ```
-This generates a `bandit-report.json` detailing any identified vulnerabilities or security alerts.
 
----
+Open the frontend at <http://localhost:5173> and the API docs at <http://localhost:8000/docs>. The Vite development server proxies API requests to `localhost:8000`.
 
-## CI/CD Pipeline & GitHub Actions Strategy
+To stop the local database/cache containers:
 
-The project utilizes GitHub Actions for continuous integration. The pipeline configuration is located in `.github/workflows/ci.yml`.
+```bash
+docker compose down
+```
 
-### Workflow Services
-For the backend test job, the workflow automatically runs containerized service dependencies:
-- **PostgreSQL**: Starts `postgres:17-alpine` database.
-- **Redis**: Starts `redis:7-alpine` caching database.
+This keeps the named data volumes. To also remove the local PostgreSQL, Redis, and pgAdmin data, use `docker compose down --volumes`; that deletion is irreversible.
 
-### Workflow Steps
-1. **Formatting & Linting**: Runs `ruff check .`, `black --check .`, and `isort --check .`.
-2. **Security Scan**: Runs `bandit -r app` to find security vulnerabilities.
-3. **Connectivity Wait**: Executes `python scripts/wait_for_services.py` to block until PostgreSQL and Redis are fully online, failing immediately if they are unreachable.
-4. **Pytest Run**: Executes the test suite and generates `junit.xml` and coverage files.
-5. **App Validation**: Validates the application imports cleanly via `python -c "from app.main import app"`.
-6. **Docker Build & Trivy Scan**: Builds frontend and backend Docker images, saves them to `.tar` files, and scans them using `trivy` for high and critical OS/library vulnerabilities.
+### Optional: run the full Docker Compose topology
 
-### Published CI Artifacts
-Upon workflow completion, the following artifacts are uploaded to the Actions run:
-- `pytest-junit-xml`: JUnit XML test report.
-- `coverage-xml`: Coverage XML document.
-- `coverage-html`: Full interactive coverage HTML report.
-- `bandit-report`: JSON-formatted Bandit vulnerability scan report.
-- `trivy-sarif-reports`: Trivy vulnerability SARIF documents (also uploaded to GitHub Security center).
-- `backend-sbom` / `frontend-sbom`: CycloneDX-formatted Software Bill of Materials (SBOM).
+`docker compose up --build` starts the frontend, an API gateway, separate backend service entry points, PostgreSQL, Redis, and pgAdmin. This is a legacy/local topology and differs from the two-workload AKS deployment. It uses development-only configuration; do not expose it as a production environment.
 
----
+## Deploy to Azure
 
-## SMS Notification Integration
+### Before provisioning
 
-The platform features an Enterprise SMS Notification delivery integration designed with strict **Clean Architecture**, **Dependency Inversion**, and **Data Privacy Guarantees**.
+Use a dedicated non-production Azure subscription. Check regional VM quota, Azure trial-credit limits, and expected costs before applying Terraform. AKS worker nodes, PostgreSQL, Redis, the validation VM, and monitoring can incur charges while running; trial credits do not guarantee that resources are free.
+
+The current `dev` Terraform configuration **includes a Windows validation workstation VM by default**, with a public IP and RDP allowed from `*`. Before applying, review `infrastructure/terraform/environments/dev/main.tf` and restrict `allowed_inbound_rdp_ips` to your trusted public IP CIDR (for example, `<your-ip>/32`). If you do not need the workstation, disable/remove that module before applying; there is currently no documented opt-out variable. Review the complete Terraform plan before approving it.
+
+### Requirements
+
+Install and authenticate the following tools:
+
+- Azure CLI (`az`), Terraform, `kubectl`, Helm, Docker, Git, and `jq`
+- GitHub CLI (`gh`) is optional; without it, bootstrap writes values for manual GitHub configuration
+- An Azure identity permitted to create the required Azure resources and Entra application/federated credentials
+- A GitHub repository where Actions can run and the workflow can update the GitOps image tags
+
+### Provision Azure infrastructure and GitHub OIDC
+
+From the repository root, configure the bootstrap defaults:
+
+```bash
+cp bootstrap/.env.example bootstrap/.env
+```
+
+Set the region, project/environment names, GitHub repository, and branches to match your environment. Then run:
+
+```bash
+bash bootstrap/bootstrap.sh
+```
+
+The script selects the Azure subscription, creates a Terraform state resource group/storage account, configures a subscription-scoped Contributor service principal and GitHub OIDC credentials, then initializes and validates Terraform, shows a plan, and asks before applying. Applying provisions the Azure development environment, including AKS, ACR, PostgreSQL, Redis, Key Vault, diagnostics, and the validation workstation. After a successful apply it fetches AKS credentials and writes deployment outputs to the git-ignored `bootstrap/.bootstrap-output.json`.
+
+Keep that metadata file protected until teardown: the cleanup script uses it to find the resource groups and state storage. It contains credentials, so never commit or share it. The bootstrap process can configure GitHub Actions secrets with an authenticated `gh`; otherwise, follow its instructions for manual configuration. Remove any local plaintext secrets file after you have securely configured GitHub.
+
+For Windows, `bootstrap/bootstrap.ps1` is available. It performs Terraform setup but writes credentials to a local file rather than configuring GitHub through `gh`; configure the repository’s Actions secrets and variables yourself. Bash/WSL is the recommended path for the complete automated GitHub-secret setup.
+
+### Configure a fork and start GitOps delivery
+
+If deploying a fork, update the repository URL and branch in the Argo CD application manifests under `deploy/argocd/`, update both image repository names in `deploy/helm/values/dev.yaml` to your ACR, and configure the CI workflow/repository settings for that registry. The current workflow publishes images on `master` and pushes the new commit-SHA tags to `deploy/helm/values/dev.yaml`; it needs permission to write contents to the branch it updates.
+
+The CI workflow uses these GitHub Actions secrets for Azure OIDC:
+
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+
+It also reads `ACR_NAME` and `ACR_LOGIN_SERVER` as **repository variables**. Set them to the ACR values created by Terraform; the bootstrap helper may export values as secrets, which does not populate Actions variables.
+
+The Terraform configuration does not install the NGINX Ingress Controller required by the frontend chart. Install it before syncing the application:
+
+```bash
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx --create-namespace --wait
+kubectl get svc -n ingress-nginx
+```
+
+The controller Service uses an Azure LoadBalancer by default, which can incur charges. The frontend Ingress currently has no TLS configuration; do not use it for production or sensitive public traffic without configuring TLS and a suitable DNS name.
+
+Once the cluster is provisioned and the workflow’s first image build/push has succeeded, install Argo CD in AKS using the official [installation guide](https://argo-cd.readthedocs.io/en/stable/getting_started/). For a learning environment, the basic install is:
+
+```bash
+kubectl create namespace argocd
+kubectl apply -n argocd \
+  -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl rollout status deployment/argocd-server -n argocd --timeout=5m
+kubectl apply -f deploy/argocd/root-app.yaml -n argocd
+kubectl get applications -n argocd
+kubectl get pods -A
+```
+
+The root Application discovers the frontend, backend, and common Helm Applications. Check that they become `Synced` and `Healthy`. CI updates Git; Argo CD reconciles that desired state into AKS—CI does not deploy directly to the cluster. For repeatable or production installs, use a version-pinned Argo CD release manifest instead of the moving `stable` URL.
+
+### Install monitoring
+
+The observability chart is installed separately from the Argo CD root Application. Create the Grafana password Secret without putting the password in shell history:
+
+```bash
+kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+read -rsp "Grafana admin password: " GRAFANA_ADMIN_PASSWORD
+echo
+kubectl create secret generic grafana-admin -n monitoring \
+  --from-literal=admin-password="$GRAFANA_ADMIN_PASSWORD" \
+  --dry-run=client -o yaml | kubectl apply -f -
+unset GRAFANA_ADMIN_PASSWORD
+```
+
+Install Prometheus and Grafana:
+
+```bash
+helm upgrade --install observability ./deploy/helm/observability \
+  --namespace monitoring --create-namespace --wait --timeout 10m
+kubectl get pods,pvc -n monitoring
+```
+
+After the application syncs, retrieve the ingress address:
+
+```bash
+kubectl get svc -n ingress-nginx ingress-nginx-controller
+kubectl get ingress -n frontend
+```
+
+The controller’s external IP serves the frontend at `http://<EXTERNAL-IP>/` and routes `/api` to the backend.
+
+If monitoring pods remain `Pending`, inspect their Events with `kubectl describe pod -n monitoring <pod-name>`; insufficient node CPU/memory or an unbound volume can prevent scheduling. The default chart requests CPU and memory in `deploy/helm/observability/values.yaml`; tune those values only after checking node capacity.
+
+Port-forward from separate terminals:
+
+```bash
+kubectl port-forward -n monitoring svc/grafana 3000:80
+```
+
+```bash
+kubectl port-forward -n monitoring svc/prometheus 9090:9090
+```
+
+Open Grafana at <http://localhost:3000> and Prometheus at <http://localhost:9090>. Use the Grafana password created above.
+
+### Verify the environment
+
+The bootstrap verification helper checks Azure resources, Kubernetes connectivity, workload rollouts, and application readiness:
+
+```bash
+bash bootstrap/verify.sh
+```
+
+It does not verify Argo CD synchronization or the monitoring stack. Check those separately:
+
+```bash
+kubectl get applications -n argocd
+kubectl get pods -n monitoring
+kubectl get svc -n monitoring
+```
+
+## Validation workstation scripts
+
+The PowerShell scripts in `scripts/` manage the optional Windows validation workstation, not the application deployment:
+
+- `Install-Applications.ps1`, `Configure-VM.ps1`, and `Configure-Startup.ps1` configure software, Windows settings, and browser startup when run elevated on the VM.
+- `Invoke-HealthCheck.ps1` checks the workstation, Azure/AKS, and application readiness. Pass your real resource group, cluster, and dashboard URL rather than relying on its example defaults.
+- `Destroy-ValidationEnvironment.ps1` targets the validation VM and related identity/password resources while preserving the main AKS/database infrastructure.
+- **Caution:** `Provision-ValidationVM.ps1` runs `terraform apply -auto-approve` for the entire `dev` Terraform environment; despite its name, it is not a VM-only provision command. Review the Terraform configuration and plan first.
+- `update-gitops-image-tags.py` is a CI helper that updates both frontend and backend image tags to a commit SHA; it is normally run by GitHub Actions.
+
+## Cleanup and cost control
+
+Stop local containers when finished with `docker compose down`. Add `--volumes` only when you intentionally want to delete local database/cache data.
+
+To remove only the validation workstation while keeping the shared Azure environment, run from PowerShell:
+
+```powershell
+.\scripts\Destroy-ValidationEnvironment.ps1
+```
+
+For the final Azure teardown, run from the repository root:
+
+```bash
+bash bootstrap/cleanup.sh
+```
+
+Choose **option 4** only when you intend to destroy the complete personal environment. It removes the application Helm releases/namespaces, destroys the development Terraform resources/resource group, and then deletes the Terraform state resource group and storage account. If Terraform destroy fails, the script can offer to delete the development resource group directly. This permanently removes the remote Terraform state; keep that backend if you plan to reuse the environment, or back up state securely before deleting it. The script is destructive and asks for confirmation.
+
+The cleanup helper does not remove the bootstrap-created Entra service principal/federated credentials or GitHub Actions secrets/variables. After verifying that the identity is dedicated to this project and not shared, remove those credentials/permissions from Entra and GitHub manually. Finally, inspect the Azure subscription’s resource groups and Cost Management for leftovers. Stopping AKS alone does not stop charges for managed databases, caches, storage, or other resources.
+
+## DevOps concepts covered
+
+- Local development with Docker, Docker Compose, PostgreSQL, Redis, and migrations
+- CI testing, linting, security/container scans, SBOMs, and Helm/Terraform validation
+- Azure infrastructure as code with Terraform and remote state
+- Docker image publishing to Azure Container Registry
+- Kubernetes and Helm deployment with probes, autoscaling, disruption budgets, and network policies
+- GitOps delivery with Argo CD and Git as the desired state
+- OIDC/workload identity and Key Vault-based secrets
+- Prometheus/Grafana metrics, dashboards, and alert rules
+
+## Repository map
 
 ```text
-PasswordResetService
-        │
-        ▼
-NotificationService
-        │
-        ▼
-NotificationProvider (Interface)
-   ┌────┴───────────────────────────┐
-   ▼                                ▼
-ConsoleNotificationProvider     ThirdPartySmsNotificationProvider
-                                    │
-                                    ▼ (SmsRequest DTO ONLY)
-                                Third-Party SMS API
+backend/                 FastAPI application, services, and tests
+frontend/                React + TypeScript application
+deploy/argocd/           Argo CD root and child Applications
+deploy/helm/             Frontend, backend, shared, and observability charts
+deploy/kubernetes/       Kubernetes manifests and environment overlays
+infrastructure/terraform Azure infrastructure and validation workstation
+bootstrap/               Azure bootstrap, verification, GitHub secrets, cleanup
+scripts/                 Validation workstation and GitOps helper scripts
+docs/architecture/       Architecture diagram
 ```
 
-### Architecture & Data Privacy Guarantees
-- **Strict Dependency Inversion**: `PasswordResetService` only depends on `NotificationService`, which delegates to `NotificationProvider`. The core application has ZERO knowledge of SMS vendor HTTP payloads, authentication, or headers.
-- **DTO Enforcement**: The SMS provider ONLY receives a minimal `SmsRequest` DTO containing `phone_number` and `message`. No domain objects (`User`, `Ticket`, `AuditLog`), Entra ID claims, emails, or credentials leave the application.
-- **Minimal SMS Message Content**: Contains ONLY the OTP code and expiration notice.
-- **Log Security & Masking**: Destination phone numbers are masked in logs (e.g. `+1*****4567`). API keys, Account SIDs, authorization headers, and raw credentials are NEVER logged.
-- **Configuration & Fast Fail**: Configuration parameters (`NOTIFICATION_PROVIDER`, `SMS_API_KEY`, `SMS_ACCOUNT_SID`, `SMS_BASE_URL`, `SMS_TIMEOUT_SECONDS`, `SMS_RETRY_COUNT`) are validated during application initialization.
-- **Transient Retry Policy**: Retries transient failures (HTTP 5xx, timeouts, 429 rate limit) with exponential backoff up to `SMS_RETRY_COUNT`. Non-transient errors (HTTP 400, 401, 403) fail fast without retrying.
-- **Extensible**: Designed for future seamless migration to Azure Communication Services, Twilio, or AWS SNS without altering core application logic.
-
-
----
-
-# Development Workflow
-
-This repository follows a feature-branch workflow similar to enterprise software development.
-
-```text
-main
-│
-├── feature/docker
-├── feature/postgresql
-├── feature/redis
-├── feature/cicd
-├── feature/kubernetes
-├── feature/azure-deployment
-└── feature/monitoring
-```
-
-Each feature is developed independently, tested, and merged into `main` after completion.
-
----
-
-# Project Roadmap
-
-## ✅ Phase 1 – Foundation *(Current)*
-
-Completed
-
-* Project architecture
-* FastAPI backend
-* React frontend
-* Password reset workflow
-* OTP verification
-* Docker containerization
-* Docker Compose setup
-
-In Progress
-
-* PostgreSQL integration
-* SQLAlchemy ORM
-* Alembic migrations
-
----
-
-## 🚧 Phase 2 – Cloud Native
-
-* Redis
-* GitHub Actions
-* Azure Container Registry
-* Kubernetes
-* Helm
-* Azure Kubernetes Service
-
----
-
-## 🚧 Phase 3 – Site Reliability Engineering
-
-* Prometheus
-* Grafana
-* OpenTelemetry
-* Azure Monitor
-* Logging
-* Metrics
-* Alerting
-* Dashboards
-
----
-
-## 🚧 Phase 4 – AI Operations
-
-* Microsoft Copilot Studio
-* AI-powered IT Assistant
-* Intelligent Ticket Routing
-* Knowledge Base Search
-* Root Cause Analysis
-
----
-
-# Future Enhancements
-
-* Account Unlock
-* MFA Reset
-* VPN Troubleshooting
-* Software Requests
-* Printer Support
-* Manager Approval Workflow
-* IT Analytics Dashboard
-* Multi-Tenant Support
-
----
-
-# Learning Objectives
-
-This project demonstrates practical experience with:
-
-* Python
-* FastAPI
-* React
-* TypeScript
-* Docker
-* Docker Compose
-* PostgreSQL
-* Redis
-* Kubernetes
-* Microsoft Azure
-* Terraform
-* GitHub Actions
-* DevOps
-* Site Reliability Engineering (SRE)
-* Infrastructure as Code
-* CI/CD
-* Cloud-native application architecture
-
----
-
-# Current Status
-
-**Version:** `v0.3.0`
-
-### Completed
-
-* ✅ FastAPI backend & React frontend implementation
-* ✅ PostgreSQL integration with SQLAlchemy & Alembic migrations
-* ✅ Redis caching & rate limiter integration
-* ✅ Multi-stage Docker containerization and Docker Compose setup
-* ✅ Production-ready Kubernetes raw manifests (`deploy/kubernetes/`)
-* ✅ Reusable, parameterized Helm Charts (`deploy/helm/`)
-* ✅ Production AKS infrastructure (Phase 3 Terraform deployment)
-* ✅ CI/CD pipeline automation (Helm linting & secure OIDC ACR push)
-
----
-
-# Kubernetes & Helm Architecture
-
-This application is fully modernized and prepared for production-grade deployment to Azure Kubernetes Service (AKS), while maintaining 100% backward compatibility with local Docker Compose development.
-
-## 1. Kubernetes Manifests (`deploy/kubernetes/`)
-The raw Kubernetes resources are organized under `deploy/kubernetes/` and include:
-- **`namespaces.yaml`**: Establishes the `eitoap` isolated namespace.
-- **`configmaps.yaml`**: Outlines non-sensitive environment configurations for `frontend` and `backend`.
-- **`secrets-template.yaml`**: Provides templates for database connections, API keys, and JWT keys.
-- **`ingress.yaml`**: Configures NGINX Ingress routing rule where `/api` points to the backend API and all other paths `/` point to the Nginx frontend.
-- **`backend/`**:
-  - [deployment.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/deployment.yaml): FastAPI deployment running 2 replicas, configured with non-root security context, read-only root filesystem with a `/tmp` mount, and CPU/Memory requests and limits (`100m-500m` / `128Mi-256Mi`). Includes liveness, readiness, and startup probes targeting `/liveness` and `/readiness`.
-  - [service.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/service.yaml): Exposes the backend inside the cluster on port `8000`.
-  - [hpa.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/hpa.yaml): Horizontal Pod Autoscaler targeting 80% CPU/Memory utilization, scaling from 2 to 5 replicas.
-  - [pdb.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/pdb.yaml): Pod Disruption Budget ensuring a minimum of 1 backend pod is available during node maintenance.
-  - [network-policy.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/network-policy.yaml): Restricts inbound traffic to the backend, allowing ingress only from the frontend pods and ingress controllers.
-- **`frontend/`**:
-  - [deployment.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/deployment.yaml): Nginx frontend deployment running 2 replicas, utilizing a non-root unprivileged Nginx image, read-only filesystem with emptyDir cache mounts, and liveness/readiness probes.
-  - [service.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/service.yaml): Exposes the frontend inside the cluster on port `80`.
-  - [hpa.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/hpa.yaml): Configures CPU/Memory autoscaling from 2 to 5 replicas.
-  - [pdb.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/pdb.yaml): Protects frontend availability during disruptions.
-  - [network-policy.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/network-policy.yaml): Protects the frontend and allows traffic to backend.
-- **`redis/`**:
-  - [deployment.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/redis/deployment.yaml) & [service.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/redis/service.yaml): Deploy a secure single-replica caching layer inside the cluster.
-
-## 2. Helm Charts (`deploy/helm/`)
-To support reproducible multi-environment package management, raw manifests are compiled into reusable Helm charts under `deploy/helm/`:
-- **`deploy/helm/common`**: Packages shared infrastructure assets such as configuration maps, secrets, and Redis caching.
-- **`deploy/helm/backend`**: Packages the FastAPI application, its scaling policies (HPA, PDB), and security/networking rules.
-- **`deploy/helm/frontend`**: Packages the React static asset server and the Nginx Ingress routing layer.
-All environment secrets and endpoints are parameterized via `values.yaml` to ensure zero hardcoding.
-
-## 3. AKS-Ready Improvements
-- **Decoupled Configuration**: Database and Redis hosts are read dynamically from environment variables. The hostname fallback checks are updated (`not os.path.exists("/.dockerenv") and not os.environ.get("KUBERNETES_SERVICE_HOST")`) to ignore Kubernetes runtimes and preserve local developer setups.
-- **Dynamic Ingress Proxy**: Vite dev server proxies `/api` to the backend locally, while the Kubernetes Ingress routes it directly in the cloud. This avoids compiling hostnames into frontend docker images.
-- **Production Performance**: Disabled Python reload flags in the `entrypoint.sh` for production runs.
-- **Structured JSON Logging**: Automatically switches logging to Structured JSON format in production and retains colored human-readable text logs in local development.
-- **CI/CD Automation**: Updated `.github/workflows/ci.yml` to lint Helm charts and build/push production images to Azure Container Registry using Azure OIDC workload identities.
-
----
-
-# Microsoft Entra ID SSO & Dashboard Architecture
-
-We have integrated Microsoft Entra ID authentication and Microsoft Graph reset capabilities, introducing an authenticated Enterprise Dashboard alongside the public SSPR flow.
-
-## 1. Separate Application Entry Points
-
-The application is architecturally partitioned into two strict security zones:
-1. **Public Zone (Anonymous):** Includes SSPR email submission, OTP code verification, Graph-mediated SSPR password submission, and portal login. Accessible without authentication.
-2. **Authenticated Zone (SSO Protected):** Includes the dashboard, My Profile, Session Info, Reset History, and security notifications. Accessible only after valid Microsoft Entra ID authentication.
-
-## 2. Authentication Flow
-
-The SSO login relies on **MSAL React (MSAL v3)** implementing the OpenID Connect (OIDC) **Authorization Code Flow with PKCE**:
-
-```mermaid
-sequenceDiagram
-    participant User as User Browser
-    participant MSAL as React MSAL Client
-    participant Entra as Microsoft Entra ID
-    participant Backend as FastAPI Backend
-
-    User->>MSAL: Click "Sign In with Microsoft"
-    MSAL->>Entra: Authorization Request + Code Challenge (PKCE)
-    Entra->>User: Authenticate & Request Consent
-    User->>Entra: Provide Credentials
-    Entra->>MSAL: Auth Code Redirect
-    MSAL->>Entra: Swap Code + Verifier for Tokens
-    Entra->>MSAL: ID & Access Token
-    MSAL->>Backend: Request APIs (Bearer Access Token)
-    Backend->>Backend: Validate Token Signature/Audience/Claims
-    Backend->>User: Return Restricted Data
-```
-
-*   **Silent Token Refresh:** MSAL React automatically renews the token silently in the background before it expires, using session storage claims.
-*   **Developer Mock SSO Bypass:** If `ENTRA_CLIENT_ID` is not configured, the frontend renders a mock selector. Clicking a role requests a locally signed JWT token from `/users/mock-token` (signed using `JWT_SECRET_KEY`) which mimics Entra ID OIDC claims (`preferred_username`, `name`, `roles`).
-
-## 3. Backend JWT Validation
-
-The backend executes secure, stateless signature checks on every Bearer token:
-- **JWKS Key Caching:** Fetches public keys from the tenant's OIDC discovery endpoint (`discovery/v2.0/keys`) and caches them in memory for 12 hours.
-- **Claims Verification:** Asserts signature validity (RS256), audience matches `ENTRA_CLIENT_ID`, issuer matches the active tenant (`https://login.microsoftonline.com/{tenant}/v2.0`), and the token is not expired.
-- **Fallback Verification:** If in developer mock mode, validates HS256 signature against local `JWT_SECRET_KEY`.
-
-## 4. Role-Based Access Control (RBAC)
-
-FastAPI endpoints and React frontend routes are restricted based on security privilege mappings decoded from the token's `roles` claims:
-- **`Platform Administrator`**: Administrative configuration, full log auditing, user management.
-- **`Support Engineer`**: Access to identity helpdesk tools (MFA reset, password resets, account unlocking).
-- **`Auditor`**: Read-only log viewing and session monitoring.
-- **`Standard User`**: Base profile access and self-service history details.
-
-## 5. Security & Rate Limiting
-
-- **SSPR Brute-Force Protection:** If an email or IP address fails SSPR verification 5 times, it is placed on a **15-minute Redis-based cooldown block**. Any requests during this period are rejected with `HTTP 429 Too Many Requests`.
-- **Password Complexity Policy:** Enforces complexity criteria both in frontend UI (live checkbox requirements) and backend schemas (minimum length of 12, uppercase, lowercase, numbers, special characters, and weak blacklist dictionary checks).
-
-## 6. Microsoft Graph Integration & Key Vault Configuration
-
-The SSPR workflow uses the Microsoft Graph API to securely look up corporate accounts and perform password resets. The backend supports loading credentials and connection settings directly from environment variables or dynamically from **Azure Key Vault** using **Azure Workload Identity**.
-
-### Environment Variables
-Configure the following variables in your `.env` or Kubernetes ConfigMap/Secret:
-- `TENANT_ID` / `ENTRA_TENANT_ID`: Microsoft Entra tenant ID (Directory ID).
-- `CLIENT_ID` / `ENTRA_CLIENT_ID`: App registration Application (Client) ID.
-- `CLIENT_SECRET` / `ENTRA_CLIENT_SECRET`: App registration Client Secret.
-- `GRAPH_SCOPES`: Customizable scopes for the MS Graph access token (default: `https://graph.microsoft.com/.default`).
-- `KEYVAULT_NAME`: Name of the Azure Key Vault to dynamically retrieve configuration secrets.
-
-### Required Microsoft Graph API Permissions
-Ensure the Application Registration has the following **Application** permissions granted under **API Permissions** -> **Microsoft Graph**:
-- `User.ReadWrite.All`: Required to look up users and reset passwords.
-- **Admin Consent**: Ensure a Tenant Administrator clicks **Grant admin consent** for the tenant.
-
-### Azure Key Vault Secret Mappings
-When `KEYVAULT_NAME` is configured, the application retrieves the following secret names from Key Vault on startup:
-- `msgraph-client-id`: Client ID override
-- `msgraph-client-secret`: Client Secret override
-- `msgraph-tenant-id`: Tenant ID override
-- `database-host`, `database-name`, `database-port`, `database-username`, `database-password`: Reconstructs the DB connection URL
-- `redis-host`, `redis-port`, `redis-primary-key`: Reconstructs the Redis connection URL
-- `sms-provider-api-key`, `sms-provider-account-sid`: Notification keys
-
-### Local Development vs Azure Deployment
-- **Local Development**: Leave `KEYVAULT_NAME` unset or empty. The backend will fall back to local `.env` variables or standard defaults.
-- **Azure Deployment (AKS)**: Deploy AKS with Workload Identity enabled. Associate the backend `ServiceAccount` with the Azure User-Assigned Managed Identity. Set `KEYVAULT_NAME` to your vault name. The container will authenticate passwordlessly to the Key Vault using `DefaultAzureCredential` to fetch all database, Redis, and Microsoft Graph secrets.
-
-* Dashboards
-
----
-
-## 🚧 Phase 4 – AI Operations
-
-* Microsoft Copilot Studio
-* AI-powered IT Assistant
-* Intelligent Ticket Routing
-* Knowledge Base Search
-* Root Cause Analysis
-
----
-
-# Future Enhancements
-
-* Account Unlock
-* MFA Reset
-* VPN Troubleshooting
-* Software Requests
-* Printer Support
-* Manager Approval Workflow
-* IT Analytics Dashboard
-* Multi-Tenant Support
-
----
-
-# Learning Objectives
-
-This project demonstrates practical experience with:
-
-* Python
-* FastAPI
-* React
-* TypeScript
-* Docker
-* Docker Compose
-* PostgreSQL
-* Redis
-* Kubernetes
-* Microsoft Azure
-* Terraform
-* GitHub Actions
-* DevOps
-* Site Reliability Engineering (SRE)
-* Infrastructure as Code
-* CI/CD
-* Cloud-native application architecture
-
----
-
-# Current Status
-
-**Version:** `v0.3.0`
-
-### Completed
-
-* ✅ FastAPI backend & React frontend implementation
-* ✅ PostgreSQL integration with SQLAlchemy & Alembic migrations
-* ✅ Redis caching & rate limiter integration
-* ✅ Multi-stage Docker containerization and Docker Compose setup
-* ✅ Production-ready Kubernetes raw manifests (`deploy/kubernetes/`)
-* ✅ Reusable, parameterized Helm Charts (`deploy/helm/`)
-* ✅ Production AKS infrastructure (Phase 3 Terraform deployment)
-* ✅ CI/CD pipeline automation (Helm linting & secure OIDC ACR push)
-
----
-
-# Kubernetes & Helm Architecture
-
-This application is fully modernized and prepared for production-grade deployment to Azure Kubernetes Service (AKS), while maintaining 100% backward compatibility with local Docker Compose development.
-
-## 1. Kubernetes Manifests (`deploy/kubernetes/`)
-The raw Kubernetes resources are organized under `deploy/kubernetes/` and include:
-- **`namespaces.yaml`**: Establishes the `eitoap` isolated namespace.
-- **`configmaps.yaml`**: Outlines non-sensitive environment configurations for `frontend` and `backend`.
-- **`secrets-template.yaml`**: Provides templates for database connections, API keys, and JWT keys.
-- **`ingress.yaml`**: Configures NGINX Ingress routing rule where `/api` points to the backend API and all other paths `/` point to the Nginx frontend.
-- **`backend/`**:
-  - [deployment.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/deployment.yaml): FastAPI deployment running 2 replicas, configured with non-root security context, read-only root filesystem with a `/tmp` mount, and CPU/Memory requests and limits (`100m-500m` / `128Mi-256Mi`). Includes liveness, readiness, and startup probes targeting `/liveness` and `/readiness`.
-  - [service.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/service.yaml): Exposes the backend inside the cluster on port `8000`.
-  - [hpa.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/hpa.yaml): Horizontal Pod Autoscaler targeting 80% CPU/Memory utilization, scaling from 2 to 5 replicas.
-  - [pdb.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/pdb.yaml): Pod Disruption Budget ensuring a minimum of 1 backend pod is available during node maintenance.
-  - [network-policy.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/backend/network-policy.yaml): Restricts inbound traffic to the backend, allowing ingress only from the frontend pods and ingress controllers.
-- **`frontend/`**:
-  - [deployment.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/deployment.yaml): Nginx frontend deployment running 2 replicas, utilizing a non-root unprivileged Nginx image, read-only filesystem with emptyDir cache mounts, and liveness/readiness probes.
-  - [service.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/service.yaml): Exposes the frontend inside the cluster on port `80`.
-  - [hpa.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/hpa.yaml): Configures CPU/Memory autoscaling from 2 to 5 replicas.
-  - [pdb.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/pdb.yaml): Protects frontend availability during disruptions.
-  - [network-policy.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/frontend/network-policy.yaml): Protects the frontend and allows traffic to backend.
-- **`redis/`**:
-  - [deployment.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/redis/deployment.yaml) & [service.yaml](file:///home/utkarsh/projects/entreprise-IT-Operations-automation-platform/deploy/kubernetes/redis/service.yaml): Deploy a secure single-replica caching layer inside the cluster.
-
-## 2. Helm Charts (`deploy/helm/`)
-To support reproducible multi-environment package management, raw manifests are compiled into reusable Helm charts under `deploy/helm/`:
-- **`deploy/helm/common`**: Packages shared infrastructure assets such as configuration maps, secrets, and Redis caching.
-- **`deploy/helm/backend`**: Packages the FastAPI application, its scaling policies (HPA, PDB), and security/networking rules.
-- **`deploy/helm/frontend`**: Packages the React static asset server and the Nginx Ingress routing layer.
-All environment secrets and endpoints are parameterized via `values.yaml` to ensure zero hardcoding.
-
-## 3. AKS-Ready Improvements
-- **Decoupled Configuration**: Database and Redis hosts are read dynamically from environment variables. The hostname fallback checks are updated (`not os.path.exists("/.dockerenv") and not os.environ.get("KUBERNETES_SERVICE_HOST")`) to ignore Kubernetes runtimes and preserve local developer setups.
-- **Dynamic Ingress Proxy**: Vite dev server proxies `/api` to the backend locally, while the Kubernetes Ingress routes it directly in the cloud. This avoids compiling hostnames into frontend docker images.
-- **Production Performance**: Disabled Python reload flags in the `entrypoint.sh` for production runs.
-- **Structured JSON Logging**: Automatically switches logging to Structured JSON format in production and retains colored human-readable text logs in local development.
-- **CI/CD Automation**: Updated `.github/workflows/ci.yml` to lint Helm charts and build/push production images to Azure Container Registry using Azure OIDC workload identities.
-
----
-
-# Microsoft Entra ID SSO & Dashboard Architecture
-
-We have integrated Microsoft Entra ID authentication and Microsoft Graph reset capabilities, introducing an authenticated Enterprise Dashboard alongside the public SSPR flow.
-
-## 1. Separate Application Entry Points
-
-The application is architecturally partitioned into two strict security zones:
-1. **Public Zone (Anonymous):** Includes SSPR email submission, OTP code verification, Graph-mediated SSPR password submission, and portal login. Accessible without authentication.
-2. **Authenticated Zone (SSO Protected):** Includes the dashboard, My Profile, Session Info, Reset History, and security notifications. Accessible only after valid Microsoft Entra ID authentication.
-
-## 2. Authentication Flow
-
-The SSO login relies on **MSAL React (MSAL v3)** implementing the OpenID Connect (OIDC) **Authorization Code Flow with PKCE**:
-
-```mermaid
-sequenceDiagram
-    participant User as User Browser
-    participant MSAL as React MSAL Client
-    participant Entra as Microsoft Entra ID
-    participant Backend as FastAPI Backend
-    
-    User->>MSAL: Click "Sign In with Microsoft"
-    MSAL->>Entra: Authorization Request + Code Challenge (PKCE)
-    Entra->>User: Authenticate & Request Consent
-    User->>Entra: Provide Credentials
-    Entra->>MSAL: Auth Code Redirect
-    MSAL->>Entra: Swap Code + Verifier for Tokens
-    Entra->>MSAL: ID & Access Token
-    MSAL->>Backend: Request APIs (Bearer Access Token)
-    Backend->>Backend: Validate Token Signature/Audience/Claims
-    Backend->>User: Return Restricted Data
-```
-
-*   **Silent Token Refresh:** MSAL React automatically renews the token silently in the background before it expires, using session storage claims.
-*   **Developer Mock SSO Bypass:** If `ENTRA_CLIENT_ID` is not configured, the frontend renders a mock selector. Clicking a role requests a locally signed JWT token from `/users/mock-token` (signed using `JWT_SECRET_KEY`) which mimics Entra ID OIDC claims (`preferred_username`, `name`, `roles`).
-
-## 3. Backend JWT Validation
-
-The backend executes secure, stateless signature checks on every Bearer token:
-- **JWKS Key Caching:** Fetches public keys from the tenant's OIDC discovery endpoint (`discovery/v2.0/keys`) and caches them in memory for 12 hours.
-- **Claims Verification:** Asserts signature validity (RS256), audience matches `ENTRA_CLIENT_ID`, issuer matches the active tenant (`https://login.microsoftonline.com/{tenant}/v2.0`), and the token is not expired.
-- **Fallback Verification:** If in developer mock mode, validates HS256 signature against local `JWT_SECRET_KEY`.
-
-## 4. Role-Based Access Control (RBAC)
-
-FastAPI endpoints and React frontend routes are restricted based on security privilege mappings decoded from the token's `roles` claims:
-- **`Platform Administrator`**: Administrative configuration, full log auditing, user management.
-- **`Support Engineer`**: Access to identity helpdesk tools (MFA reset, password resets, account unlocking).
-- **`Auditor`**: Read-only log viewing and session monitoring.
-- **`Standard User`**: Base profile access and self-service history details.
-
-## 5. Security & Rate Limiting
-
-- **SSPR Brute-Force Protection:** If an email or IP address fails SSPR verification 5 times, it is placed on a **15-minute Redis-based cooldown block**. Any requests during this period are rejected with `HTTP 429 Too Many Requests`.
-- **Password Complexity Policy:** Enforces complexity criteria both in frontend UI (live checkbox requirements) and backend schemas (minimum length of 12, uppercase, lowercase, numbers, special characters, and weak blacklist dictionary checks).
-
-## 6. Microsoft Graph Integration & Key Vault Configuration
-
-The SSPR workflow uses the Microsoft Graph API to securely look up corporate accounts and perform password resets. The backend supports loading credentials and connection settings directly from environment variables or dynamically from **Azure Key Vault** using **Azure Workload Identity**.
-
-### Environment Variables
-Configure the following variables in your `.env` or Kubernetes ConfigMap/Secret:
-- `TENANT_ID` / `ENTRA_TENANT_ID`: Microsoft Entra tenant ID (Directory ID).
-- `CLIENT_ID` / `ENTRA_CLIENT_ID`: App registration Application (Client) ID.
-- `CLIENT_SECRET` / `ENTRA_CLIENT_SECRET`: App registration Client Secret.
-- `GRAPH_SCOPES`: Customizable scopes for the MS Graph access token (default: `https://graph.microsoft.com/.default`).
-- `KEYVAULT_NAME`: Name of the Azure Key Vault to dynamically retrieve configuration secrets.
-
-### Required Microsoft Graph API Permissions
-Ensure the Application Registration has the following **Application** permissions granted under **API Permissions** -> **Microsoft Graph**:
-- `User.ReadWrite.All`: Required to look up users and reset passwords.
-- **Admin Consent**: Ensure a Tenant Administrator clicks **Grant admin consent** for the tenant.
-
-### Azure Key Vault Secret Mappings
-When `KEYVAULT_NAME` is configured, the application retrieves the following secret names from Key Vault on startup:
-- `msgraph-client-id`: Client ID override
-- `msgraph-client-secret`: Client Secret override
-- `msgraph-tenant-id`: Tenant ID override
-- `database-host`, `database-name`, `database-port`, `database-username`, `database-password`: Reconstructs the DB connection URL
-- `redis-host`, `redis-port`, `redis-primary-key`: Reconstructs the Redis connection URL
-- `sms-provider-api-key`, `sms-provider-account-sid`: Notification keys
-
-### Local Development vs Azure Deployment
-- **Local Development**: Leave `KEYVAULT_NAME` unset or empty. The backend will fall back to local `.env` variables or standard defaults.
-- **Azure Deployment (AKS)**: Deploy AKS with Workload Identity enabled. Associate the backend `ServiceAccount` with the Azure User-Assigned Managed Identity. Set `KEYVAULT_NAME` to your vault name. The container will authenticate passwordlessly to the Key Vault using `DefaultAzureCredential` to fetch all database, Redis, and Microsoft Graph secrets.
-
-### Troubleshooting
-- **ModuleNotFoundError for 'azure'**: Make sure the packages `azure-identity` and `azure-keyvault-secrets` are installed (`pip install -r requirements.txt`).
-- **GraphAPIException (INSUFFICIENT_PERMISSIONS)**: Microsoft Graph API does not allow application-level permissions to reset passwords of Administrative accounts (e.g. Global Administrators). Test resets on standard non-admin User accounts.
-- **Key Vault Access Failure**: If Key Vault secret retrieval fails, verify that your Managed Identity or deployment principal has the **Key Vault Secrets User** role assignment on Key Vault.
-
----
-
-# Enterprise Validation Workstation
-
-The repository includes a complete Enterprise Validation Workstation configuration designed to simulate a real employee workstation. This dedicated environment is used for end-to-end platform validation, user acceptance testing (UAT), and portfolio demonstrations.
-
-## 1. Validation Architecture
-The validation workstation is deployed as a Windows 11 Enterprise Gen2 Virtual Machine in a dedicated subnet (`validation-subnet`) within the existing virtual network.
-
-```mermaid
-graph TD
-    A[Employee signs into Windows via Microsoft Entra ID] --> B[Windows Desktop Loads]
-    B --> C[Edge Automatically Launches via Startup Batch Script]
-    C --> D[Edge Navigates to http://portal.company.com/dashboard]
-    D --> E{MSAL ssoSilent check}
-    E -- Session Exists --> F[Seamless Single Sign-On into Dashboard]
-    E -- Session Missing --> G[Redirect to Microsoft Entra login page]
-    G --> H[User Authenticates]
-    H --> F
-```
-
-## 2. Workstation Features
-*   **Operating System:** Windows 11 Enterprise Gen2 (offers advanced security configurations).
-*   **Trusted Launch:** Enabled with Secure Boot and vTPM for hardware-level integrity checks.
-*   **Microsoft Entra ID Join:** Integrated via the `AADLoginForWindows` extension. Traditional domain controllers are not used. Users sign in using Microsoft Entra credentials.
-*   **Automatic Browser Launch:** Installs a startup script in the all-users startup folder, launching Microsoft Edge to point to `http://portal.company.com/dashboard` upon desktop load.
-*   **Single Sign-On (SSO):** Incorporates `ssoSilent` authentication within the React dashboard context. If silent token acquisition fails, it automatically triggers a page redirect to the Microsoft Entra login screen.
-*   **Auto Shutdown:** Configured via Azure DevTest schedule to shut down the VM daily at 7:00 PM EST, minimizing idle computing cost.
-*   **Pre-installed Software:** Bootstrapped via Chocolatey to include Microsoft Edge, PowerShell 7, Azure CLI, Git, VS Code, and the Azure Monitor Agent.
-
-## 3. Provisioning Workstation
-You can provision the VM automatically using the provided PowerShell script in the root directory:
-```powershell
-./scripts/Provision-ValidationVM.ps1
-```
-This script initializes Terraform in the `environments/dev` workspace, applies the plan, and outputs the VM Name, Public IP, and Private IP. The local administrator password is randomly generated and stored securely in Azure Key Vault as `validation-vm-admin-password`.
-
-## 4. Connecting & Login
-1.  Verify the VM has finished provisioning and has successfully executed the startup script (can take 5-10 minutes).
-2.  Open your RDP client and target the **Public IP** of the workstation (Port 3389).
-3.  Sign in using Microsoft Entra credentials:
-    *   **Username:** `validation.employee@itproject.in`
-    *   **Password:** (The password configured in your Microsoft Entra tenant for the user).
-    *   *Note: If connecting via RDP with Entra ID, ensure your RDP client supports Network Level Authentication (NLA) and you use the credentials format `AzureAD\validation.employee@itproject.in`.*
-
-## 5. Health Check & Validation
-To verify the health of local workstation policies and remote infrastructure connectivity, run the health check script from the workstation or from a management node:
-```powershell
-./scripts/Invoke-HealthCheck.ps1 -ResourceGroupName "eitoap-dev-rg" -AksClusterName "enterprise-dev-aks"
-```
-This checks:
-*   Local RDP & Clipboard registry settings.
-*   Local timezone alignment.
-*   Chocolatey, Git, VS Code, and Azure CLI installations.
-*   AKS Cluster and Deployment Pod states.
-*   Central API health, database, and Redis connectivity.
-
-## 6. Teardown
-To destroy the validation workstation resources and prevent billing charges, execute:
-```powershell
-./scripts/Destroy-ValidationEnvironment.ps1
-```
-This script targets only the validation VM, NIC, NSG, public IP, startup scripts, and role assignments to protect core AKS and database infrastructure from deletion.
-
-## 7. Estimated Azure Cost
-
-| Azure Resource | Size / Specification | Monthly Cost (Est. USD) | Cost Optimization Recommendation |
-| :--- | :--- | :---: | :--- |
-| **Windows 11 VM** | Standard_D2s_v5 (2 vCPUs, 8 GB RAM) | ~$75.00 | **Auto Shutdown:** Reduces active hours to ~160 hrs/month, dropping costs to **~$18.00/month**. |
-| **Premium SSD Disk** | 128 GB Premium SSD | ~$19.20 | Delete OS disk when tearing down environment. |
-| **Public IP Address** | Static Standard IP | ~$3.60 | Toggle `enable_public_ip` to `false` when using VPN. |
-| **Total Cost** | **Active 24/7:** **~$97.80/month** | **With Auto-Shutdown:** **~$40.80/month** | |
-
----
-
-## Project Takeaway
-
-EITOAP addresses the delay and repetitive manual effort involved in common IT helpdesk requests by giving users a self-service password-reset workflow backed by verification, notifications, and operational records. Its deployed application is deliberately straightforward: a React frontend, one modular FastAPI backend, and the data services it depends on.
-
-The project demonstrates how to build and operate that application with repeatable Azure infrastructure, automated CI checks and container builds, Kubernetes/Helm deployment, GitOps reconciliation through Argo CD, and Prometheus/Grafana observability. The result is an end-to-end DevOps learning project that connects application delivery with the infrastructure and operational practices needed to run it.
-
----
-
-# License
+## License
 
 This project is licensed under the MIT License.
