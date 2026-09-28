@@ -1,0 +1,194 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="1180" viewBox="0 0 1700 1180" role="img" aria-labelledby="title description">
+  <title id="title">EITOAP application and DevOps architecture</title>
+  <desc id="description">GitHub Actions validates and builds frontend and backend images, publishes them to Azure Container Registry, and updates Git desired state for Argo CD. Terraform provisions Azure resources. In AKS, ingress routes traffic to a React frontend and a modular FastAPI backend. The backend uses Azure PostgreSQL, Redis, and Key Vault. Prometheus scrapes application and Kubernetes metrics for Grafana dashboards and alerts.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#526782"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#15936b"/>
+    </marker>
+    <style>
+      text { font-family: "Segoe UI", Arial, sans-serif; fill: #172b4d; }
+      .title { font-size: 34px; font-weight: 700; }
+      .subtitle { font-size: 16px; fill: #53657d; }
+      .zone-title { font-size: 21px; font-weight: 700; }
+      .card-title { font-size: 17px; font-weight: 700; }
+      .body { font-size: 14px; fill: #44566f; }
+      .small { font-size: 12px; fill: #526782; }
+      .tiny { font-size: 11px; fill: #526782; }
+      .card { fill: #ffffff; stroke: #d5dfeb; stroke-width: 1.5; }
+      .line { fill: none; stroke: #526782; stroke-width: 2.5; marker-end: url(#arrow); }
+      .gitops { fill: none; stroke: #2563eb; stroke-width: 2.5; stroke-dasharray: 8 6; marker-end: url(#arrowBlue); }
+      .monitor { fill: none; stroke: #15936b; stroke-width: 2.5; stroke-dasharray: 6 5; marker-end: url(#arrowGreen); }
+    </style>
+  </defs>
+
+  <rect width="1700" height="1180" fill="#f5f8fc"/>
+  <text x="48" y="58" class="title">Enterprise IT Operations Automation Platform</text>
+  <text x="50" y="88" class="subtitle">EITOAP · deployed application, Azure infrastructure, GitOps delivery, and observability</text>
+
+  <rect x="40" y="125" width="360" height="1010" rx="20" fill="#edf3fb" stroke="#cbd8e8" stroke-width="2"/>
+  <text x="66" y="165" class="zone-title">Code, CI/CD &amp; IaC</text>
+
+  <rect x="70" y="190" width="300" height="118" rx="14" class="card"/>
+  <rect x="70" y="190" width="8" height="118" rx="4" fill="#334e7e"/>
+  <text x="96" y="225" class="card-title">GitHub repository</text>
+  <text x="96" y="251" class="body">Application source · Helm values</text>
+  <text x="96" y="273" class="body">Argo CD app definitions</text>
+  <text x="96" y="293" class="small">Git is the desired-state source</text>
+
+  <rect x="70" y="355" width="300" height="157" rx="14" class="card"/>
+  <rect x="70" y="355" width="8" height="157" rx="4" fill="#7c3aed"/>
+  <text x="96" y="390" class="card-title">GitHub Actions</text>
+  <text x="96" y="417" class="body">Test · lint · security checks</text>
+  <text x="96" y="440" class="body">Validate Helm &amp; Terraform</text>
+  <text x="96" y="463" class="body">Build images · scan · create SBOM</text>
+  <text x="96" y="490" class="small">Azure OIDC login for image publishing</text>
+
+  <rect x="70" y="565" width="300" height="115" rx="14" class="card"/>
+  <rect x="70" y="565" width="8" height="115" rx="4" fill="#d97706"/>
+  <text x="96" y="602" class="card-title">Terraform</text>
+  <text x="96" y="628" class="body">Reusable Azure infrastructure</text>
+  <text x="96" y="651" class="body">Network · AKS · data · identity</text>
+
+  <rect x="70" y="725" width="300" height="128" rx="14" class="card"/>
+  <rect x="70" y="725" width="8" height="128" rx="4" fill="#2563eb"/>
+  <text x="96" y="763" class="card-title">Delivery model</text>
+  <text x="96" y="790" class="body">CI publishes images and commits</text>
+  <text x="96" y="812" class="body">image tags; it does not deploy to AKS.</text>
+  <text x="96" y="838" class="small">Argo CD reconciles Git state in-cluster</text>
+
+  <rect x="70" y="895" width="300" height="170" rx="14" fill="#fff" stroke="#cbd8e8" stroke-width="1.5"/>
+  <text x="94" y="932" class="card-title">Application purpose</text>
+  <text x="94" y="960" class="body">Self-service IT helpdesk workflows</text>
+  <text x="94" y="985" class="body">Password reset · OTP verification</text>
+  <text x="94" y="1010" class="body">Notifications · tickets · audit records</text>
+  <text x="94" y="1040" class="small">Two app workloads, not microservices</text>
+
+  <rect x="430" y="125" width="1230" height="1010" rx="22" fill="#eef8f5" stroke="#a9d8c9" stroke-width="2"/>
+  <text x="460" y="165" class="zone-title">Microsoft Azure</text>
+
+  <rect x="1280" y="185" width="335" height="110" rx="14" class="card"/>
+  <rect x="1280" y="185" width="8" height="110" rx="4" fill="#d97706"/>
+  <text x="1307" y="222" class="card-title">Azure Container Registry</text>
+  <text x="1307" y="249" class="body">Frontend and backend images</text>
+  <text x="1307" y="273" class="small">Commit-SHA image tags</text>
+
+  <rect x="465" y="205" width="760" height="875" rx="20" fill="#ffffff" stroke="#8aa6c2" stroke-width="2"/>
+  <rect x="465" y="205" width="760" height="52" rx="20" fill="#dbe8f5"/>
+  <path d="M465 237 Q465 257 485 257 H1205 Q1225 257 1225 237" fill="#dbe8f5"/>
+  <text x="491" y="239" class="zone-title">Azure Kubernetes Service (AKS)</text>
+  <text x="1121" y="237" class="small">namespaces</text>
+
+  <rect x="510" y="280" width="665" height="89" rx="13" fill="#f4f7ff" stroke="#b8c8f2" stroke-width="1.5"/>
+  <text x="535" y="313" class="card-title">Argo CD · GitOps controller</text>
+  <text x="535" y="340" class="body">Watches repository and syncs frontend, backend, and common Helm releases</text>
+  <text x="535" y="359" class="small">Automated sync · self-heal · prune</text>
+
+  <rect x="500" y="418" width="135" height="108" rx="13" class="card"/>
+  <text x="520" y="453" class="card-title">NGINX</text>
+  <text x="520" y="477" class="body">Ingress</text>
+  <text x="520" y="502" class="small">HTTP(S) routes</text>
+
+  <rect x="680" y="418" width="207" height="108" rx="13" fill="#eff6ff" stroke="#9fc5f4" stroke-width="1.5"/>
+  <rect x="680" y="418" width="7" height="108" rx="3" fill="#2563eb"/>
+  <text x="702" y="453" class="card-title">React frontend</text>
+  <text x="702" y="479" class="body">TypeScript · Vite</text>
+  <text x="702" y="503" class="small">Kubernetes Service</text>
+
+  <rect x="936" y="418" width="244" height="108" rx="13" fill="#f0fdf4" stroke="#9dd6ad" stroke-width="1.5"/>
+  <rect x="936" y="418" width="7" height="108" rx="3" fill="#15936b"/>
+  <text x="958" y="453" class="card-title">FastAPI backend</text>
+  <text x="958" y="479" class="body">One modular application</text>
+  <text x="958" y="503" class="small">Auth · reset · tickets · workflows</text>
+
+  <rect x="520" y="589" width="660" height="69" rx="12" fill="#f8fafc" stroke="#d5dfeb"/>
+  <text x="544" y="618" class="card-title">Kubernetes runtime controls</text>
+  <text x="544" y="643" class="body">Readiness/liveness · resource limits · autoscaling · disruption budgets · network policies</text>
+
+  <rect x="540" y="744" width="258" height="113" rx="13" fill="#ecfdf5" stroke="#9dd6bd" stroke-width="1.5"/>
+  <rect x="540" y="744" width="7" height="113" rx="3" fill="#15936b"/>
+  <text x="563" y="780" class="card-title">Prometheus</text>
+  <text x="563" y="806" class="body">Scrapes backend /metrics</text>
+  <text x="563" y="831" class="small">Kubernetes state and cAdvisor</text>
+
+  <rect x="865" y="744" width="258" height="113" rx="13" fill="#fff7ed" stroke="#f2c48f" stroke-width="1.5"/>
+  <rect x="865" y="744" width="7" height="113" rx="3" fill="#d97706"/>
+  <text x="888" y="780" class="card-title">Grafana</text>
+  <text x="888" y="806" class="body">Provisioned dashboards</text>
+  <text x="888" y="831" class="small">Prometheus alerts and metrics</text>
+
+  <rect x="540" y="900" width="583" height="94" rx="13" fill="#f8fafc" stroke="#d5dfeb" stroke-width="1.5"/>
+  <text x="565" y="938" class="card-title">Observability chart</text>
+  <text x="565" y="966" class="body">Installed in the monitoring namespace; it is separate from the Argo CD root applications.</text>
+
+  <rect x="1280" y="355" width="335" height="104" rx="14" class="card"/>
+  <rect x="1280" y="355" width="8" height="104" rx="4" fill="#2563eb"/>
+  <text x="1307" y="392" class="card-title">Azure Database</text>
+  <text x="1307" y="420" class="body">PostgreSQL · application records</text>
+  <text x="1307" y="443" class="small">Private network connectivity</text>
+
+  <rect x="1280" y="490" width="335" height="104" rx="14" class="card"/>
+  <rect x="1280" y="490" width="8" height="104" rx="4" fill="#dc477d"/>
+  <text x="1307" y="527" class="card-title">Azure Cache for Redis</text>
+  <text x="1307" y="555" class="body">OTP state · rate limiting</text>
+  <text x="1307" y="578" class="small">Managed cache in dev configuration</text>
+
+  <rect x="1280" y="625" width="335" height="104" rx="14" class="card"/>
+  <rect x="1280" y="625" width="8" height="104" rx="4" fill="#7c3aed"/>
+  <text x="1307" y="662" class="card-title">Azure Key Vault</text>
+  <text x="1307" y="690" class="body">Runtime secrets via workload identity</text>
+  <text x="1307" y="713" class="small">No production secrets in Git</text>
+
+  <rect x="1280" y="760" width="335" height="104" rx="14" class="card"/>
+  <rect x="1280" y="760" width="8" height="104" rx="4" fill="#64748b"/>
+  <text x="1307" y="797" class="card-title">Azure Monitor / Log Analytics</text>
+  <text x="1307" y="825" class="body">Azure platform diagnostics</text>
+  <text x="1307" y="848" class="small">Provisioned for the environment</text>
+
+  <rect x="465" y="1100" width="1150" height="1" fill="#a9d8c9"/>
+  <text x="480" y="1120" class="small">Application traffic: solid gray · GitOps and image delivery: dashed blue · metrics scraping: dashed green</text>
+
+  <path d="M220 308 L220 350" class="line"/>
+  <text x="235" y="337" class="tiny">push / PR</text>
+  <path d="M370 385 C410 385 410 116 455 116 L1272 116 L1272 180" class="line"/>
+  <text x="770" y="110" class="tiny">publish frontend and backend images</text>
+  <path d="M220 308 C410 300 425 323 505 323" class="gitops"/>
+  <text x="393" y="291" class="tiny">desired state</text>
+  <path d="M370 622 L425 622" class="line"/>
+  <text x="374" y="610" class="tiny">provisions Azure</text>
+
+  <path d="M1280 220 C1240 220 1240 390 1200 390 L895 390 L895 470 L888 470" class="gitops"/>
+  <path d="M1280 270 C1240 270 1230 478 1187 478" class="gitops"/>
+  <text x="1190" y="328" class="tiny">image pulls</text>
+
+  <path d="M842 369 L842 403 L783 403 L783 412" class="gitops"/>
+  <path d="M842 369 L842 403 L1058 403 L1058 412" class="gitops"/>
+  <text x="862" y="396" class="tiny">sync charts</text>
+
+  <rect x="500" y="158" width="132" height="39" rx="10" fill="#fff" stroke="#b8c8f2"/>
+  <text x="518" y="183" class="small">User browser</text>
+  <path d="M500 178 L480 178 L480 396 L566 396 L566 412" class="line"/>
+  <path d="M635 472 L672 472" class="line"/>
+  <text x="639" y="457" class="tiny">web UI</text>
+  <path d="M635 510 C635 565 1058 565 1058 532" class="line"/>
+  <text x="793" y="558" class="tiny">/api requests</text>
+
+  <path d="M1181 450 C1235 450 1238 407 1272 407" class="line"/>
+  <path d="M1181 475 C1245 475 1238 542 1272 542" class="line"/>
+  <text x="1194" y="437" class="tiny">SQL</text>
+  <text x="1200" y="510" class="tiny">cache</text>
+  <path d="M1280 677 C1240 677 1232 530 1187 510" class="gitops"/>
+  <text x="1190" y="629" class="tiny">secret access</text>
+
+  <path d="M1058 528 C1058 667 670 667 670 737" class="monitor"/>
+  <text x="794" y="683" class="tiny">/metrics</text>
+  <path d="M842 659 C842 700 684 700 684 737" class="monitor"/>
+  <text x="732" y="722" class="tiny">cluster metrics</text>
+  <path d="M798 800 L858 800" class="line"/>
+  <text x="806" y="786" class="tiny">dashboards</text>
+</svg>

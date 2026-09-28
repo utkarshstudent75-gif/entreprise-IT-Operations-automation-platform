@@ -2,45 +2,21 @@
 
 ## Overview
 
-The **Enterprise IT Operations Automation Platform (EITOAP)** is a cloud-native platform designed to automate repetitive enterprise IT helpdesk operations such as password resets, identity verification, ticket creation, notifications, and audit logging.
+The **Enterprise IT Operations Automation Platform (EITOAP)** is a self-service IT operations application for automating routine helpdesk tasks, especially password resets and related identity verification. The deployed application has two application workloads: a React frontend and a single FastAPI backend. The backend is organized into feature modules; its features are not separate microservices in the Kubernetes deployment.
 
-The project is being developed using modern **DevOps**, **Cloud Engineering**, and **Site Reliability Engineering (SRE)** practices. It follows a production-style development workflow with feature branches, containerization, CI/CD, Infrastructure as Code, and Kubernetes deployment.
-
-The long-term goal is to build an enterprise-grade platform capable of integrating with **Microsoft Entra ID**, **Microsoft Graph API**, and **Microsoft Copilot Studio** to provide AI-powered IT self-service.
+The application and its supporting platform are delivered with Docker, Kubernetes on Azure Kubernetes Service (AKS), Terraform, GitHub Actions, and Argo CD. Prometheus and Grafana provide application and Kubernetes monitoring.
 
 ---
 
 # Problem Statement
 
-Enterprise IT helpdesks spend a significant amount of time performing repetitive Level 1 support tasks.
-
-Typical workflow:
-
-* User forgets password
-* User contacts IT Helpdesk
-* Technician verifies identity
-* Password is reset manually
-* Ticket is created
-* User is notified
-* Ticket is closed after confirmation
-
-Although these tasks are repetitive and deterministic, they still consume valuable engineering time and increase operational costs.
+Users who cannot access their accounts often need a helpdesk technician to verify their identity, issue a password reset, and follow up with them. This manual Level 1 workflow consumes support time, delays users, and makes it harder to apply consistent verification and audit practices.
 
 ---
 
 # Solution
 
-The Enterprise IT Operations Automation Platform automates the complete workflow by providing:
-
-* Secure identity verification
-* Password reset automation
-* User self-service portal
-* Microsoft Entra ID integration *(Planned)*
-* Microsoft Graph API integration *(Planned)*
-* Automatic ticket creation *(Planned)*
-* Notification service
-* Audit logging *(Planned)*
-* AI-assisted support *(Future)*
+EITOAP provides a self-service portal and backend workflow for password reset requests, one-time-passcode (OTP) verification, and password updates. PostgreSQL persists application records, Redis supports short-lived OTP and rate-limit state, and the notification integration can deliver verification messages. The API also includes IT operations features such as tickets, workflows, and audit records. This reduces routine manual handling while keeping the user-facing application and its supporting services deployable and observable as a small, maintainable system.
 
 ---
 
@@ -103,17 +79,11 @@ The Enterprise IT Operations Automation Platform automates the complete workflow
 
 * GitHub Actions
 
-## Identity *(Upcoming)*
-
-* Microsoft Entra ID
-* Microsoft Graph API
-
 ## Monitoring
 
 * Prometheus
 * Grafana
-* Azure Application Insights / Log Analytics (already provisioned for the development environment)
-* OpenTelemetry tracing is not configured; add it when a trace collector/backend is selected.
+* Azure Monitor / Log Analytics resources for Azure infrastructure diagnostics
 
 ## AI *(Future)*
 
@@ -143,51 +113,28 @@ The Enterprise IT Operations Automation Platform automates the complete workflow
 
 ---
 
-# High-Level Microservices Architecture
+## Deployed Architecture
 
-```text
-                               ┌────────────────────────────────┐
-                               │        React Frontend          │
-                               └───────────────┬────────────────┘
-                                               │ REST / HTTP
-                                               ▼
-                               ┌────────────────────────────────┐
-                               │          API Gateway           │
-                               │          (Port 8000)           │
-                               └───────┬───┬───┬───┬───┬────────┘
-                                       │   │   │   │   │
-             ┌─────────────────────────┘   │   │   │   └────────────────────────┐
-             ▼                             ▼   │   ▼                            ▼
-┌─────────────────────────┐ ┌────────────────┐ │ ┌──────────────────┐ ┌───────────────────┐
-│      Auth Service       │ │ Ticket Service │ │ │ Workflow Service │ │ Audit Log Service │
-│       (Port 8001)       │ │  (Port 8002)   │ │ │   (Port 8003)    │ │    (Port 8005)    │
-└────────────┬────────────┘ └───────┬────────┘ │ └────────┬─────────┘ └─────────┬─────────┘
-             │                      │          │          │                     │
-             └──────────────────────┴──────────┼──────────┴─────────────────────┘
-                                               ▼
-                               ┌────────────────────────────────┐
-                               │      Notification Service      │
-                               │          (Port 8004)           │
-                               └────────────────────────────────┘
-                                               │
-                                 ┌─────────────┴─────────────┐
-                                 ▼                           ▼
-                           PostgreSQL DB                   Redis
-```
+The Kubernetes/Helm deployment consists of a React frontend and one FastAPI backend. The backend contains application modules for authentication, password reset, tickets, workflows, notifications, and auditing; these are not independently deployed services. PostgreSQL and Redis are supporting data services. In the Azure development environment, PostgreSQL and Redis are managed Azure services; local development can use containers.
 
-### Microservices Port Specification
+The frontend is exposed through Kubernetes ingress and sends API requests to the backend service. Argo CD watches the repository's deployment configuration and reconciles the Helm releases in AKS. GitHub Actions validates the code, builds frontend/backend container images, publishes images to Azure Container Registry (ACR), and updates the image tags in Git for Argo CD to deploy. Terraform provisions the Azure infrastructure. Prometheus collects backend and Kubernetes metrics, and Grafana presents dashboards and alerts.
 
-| Service Name | Port | Description |
-| ------------ | ---- | ----------- |
-| **Frontend** | `5173` | React + TypeScript + Vite User Interface |
-| **API Gateway** | `8000` | Central Reverse Proxy & Request Router |
-| **Auth Service** | `8001` | Authentication, Identity Verification, Users & Password Reset |
-| **Ticket Service** | `8002` | IT Helpdesk Ticket Management |
-| **Workflow Service** | `8003` | Automation Workflows & Software Approvals |
-| **Notification Service** | `8004` | SMS & Console Alert Dispatch |
-| **Audit Service** | `8005` | Security Event Audit Logs & Compliance Reporting |
-| **PostgreSQL** | `5432` | Relational Database |
-| **Redis** | `6379` | High-Performance OTP & Rate Limiter Cache |
+![EITOAP project and infrastructure architecture](./docs/architecture/eitoap-architecture.svg)
+
+> **Architecture scope:** This diagram shows the AKS deployment represented by the Helm charts and Argo CD applications. `docker-compose.yml` still describes a separate local multi-container topology; it is not the deployed AKS architecture shown here.
+
+## DevOps Concepts Demonstrated
+
+* **CI and quality gates:** GitHub Actions runs backend/frontend checks, tests, security analysis, and Helm/Terraform validation before the image publishing job.
+* **Containerization and artifact management:** Docker builds the frontend and backend images; ACR stores versioned images, including commit-SHA tags.
+* **Infrastructure as Code:** Reusable Terraform modules define Azure networking, AKS, registry, data services, identity, and supporting resources.
+* **Kubernetes delivery:** Helm charts package the frontend, backend, and shared resources, with health checks, resource requests/limits, autoscaling, disruption budgets, and network policies.
+* **GitOps and continuous delivery:** Git is the desired-state source; Argo CD detects configuration changes and syncs the cluster rather than CI deploying directly to AKS.
+* **Secrets and workload identity:** Azure identity and Key Vault integrations avoid storing production credentials in application configuration.
+* **Observability and SRE practices:** Prometheus metrics, Grafana dashboards, alert rules, health endpoints, and structured logs support operational visibility and troubleshooting.
+* **Security and supply-chain checks:** CI includes static/security scanning, container image scanning, and SBOM generation.
+
+The top-level architecture is intentionally a two-workload application, not a microservices deployment. Some older local-development configuration and backend service entry points remain in the repository and should not be read as the AKS topology.
 
 ---
 
@@ -239,32 +186,24 @@ Open Prometheus at `http://localhost:9090` and Grafana at `http://localhost:3000
 enterprise-it-operations-automation-platform/
 │
 ├── backend/
-│   ├── app/                    # Shared core schemas, models, and repositories
-│   ├── services/               # Microservices implementations
-│   │   ├── api_gateway/        # Port 8000 - Central API Gateway & Proxy
-│   │   ├── auth_service/       # Port 8001 - Auth & User Microservice
-│   │   ├── ticket_service/     # Port 8002 - IT Tickets Microservice
-│   │   ├── workflow_service/   # Port 8003 - Workflows & Software Microservice
-│   │   ├── notification_service/# Port 8004 - Notifications Microservice
-│   │   └── audit_service/      # Port 8005 - Security Audit Microservice
-│   ├── tests/                  # Unit & Integration test suites
-│   ├── Dockerfile              # Multi-stage microservices Docker image build
-│   ├── requirements.txt        # Backend dependencies
-│   └── entrypoint.sh           # Dynamic entrypoint for microservices startup
+│   ├── app/                    # FastAPI application and feature modules
+│   ├── tests/                  # Unit and integration tests
+│   └── Dockerfile              # Backend container image
 │
 ├── frontend/
-│   ├── src/                    # React + TypeScript UI codebase
-│   └── Dockerfile              # Frontend container configuration
+│   ├── src/                    # React + TypeScript application
+│   └── Dockerfile
 │
 ├── deploy/
-│   ├── helm/
-│   └── kubernetes/
+│   ├── argocd/                 # Argo CD root and application definitions
+│   ├── helm/                   # Frontend, backend, common, observability charts
+│   └── kubernetes/             # Kubernetes base manifests and overlays
 │
 ├── infrastructure/
-│   └── terraform/
+│   └── terraform/              # Azure infrastructure modules/environments
 │
-├── docs/
-├── scripts/
+├── docs/                       # Architecture and operations documentation
+├── scripts/                    # Provisioning, health-check, and VM scripts
 ├── docker-compose.yml
 ├── LICENSE
 └── README.md
@@ -979,6 +918,14 @@ This script targets only the validation VM, NIC, NSG, public IP, startup scripts
 | **Premium SSD Disk** | 128 GB Premium SSD | ~$19.20 | Delete OS disk when tearing down environment. |
 | **Public IP Address** | Static Standard IP | ~$3.60 | Toggle `enable_public_ip` to `false` when using VPN. |
 | **Total Cost** | **Active 24/7:** **~$97.80/month** | **With Auto-Shutdown:** **~$40.80/month** | |
+
+---
+
+## Project Takeaway
+
+EITOAP addresses the delay and repetitive manual effort involved in common IT helpdesk requests by giving users a self-service password-reset workflow backed by verification, notifications, and operational records. Its deployed application is deliberately straightforward: a React frontend, one modular FastAPI backend, and the data services it depends on.
+
+The project demonstrates how to build and operate that application with repeatable Azure infrastructure, automated CI checks and container builds, Kubernetes/Helm deployment, GitOps reconciliation through Argo CD, and Prometheus/Grafana observability. The result is an end-to-end DevOps learning project that connects application delivery with the infrastructure and operational practices needed to run it.
 
 ---
 
