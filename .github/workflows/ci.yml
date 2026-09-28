@@ -1,5 +1,8 @@
 name: Enterprise IT Operations Automation Platform CI
 
+# ############## WHEN THIS PIPELINE RUNS ##################
+# Run on pushes and pull requests targeting master or feature branches,
+# or start it manually from the GitHub Actions page.
 on:
   push:
     branches:
@@ -11,11 +14,14 @@ on:
       - 'feature/**'
   workflow_dispatch:
 
+# Prevent overlapping runs for the same branch; keep the newest run active.
 concurrency: 
   group: ci-${{ github.workflow }}-${{github.ref}}
   cancel-in-progress: true
 
 jobs:
+    # ############## STAGE 1: BACKEND QUALITY AND TESTS ##################
+    # Start PostgreSQL and Redis, then check and test the backend application.
     backend:
         permissions:
             contents: read
@@ -81,9 +87,11 @@ jobs:
                 working-directory: backend
 
         steps:
+            # Step 1: Get the repository source code.
             - name: Checkout_code
               uses: actions/checkout@v4
 
+            # Step 2: Install the Python version used by the backend.
             - name: Setup Python
               uses: actions/setup-python@v5
               with:
@@ -91,44 +99,54 @@ jobs:
                   cache: pip
                   cache-dependency-path: backend/requirements-test.txt
                   
+            # Step 3: Install pinned backend test dependencies.
             - name: Install dependencies
               run: |
                 python -m pip install --upgrade pip==26.1.2
                 pip install --require-hashes -r requirements-test.txt
                 
+            # Step 4: Check Python code quality with Ruff.
             - name: Run Ruff
               run: |
                     ruff check .    
       
+            # Step 5: Ensure Python files follow Black formatting.
             - name: Check Formattting
               run: |
                     black --check .
            
+            # Step 6: Verify Python import ordering.
             - name: Check Import Order (isort)
               run: |
                     isort --check .
 
+            # Step 7: Scan backend code for common security issues.
             - name: Run Bandit Security scan
               run: |
                     bandit -r app -f json -o bandit-report.json
                
+            # Step 8: Wait until the PostgreSQL and Redis services are reachable.
             - name: Verify Service Connectivity (Postgres & Redis)
               run: |
                     PYTHONPATH=. python scripts/wait_for_services.py
 
+            # Step 9: Run the backend test suite, excluding the live SMS integration test.
             - name: Run Backend tests (pytest)
               run: |
                     pytest --junitxml=junit.xml --ignore=tests/integration/test_sms_integration.py
 
+            # Step 10: Run the live SMS integration test only when credentials are configured.
             - name: Run Live SMS Integration Tests (od2.in mock provider)
               if: ${{ env.SMS_ACCOUNT_SID != '' }}
               run: |
                     pytest tests/integration/test_sms_integration.py -v --junitxml=junit-sms.xml
 
+            # Step 11: Confirm the FastAPI application imports successfully.
             - name: Validate FastAPI app
               run: |
                 python -c "from app.main import app"
 
+            # Steps 12-16: Upload test, coverage, and security reports even after failures.
             - name: Upload Pytest JUnit XML Report
               uses: actions/upload-artifact@v4
               with:
@@ -164,6 +182,8 @@ jobs:
                 path: backend/bandit-report.json
               if: always()
 
+    # ############## STAGE 2: FRONTEND QUALITY AND BUILD ##################
+    # Install frontend dependencies, run checks, and build the React app.
     frontend:
         permissions:
             contents: read
@@ -176,9 +196,11 @@ jobs:
                 working-directory: frontend
             
         steps:
+            # Step 1: Get the repository source code.
             - name: Checkout repository
               uses: actions/checkout@v4
               
+            # Step 2: Set up Node.js and cache npm dependencies.
             - name: Setup Node.js
               uses: actions/setup-node@v4
               with:
@@ -186,22 +208,29 @@ jobs:
                   cache: npm
                   cache-dependency-path: frontend/package-lock.json
              
+            # Step 3: Install the exact dependencies recorded in package-lock.json.
             - name: Install dependencies
               run: npm ci --ignore-scripts --legacy-peer-deps
 
+            # Step 4: Report high-severity dependency advisories without failing this job.
             - name: Audit frontend dependencies
               run: npm audit --audit-level=high
               continue-on-error: true
 
+            # Step 5: Check frontend code with ESLint.
             - name: Run ESLint
               run: npm run lint
 
+            # Step 6: Type-check the frontend without emitting files.
             - name: TypeScript validation
               run: npx tsc --noEmit
 
+            # Step 7: Build the production React application.
             - name: Build react app
               run: npm run build
 
+    # ############## STAGE 3: SEMGREP SECURITY SCAN ##################
+    # Runs after both application jobs pass.
     Semgrep:
         permissions:
             contents: read
@@ -215,40 +244,50 @@ jobs:
             - frontend
 
         steps:
+            # Step 1: Get the repository source code.
             - name: Checkout repository
               uses: actions/checkout@v4
 
+            # Step 2: Run Semgrep CI rules against the repository.
             - name: Run Semgrep Scan
               run: semgrep ci
               env:
                   SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
+    # ############## STAGE 4: HELM CHART VALIDATION ##################
+    # Lint charts and render manifests using development values.
     helm:
         permissions:
             contents: read
         name: Helm Lint
         runs-on: ubuntu-latest
         steps:
+            # Step 1: Get the repository source code.
             - name: Checkout repository
               uses: actions/checkout@v4
 
+            # Step 2: Install the Helm CLI version used by this pipeline.
             - name: Install Helm
               uses: azure/setup-helm@v4
               with:
                 version: 'v3.14.0'
 
+            # Step 3: Check each chart for Helm errors and best-practice issues.
             - name: Lint Helm Charts
               run: |
                 helm lint deploy/helm/common
                 helm lint deploy/helm/backend
                 helm lint deploy/helm/frontend
 
+            # Step 4: Render each chart to verify its development manifests.
             - name: Template Helm Charts (Dry Run)
               run: |
                 helm template common deploy/helm/common -f deploy/helm/values/dev.yaml
                 helm template backend deploy/helm/backend -f deploy/helm/values/dev.yaml
                 helm template frontend deploy/helm/frontend -f deploy/helm/values/dev.yaml
 
+    # ############## STAGE 5: TERRAFORM VALIDATION ##################
+    # Cache providers, check formatting, and validate both environments.
     terraform:
         permissions:
             contents: read
@@ -257,17 +296,21 @@ jobs:
         env:
             TF_PLUGIN_CACHE_DIR: ${{ github.workspace }}/.terraform.d/plugin-cache
         steps:
+            # Step 1: Get the repository source code.
             - name: Checkout repository
               uses: actions/checkout@v4
 
+            # Step 2: Install the Terraform CLI version used by this pipeline.
             - name: Setup Terraform
               uses: hashicorp/setup-terraform@v3
               with:
                 terraform_version: 1.9.0
 
+            # Step 3: Create the local directory used to cache Terraform providers.
             - name: Create Terraform plugin cache directory
               run: mkdir -p "$TF_PLUGIN_CACHE_DIR"
 
+            # Step 4: Restore or save downloaded providers to speed up later runs.
             - name: Cache Terraform providers
               uses: actions/cache@v4
               with:
@@ -276,9 +319,11 @@ jobs:
                 restore-keys: |
                   terraform-providers-${{ runner.os }}-
 
+            # Step 5: Check formatting across Terraform configuration files.
             - name: Format Check
               run: terraform fmt -check -recursive infrastructure/terraform
 
+            # Steps 6-7: Initialize without a backend, then validate dev and prod.
             - name: Init and Validate Dev
               run: |
                 cd infrastructure/terraform/environments/dev
@@ -291,6 +336,8 @@ jobs:
                 terraform init -backend=false -upgrade
                 terraform validate
 
+    # ############## STAGE 6: BUILD AND PUBLISH CONTAINER IMAGES ##################
+    # Build both images after validation; push to ACR only for master pushes.
     docker:
         permissions:
             contents: read
@@ -306,17 +353,17 @@ jobs:
         
         steps:
         
-          # steps for checkout
+          # Step 1: Get the repository source code.
             - name: Checkout repository
               uses: actions/checkout@v4
 
 
-          #setting up docker buildx ( latest engine )
+          # Step 2: Enable Docker Buildx for image builds.
             - name: Setup up Docker buildx
               uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
 
 
-          #Docker metadata setup
+          # Steps 3-4: Create image tags and build the backend and frontend images.
             - name: Docker metadata (Back-end)
               id: backend-meta
               uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
@@ -328,7 +375,6 @@ jobs:
                   type=sha
 
 
-            #building back-end image
             - name: Build back-end image
               uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
               with: 
@@ -352,7 +398,6 @@ jobs:
             
             
             
-            #building front-end image
             - name: Build front-end image
               uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
               with: 
@@ -364,7 +409,7 @@ jobs:
                 cache-from: type=gha
                 cache-to: type=gha,mode=max
 
-
+            # Steps 5-7: On master pushes only, authenticate to Azure and push both images.
             - name: Azure Login
               if: github.event_name == 'push' && github.ref == 'refs/heads/master'
               uses: azure/login@v2
@@ -395,6 +440,7 @@ jobs:
                 docker push $REGISTRY/frontend:latest
                 docker push $REGISTRY/frontend:${{ github.sha }}
 
+            # Steps 8-11: Save both built images and upload them for downstream scanning.
             - name: Save backend image
               run: |
                docker save \
@@ -422,6 +468,8 @@ jobs:
                 path: frontend-image.tar
                 retention-days: 7
 
+    # ############## STAGE 7: SIGN CONTAINER IMAGES ##################
+    # On master/main pushes, sign the ACR images when a signing key is configured.
     sign:
       permissions:
         contents: read
@@ -431,11 +479,11 @@ jobs:
       needs: docker
       if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
       steps:
+        # Step 1: Get the repository source code.
         - name: Checkout repository
           uses: actions/checkout@v4
 
-        # The COSIGN_PRIVATE_KEY secret is not configured yet; skip signing
-        # instead of failing the pipeline until it is added.
+        # Step 2: Check for the signing secret; skip signing if it is not configured.
         - name: Check signing key
           id: signing-key
           env:
@@ -448,6 +496,7 @@ jobs:
               echo "::notice title=Cosign Image Signing::COSIGN_PRIVATE_KEY secret is not set - skipping image signing"
             fi
 
+        # Steps 3-4: Authenticate and install Cosign, only when a key is available.
         - name: Azure Login
           if: steps.signing-key.outputs.available == 'true'
           uses: azure/login@v2
@@ -468,7 +517,7 @@ jobs:
             chmod +x cosign-linux-amd64
             sudo mv cosign-linux-amd64 /usr/local/bin/cosign
 
-        # Accepts COSIGN_PRIVATE_KEY stored as either base64 or raw PEM.
+        # Step 5: Decode or prepare the key and verify it is a valid private key.
         - name: Prepare cosign key
           if: steps.signing-key.outputs.available == 'true'
           env:
@@ -484,6 +533,7 @@ jobs:
               exit 1
             fi
 
+        # Steps 6-9: Sign both images and upload their signatures when signing is enabled.
         - name: Sign Backend Image
           if: steps.signing-key.outputs.available == 'true'
           env:
@@ -518,10 +568,13 @@ jobs:
             retention-days: 30
             if-no-files-found: error
 
+        # Step 10: Remove the temporary signing key, including on failure.
         - name: Clean up cosign key
           if: always() && steps.signing-key.outputs.available == 'true'
           run: rm -f cosign.key
 
+    # ############## STAGE 8: IMAGE SECURITY SCANS AND SBOMS ##################
+    # Scan source and built images, publish reports, and generate SBOM artifacts.
     trivy:
         permissions:
             contents: read
@@ -532,9 +585,11 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
+            # Step 1: Get the repository source code.
             - name: Checkout code
               uses: actions/checkout@v4
 
+            # Step 2: Scan repository files for critical vulnerabilities and secrets.
             - name: Run Trivy Filesystem Scan (Vulnerabilities & Secrets)
               uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
               with:
@@ -545,7 +600,7 @@ jobs:
                 ignore-unfixed: true
                 severity: 'CRITICAL'
 
-            #download .tar artifacts 
+            # Steps 3-6: Download the images produced above and load them into Docker.
             - name: Download back-end image
               uses: actions/download-artifact@v4 
               with: 
@@ -556,7 +611,6 @@ jobs:
               with: 
                 name: frontend-image
 
-            #Load docker images for trivy
             - name: Load back-end image
               run: docker load -i backend-image.tar
 
@@ -566,7 +620,7 @@ jobs:
             - name: verify images
               run: docker images
 
-            #scan Backend image in trivy    
+            # Steps 7-8: Report high/critical findings for both images as SARIF.
             - name: Scan backend image (HIGH & CRITICAL Report)
               uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
               with:
@@ -578,7 +632,6 @@ jobs:
                 vuln-type: os,library
                 severity: HIGH,CRITICAL
 
-            # Scan frontend image in trivy
             - name: Scan frontend image (HIGH & CRITICAL Report)
               uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
               with:
@@ -590,7 +643,7 @@ jobs:
                 vuln-type: os,library
                 severity: HIGH,CRITICAL
 
-            # Scan images to fail on CRITICAL
+            # Steps 9-10: Fail the job if either image has an unfixed critical vulnerability.
             - name: Fail backend image on Critical vulnerability
               uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
               with:
@@ -611,7 +664,7 @@ jobs:
                 vuln-type: os,library
                 severity: CRITICAL
 
-            # Upload the backend sarif
+            # Steps 11-12: Upload scan findings to GitHub code scanning.
             - name: Upload backend SARIF
               uses: github/codeql-action/upload-sarif@v4
               continue-on-error: true
@@ -626,7 +679,7 @@ jobs:
                 sarif_file: frontend-trivy-results.sarif
                 category: frontend-trivy
                 
-            #Generate Backend SBOM
+            # Steps 13-14: Generate CycloneDX SBOM files for both images.
             - name: Generate Backend SBOM
               uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
               with:
@@ -635,7 +688,6 @@ jobs:
                 output: backend-sbom.json
                 scanners: vuln
               
-            #Generate Frontend SBOM     
             - name: Generate Frontend SBOM
               uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
               with: 
@@ -644,7 +696,7 @@ jobs:
                 output: frontend-sbom.json
                 scanners: vuln
 
-            #Upload Backend SBOM
+            # Steps 15-17: Upload both SBOMs and retain the SARIF reports as artifacts.
             - name: Upload Backend SBOM
               uses: actions/upload-artifact@v4
               with: 
@@ -652,7 +704,6 @@ jobs:
                 path: backend-sbom.json
                 retention-days: 30
 
-            #Upload Frontend SBOM
             - name: Upload Frontend SBOM
               uses: actions/upload-artifact@v4
               with: 
@@ -669,6 +720,9 @@ jobs:
                   frontend-trivy-results.sarif
               if: always()
 
+    # ############## STAGE 9: UPDATE GITOPS DESIRED STATE ##################
+    # For eligible master pushes, update Helm values with the new image tag
+    # and commit the change for Argo CD to deploy.
     update-gitops:
         permissions:
             contents: write
@@ -684,15 +738,18 @@ jobs:
             !startsWith(github.event.head_commit.message, 'chore(gitops): deploy ')
         
         steps:
+            # Step 1: Get the repository source code.
             - name: Checkout repository
               uses: actions/checkout@v4
 
+            # Step 2: Write this commit's SHA as the image version in dev values.
             - name: Update declared image versions
               run: |
                 python scripts/update-gitops-image-tags.py \
                   "${GITHUB_SHA}" \
                   deploy/helm/values/dev.yaml
 
+            # Step 3: Commit and push the updated desired state only if it changed.
             - name: Commit desired state for Argo CD
               run: |
                 git config user.name "github-actions[bot]"
