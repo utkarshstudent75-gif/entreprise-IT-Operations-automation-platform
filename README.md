@@ -119,6 +119,8 @@ The Kubernetes/Helm deployment consists of a React frontend and one FastAPI back
 
 The frontend is exposed through Kubernetes ingress and sends API requests to the backend service. Argo CD watches the repository's deployment configuration and reconciles the Helm releases in AKS. GitHub Actions validates the code, builds frontend/backend container images, publishes images to Azure Container Registry (ACR), and updates the image tags in Git for Argo CD to deploy. Terraform provisions the Azure infrastructure. Prometheus collects backend and Kubernetes metrics, and Grafana presents dashboards and alerts.
 
+<img width="2752" height="1536" alt="Gemini_Generated_Image_gubjq3gubjq3gubj" src="https://github.com/user-attachments/assets/fd3a98fa-a0e3-4bc5-a468-998e77dc39dc" />
+
 ![EITOAP project and infrastructure architecture](./docs/architecture/eitoap-architecture.svg)
 
 > **Architecture scope:** This diagram shows the AKS deployment represented by the Helm charts and Argo CD applications. `docker-compose.yml` still describes a separate local multi-container topology; it is not the deployed AKS architecture shown here.
