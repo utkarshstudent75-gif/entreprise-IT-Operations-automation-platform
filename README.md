@@ -21,7 +21,214 @@ The diagram shows how browser traffic reaches the application, how GitHub Action
 
 ### Start the data services
 
+<<<<<<< HEAD
 From the repository root, create a local backend environment file:
+=======
+---
+
+# Project Goals
+
+* Build an enterprise-grade cloud-native application.
+* Demonstrate modern DevOps and Cloud Engineering practices.
+* Showcase Infrastructure as Code.
+* Implement secure and scalable application architecture.
+* Build a portfolio-quality project suitable for technical interviews.
+* Follow production engineering best practices.
+
+---
+
+# Technology Stack
+
+## Frontend
+
+* React
+* TypeScript
+* Vite
+
+## Backend
+
+* Python
+* FastAPI
+* Uvicorn
+* Pydantic
+
+## Database
+
+* PostgreSQL
+* SQLAlchemy
+* Alembic
+
+## Cache
+
+* Redis
+
+## Containerization
+
+* Docker
+* Docker Compose
+
+## Orchestration
+
+* Kubernetes
+* Minikube (Development)
+* Azure Kubernetes Service (Production)
+
+## Cloud
+
+* Microsoft Azure
+
+## Infrastructure as Code
+
+* Terraform
+
+## CI/CD
+
+* GitHub Actions
+
+## Monitoring
+
+* Prometheus
+* Grafana
+* Azure Monitor / Log Analytics resources for Azure infrastructure diagnostics
+
+## AI *(Future)*
+
+* Microsoft Copilot Studio
+
+---
+
+# Current Features
+
+## Implemented
+
+* FastAPI backend & React frontend implementation
+* Forgot Password & OTP-based password reset workflow
+* Notification service abstraction (with SMS delivery support)
+* PostgreSQL integration with SQLAlchemy & Alembic migrations
+* Redis caching & rate limiter integration
+* Multi-stage Docker containerization and Docker Compose setup
+* Production-ready Kubernetes manifests & Helm charts (backend, frontend, common)
+* Prometheus application/Kubernetes metrics, provisioned Grafana dashboards, and Prometheus alert rules
+* Terraform-managed Azure infrastructure (AKS, Postgres, Redis, ACR)
+* CI/CD automation workflow (linting, image build/push via OIDC)
+
+## Planned
+
+* Microsoft Entra ID integration
+* Microsoft Graph API integration
+
+---
+
+## Deployed Architecture
+
+The Kubernetes/Helm deployment consists of a React frontend and one FastAPI backend. The backend contains application modules for authentication, password reset, tickets, workflows, notifications, and auditing; these are not independently deployed services. PostgreSQL and Redis are supporting data services. In the Azure development environment, PostgreSQL and Redis are managed Azure services; local development can use containers.
+
+The frontend is exposed through Kubernetes ingress and sends API requests to the backend service. Argo CD watches the repository's deployment configuration and reconciles the Helm releases in AKS. GitHub Actions validates the code, builds frontend/backend container images, publishes images to Azure Container Registry (ACR), and updates the image tags in Git for Argo CD to deploy. Terraform provisions the Azure infrastructure. Prometheus collects backend and Kubernetes metrics, and Grafana presents dashboards and alerts.
+
+<img width="2752" height="1536" alt="Gemini_Generated_Image_gubjq3gubjq3gubj" src="https://github.com/user-attachments/assets/fd3a98fa-a0e3-4bc5-a468-998e77dc39dc" />
+
+![EITOAP project and infrastructure architecture](./docs/architecture/eitoap-architecture.svg)
+
+> **Architecture scope:** This diagram shows the AKS deployment represented by the Helm charts and Argo CD applications. `docker-compose.yml` still describes a separate local multi-container topology; it is not the deployed AKS architecture shown here.
+
+## DevOps Concepts Demonstrated
+
+* **CI and quality gates:** GitHub Actions runs backend/frontend checks, tests, security analysis, and Helm/Terraform validation before the image publishing job.
+* **Containerization and artifact management:** Docker builds the frontend and backend images; ACR stores versioned images, including commit-SHA tags.
+* **Infrastructure as Code:** Reusable Terraform modules define Azure networking, AKS, registry, data services, identity, and supporting resources.
+* **Kubernetes delivery:** Helm charts package the frontend, backend, and shared resources, with health checks, resource requests/limits, autoscaling, disruption budgets, and network policies.
+* **GitOps and continuous delivery:** Git is the desired-state source; Argo CD detects configuration changes and syncs the cluster rather than CI deploying directly to AKS.
+* **Secrets and workload identity:** Azure identity and Key Vault integrations avoid storing production credentials in application configuration.
+* **Observability and SRE practices:** Prometheus metrics, Grafana dashboards, alert rules, health endpoints, and structured logs support operational visibility and troubleshooting.
+* **Security and supply-chain checks:** CI includes static/security scanning, container image scanning, and SBOM generation.
+
+The top-level architecture is intentionally a two-workload application, not a microservices deployment. Some older local-development configuration and backend service entry points remain in the repository and should not be read as the AKS topology.
+
+---
+
+## Observability (Phase 4)
+
+The application exports HTTP request, status, latency, authentication-failure, password-reset, and OTP metrics. Prometheus also scrapes Kubernetes workload state and pod/container resource usage. Grafana dashboards are provisioned from version-controlled JSON.
+
+```text
+Application
+    ↓
+Prometheus metrics (/metrics)
+    ↓
+Prometheus
+    ↓
+Grafana
+    ↓
+Dashboards / Alerts
+```
+
+Full architecture, SLI/SLO targets, alert rationale, privacy choices, deployment steps, and troubleshooting are documented in [docs/phase-4-observability.md](./docs/phase-4-observability.md).
+
+Deploy the monitoring chart after updating the existing backend Helm release and creating the `grafana-admin` Secret from a secure source outside the repository:
+
+```sh
+helm upgrade <existing-backend-release> deploy/helm/backend \
+  --namespace backend --reuse-values --wait
+
+helm upgrade --install observability deploy/helm/observability \
+  --namespace monitoring --create-namespace --wait
+```
+
+Check workloads and services, then port-forward Prometheus and Grafana:
+
+```sh
+kubectl get pods -n backend
+kubectl get pods -n monitoring
+kubectl get svc -n monitoring
+kubectl port-forward -n monitoring svc/prometheus 9090:9090
+kubectl port-forward -n monitoring svc/grafana 3000:80
+```
+
+Open Prometheus at `http://localhost:9090` and Grafana at `http://localhost:3000`. To verify application exposition, port-forward the backend service and run `curl.exe http://localhost:8000/metrics`. Prometheus evaluates the provisioned HTTP error, latency, availability, restart, and replica alerts; external notifications are not configured until an operator supplies an Alertmanager receiver.
+
+---
+
+# Repository Structure
+
+```text
+enterprise-it-operations-automation-platform/
+│
+├── backend/
+│   ├── app/                    # FastAPI application and feature modules
+│   ├── tests/                  # Unit and integration tests
+│   └── Dockerfile              # Backend container image
+│
+├── frontend/
+│   ├── src/                    # React + TypeScript application
+│   └── Dockerfile
+│
+├── deploy/
+│   ├── argocd/                 # Argo CD root and application definitions
+│   ├── helm/                   # Frontend, backend, common, observability charts
+│   └── kubernetes/             # Kubernetes base manifests and overlays
+│
+├── infrastructure/
+│   └── terraform/              # Azure infrastructure modules/environments
+│
+├── docs/                       # Architecture and operations documentation
+├── scripts/                    # Provisioning, health-check, and VM scripts
+├── docker-compose.yml
+├── LICENSE
+└── README.md
+```
+
+---
+
+# Running the Project
+
+## Prerequisites
+
+* Docker Desktop
+* Docker Compose
+* Git
+
+## Clone the Repository
+>>>>>>> 1788f47a741afd9e6b76545ebe6f32ebab054e21
 
 ```bash
 cp backend/.env.example backend/.env
