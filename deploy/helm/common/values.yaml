@@ -22,6 +22,10 @@ config:
   viteApiBaseUrl: "/api/v1"
   # Azure Key Vault name used to load secrets at startup (empty = use env vars only)
   keyvaultName: ""
+  opsAssistantFoundryProjectEndpoint: ""
+  opsAssistantFoundryAgentName: ""
+  opsAssistantAzureSubscriptionId: ""
+  opsAssistantAllowedOrigins: ""
 
 redis:
   enabled: true

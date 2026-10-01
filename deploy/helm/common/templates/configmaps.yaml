@@ -26,6 +26,10 @@ data:
   # Optional: set to the Azure Key Vault name to load secrets at startup
   # using DefaultAzureCredential (Workload/Managed Identity).
   KEYVAULT_NAME: {{ .Values.config.keyvaultName | default "" | quote }}
+  FOUNDRY_PROJECT_ENDPOINT: {{ .Values.config.opsAssistantFoundryProjectEndpoint | default "" | quote }}
+  FOUNDRY_AGENT_NAME: {{ .Values.config.opsAssistantFoundryAgentName | default "" | quote }}
+  OPS_AZURE_SUBSCRIPTION_ID: {{ .Values.config.opsAssistantAzureSubscriptionId | default "" | quote }}
+  OPS_ASSISTANT_ALLOWED_ORIGINS: {{ .Values.config.opsAssistantAllowedOrigins | default "" | quote }}
 ---
 apiVersion: v1
 kind: ConfigMap

@@ -158,6 +158,10 @@ docker push "$acrLoginServer/backend:v1"
 docker push "$acrLoginServer/frontend:v1"
 ```
 
+## AI Operations Assistant
+
+The repository includes a separate Entra-authenticated chat UI under [`ops-assistant-ui/`](./ops-assistant-ui/) and a FastAPI gateway for a Microsoft Foundry agent. Its initial tools provide read-only Azure resource inventory, Azure Resource Health, and Azure Monitor metrics for the configured EITOAP resource groups. It cannot read Terraform state data, secrets, or execute remediation actions. Deployment prerequisites, identity and permission boundaries, configuration, and current limitations are documented in [`docs/ops-assistant.md`](./docs/ops-assistant.md).
+
 ## Deploy to Azure
 
 The Azure development deployment uses Terraform for infrastructure, GitHub Actions to publish images, and Argo CD to deploy them. Azure resources can incur charges. Use a non-production subscription and review the Terraform plan before applying it.

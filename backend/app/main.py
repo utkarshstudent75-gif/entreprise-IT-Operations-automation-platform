@@ -8,6 +8,7 @@ from app.core.logging_config import setup_logging
 setup_logging()
 
 from contextlib import asynccontextmanager
+from urllib.parse import urlsplit
 
 from app.api.v1.health import router as health_router
 from app.api.v1.router import api_router
@@ -46,6 +47,30 @@ app = FastAPI(
 register_exception_handlers(app)
 
 
+def _ops_assistant_allowed_origins() -> list[str]:
+    origins = []
+    for configured_origin in settings.OPS_ASSISTANT_ALLOWED_ORIGINS.split(","):
+        configured_origin = configured_origin.strip()
+        if not configured_origin:
+            continue
+        parsed_origin = urlsplit(configured_origin)
+        if (
+            configured_origin == "*"
+            or parsed_origin.scheme != "https"
+            or not parsed_origin.hostname
+            or parsed_origin.username
+            or parsed_origin.password
+            or parsed_origin.path not in ("", "/")
+            or parsed_origin.query
+            or parsed_origin.fragment
+        ):
+            raise ValueError(
+                "OPS_ASSISTANT_ALLOWED_ORIGINS must contain explicit HTTPS origins."
+            )
+        origins.append(f"https://{parsed_origin.netloc}")
+    return origins
+
+
 @app.middleware("http")
 async def add_audit_context_middleware(request: Request, call_next):
     x_forwarded_for = request.headers.get("x-forwarded-for")
@@ -77,7 +102,11 @@ async def add_audit_context_middleware(request: Request, call_next):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        *_ops_assistant_allowed_origins(),
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -14,9 +14,15 @@ spec:
     metadata:
       labels:
         app: backend
+        {{- if .Values.opsAssistant.enabled }}
+        azure.workload.identity/use: "true"
+        {{- end }}
       annotations:
         prometheus.io/scrape: "true"
     spec:
+      {{- if .Values.opsAssistant.enabled }}
+      serviceAccountName: {{ .Values.opsAssistant.serviceAccountName | quote }}
+      {{- end }}
       securityContext:
         {{- toYaml .Values.securityContext.pod | nindent 8 }}
       containers:

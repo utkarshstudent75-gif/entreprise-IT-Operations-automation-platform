@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     AUTHORITY: str | None = None
     REDIRECT_URI: str | None = None
     API_AUDIENCE: str | None = None
+    FOUNDRY_PROJECT_ENDPOINT: str | None = None
+    FOUNDRY_AGENT_NAME: str | None = None
+    OPS_AZURE_SUBSCRIPTION_ID: str | None = None
+    OPS_ASSISTANT_ALLOWED_ORIGINS: str = ""
 
     # Password Policy Configuration
     PASSWORD_MIN_LENGTH: int = 12
