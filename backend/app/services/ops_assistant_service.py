@@ -1109,8 +1109,6 @@ def _run_foundry_response(messages: list[OpsAssistantMessage]) -> str:
             ) as openai_client:
                 response = openai_client.responses.create(
                     input=input_messages,
-                    tools=RESOURCE_TOOLS,
-                    tool_choice="auto",
                     max_output_tokens=1200,
                 )
                 for _ in range(MAX_TOOL_ROUNDS):
@@ -1130,8 +1128,6 @@ def _run_foundry_response(messages: list[OpsAssistantMessage]) -> str:
                     response = openai_client.responses.create(
                         input=tool_outputs,
                         previous_response_id=response.id,
-                        tools=RESOURCE_TOOLS,
-                        tool_choice="auto",
                         max_output_tokens=1200,
                     )
                 answer = response.output_text
