@@ -1,11 +1,4 @@
-import sys
 from unittest.mock import MagicMock, patch
-
-# Mock Azure SDK modules for environments where it is not installed
-sys.modules["azure"] = MagicMock()
-sys.modules["azure.identity"] = MagicMock()
-sys.modules["azure.keyvault"] = MagicMock()
-sys.modules["azure.keyvault.secrets"] = MagicMock()
 
 from app.core.config import Settings, retrieve_secrets_from_key_vault  # noqa: E402
 
