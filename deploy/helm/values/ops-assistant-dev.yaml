@@ -4,7 +4,7 @@ config:
   opsAssistantFoundryAgentName: "eitoap-ops-assistant"
   opsAssistantAzureSubscriptionId: "e97a4adb-6608-45db-b1a7-828b08f35811"
   opsAssistantFunctionsBaseUrl: "https://eitoap-ops-30401-2209.azurewebsites.net/api"
-  opsAssistantAllowedOrigins: ""
+  opsAssistantAllowedOrigins: "https://nice-mud-0021c3f0f6.azurestaticapps.net"
 
 opsAssistant:
   enabled: true
