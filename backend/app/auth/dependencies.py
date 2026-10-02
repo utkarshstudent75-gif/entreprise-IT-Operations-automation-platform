@@ -53,6 +53,7 @@ async def get_current_user(
         if (
             "PlatformAdministrator" in raw_roles
             or "Platform Administrator" in raw_roles
+            or "Platform.Admin" in raw_roles
             or "ITAdmin" in raw_roles
             or "IT Admin" in raw_roles
         ):
@@ -62,6 +63,7 @@ async def get_current_user(
             for role_name in (
                 "SupportEngineer",
                 "Support Engineer",
+                "Platform.IT",
                 "SoftwareRequestApprover",
                 "Approver",
                 "Manager",
