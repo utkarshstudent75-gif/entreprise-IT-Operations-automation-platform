@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   Alert,
   Avatar,
@@ -22,11 +22,9 @@ import CheckCircleOutlineRounded from '@mui/icons-material/CheckCircleOutlineRou
 import CloudOutlined from '@mui/icons-material/CloudOutlined'
 import DnsOutlined from '@mui/icons-material/DnsOutlined'
 import Inventory2Outlined from '@mui/icons-material/Inventory2Outlined'
-import LogoutRounded from '@mui/icons-material/LogoutRounded'
 import MonitorHeartOutlined from '@mui/icons-material/MonitorHeartOutlined'
 import NotificationsActiveRounded from '@mui/icons-material/NotificationsActiveRounded'
 import ShieldOutlined from '@mui/icons-material/ShieldOutlined'
-import { InteractionRequiredAuthError, PublicClientApplication, type AccountInfo } from '@azure/msal-browser'
 import axios from 'axios'
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string }
@@ -44,17 +42,7 @@ type OpsAlert = {
 type AlertChange = { condition: 'fired' | 'resolved'; alert: OpsAlert }
 type AlertSnapshot = { alerts: OpsAlert[]; checked_at: string }
 
-const apiScope = import.meta.env.VITE_ASSISTANT_API_SCOPE?.trim() ?? ''
 const apiBaseUrl = import.meta.env.VITE_ASSISTANT_API_URL?.trim() || '/api/v1'
-const msalInstance = new PublicClientApplication({
-  auth: {
-    clientId: import.meta.env.VITE_ENTRA_CLIENT_ID ?? '',
-    authority: `https://login.microsoftonline.com/${import.meta.env.VITE_ENTRA_TENANT_ID ?? 'common'}`,
-    redirectUri: window.location.origin,
-    postLogoutRedirectUri: window.location.origin,
-  },
-  cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false },
-})
 
 const suggestions = [
   { label: 'Summarize resources across my subscription', icon: Inventory2Outlined },
@@ -85,8 +73,6 @@ function describeError(error: unknown): string {
 }
 
 export default function App() {
-  const [account, setAccount] = useState<AccountInfo | null>(null)
-  const [authReady, setAuthReady] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
@@ -98,68 +84,11 @@ export default function App() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const previousAlertIds = useRef(new Set<string>())
 
-  const setupError = useMemo(() => {
-    if (!import.meta.env.VITE_ENTRA_CLIENT_ID) return 'Set VITE_ENTRA_CLIENT_ID to enable sign-in.'
-    if (!apiScope) return 'Set VITE_ASSISTANT_API_SCOPE to the Entra scope exposed by the backend API.'
-    return ''
-  }, [])
-
-  useEffect(() => {
-    let active = true
-    void (async () => {
-      try {
-        await msalInstance.initialize()
-        const redirectResult = await msalInstance.handleRedirectPromise()
-        const signedInAccount =
-          redirectResult?.account ??
-          msalInstance.getActiveAccount() ??
-          msalInstance.getAllAccounts()[0] ??
-          null
-        if (signedInAccount) msalInstance.setActiveAccount(signedInAccount)
-        if (active) {
-          setAccount(signedInAccount)
-          setAuthReady(true)
-        }
-      } catch {
-        if (active) {
-          setError('Microsoft Entra sign-in could not be initialized. Check the client and redirect URI configuration.')
-          setAuthReady(true)
-        }
-      }
-    })()
-    return () => {
-      active = false
-    }
-  }, [])
-
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages, busy])
 
-  async function signIn() {
-    if (setupError) return
-    await msalInstance.loginRedirect({ scopes: [apiScope] })
-  }
-
-  async function signOut() {
-    await msalInstance.logoutRedirect({ account: account ?? undefined })
-  }
-
-  async function getAccessToken(): Promise<string> {
-    if (!account) throw new Error('Sign in with your work account to continue.')
-    try {
-      const result = await msalInstance.acquireTokenSilent({ scopes: [apiScope], account })
-      return result.accessToken
-    } catch (tokenError) {
-      if (tokenError instanceof InteractionRequiredAuthError) {
-        await msalInstance.acquireTokenRedirect({ scopes: [apiScope], account })
-      }
-      throw tokenError
-    }
-  }
-
   useEffect(() => {
-    if (!account) return
     let active = true
     let controller: AbortController | null = null
     let connecting = false
@@ -196,14 +125,10 @@ export default function App() {
     }
 
     async function streamAlerts(signal: AbortSignal) {
-      const token = await getAccessToken()
       const response = await fetch(
         `${apiBaseUrl.replace(/\/$/, '')}/ops-assistant/alerts/stream`,
         {
-          headers: {
-            Authorization: 'Bearer ' + token,
-            Accept: 'text/event-stream',
-          },
+          headers: { Accept: 'text/event-stream' },
           signal,
         },
       )
@@ -278,7 +203,7 @@ export default function App() {
       window.clearTimeout(reconnectTimer)
       document.removeEventListener('visibilitychange', onVisibilityChange)
     }
-  }, [account])
+  }, [])
 
   async function sendMessage(content: string) {
     const text = content.trim()
@@ -289,11 +214,9 @@ export default function App() {
     setError('')
     setBusy(true)
     try {
-      const token = await getAccessToken()
       const response = await axios.post<ChatResponse>(
         `${apiBaseUrl.replace(/\/$/, '')}/ops-assistant/chat`,
         { messages: boundedHistory(nextMessages) },
-        { headers: { Authorization: `Bearer ${token}` } },
       )
       setMessages((current) => [...current, { role: 'assistant', content: response.data.data.answer }])
     } catch (sendError) {
@@ -313,9 +236,6 @@ export default function App() {
     setDraft('')
     setError('')
   }
-
-  const signedInLabel = account?.name ?? account?.username
-  const initials = signedInLabel?.slice(0, 1).toUpperCase() ?? 'O'
 
   return (
     <Box className="app-shell">
@@ -363,8 +283,8 @@ export default function App() {
         <Box className="security-note">
           <ShieldOutlined fontSize="small" />
           <Box>
-            <Typography variant="caption" display="block">Entra protected</Typography>
-            <Typography variant="caption" color="text.secondary">Least-privilege diagnostics</Typography>
+            <Typography variant="caption" display="block">Public demo access</Typography>
+            <Typography variant="caption" color="text.secondary">Treat Azure results as public</Typography>
           </Box>
         </Box>
       </Box>
@@ -377,24 +297,11 @@ export default function App() {
               Operations workspace <Box component="span" className="topbar-separator">/</Box> Read-only diagnostics
             </Typography>
           </Stack>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            {account && <Avatar className="account-avatar">{initials}</Avatar>}
-            <Typography variant="body2" className="account-label">
-              {signedInLabel || 'Not signed in'}
-            </Typography>
-            {account && (
-              <Tooltip title="Sign out">
-                <IconButton aria-label="Sign out" onClick={() => void signOut()} className="sign-out">
-                  <LogoutRounded fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            )}
-          </Stack>
+          <Chip size="small" label="Public demo" />
         </Box>
 
         <Box className="conversation">
-          {account && (
-            <Paper elevation={0} className="alert-center">
+          <Paper elevation={0} className="alert-center">
               <Stack direction="row" alignItems="center" spacing={1.25} className="alert-center-heading">
                 <Box className="alert-center-icon"><NotificationsActiveRounded /></Box>
                 <Box className="alert-center-copy">
@@ -449,8 +356,7 @@ export default function App() {
                     : 'No active Azure Monitor alerts.'}
                 </Typography>
               )}
-            </Paper>
-          )}
+          </Paper>
           {messages.length === 0 ? (
             <Box className="welcome">
               <Box className="welcome-orb"><AutoAwesomeRounded /></Box>
@@ -462,7 +368,7 @@ export default function App() {
                 workspace in the subscription.
               </Typography>
               <Stack direction="row" spacing={1} className="welcome-badges">
-                <Chip size="small" icon={<ShieldOutlined />} label="Entra secured" />
+                <Chip size="small" icon={<ShieldOutlined />} label="Public demo" />
                 <Chip size="small" icon={<CheckCircleOutlineRounded />} label="Read-only tools" />
                 <Chip size="small" icon={<CloudOutlined />} label="Azure + AKS" />
               </Stack>
@@ -475,7 +381,7 @@ export default function App() {
                     className="suggestion"
                     startIcon={<Icon />}
                     onClick={() => void sendMessage(label)}
-                    disabled={!account || busy}
+                    disabled={busy}
                   >
                     {label}
                   </Button>
@@ -509,49 +415,37 @@ export default function App() {
         </Box>
 
         <Box className="composer-wrap">
-          {setupError && <Alert severity="warning" sx={{ mb: 1.5 }}>{setupError}</Alert>}
           {error && <Alert severity="error" sx={{ mb: 1.5 }}>{error}</Alert>}
-          {!account ? (
-            <Button
-              variant="contained"
-              onClick={() => void signIn()}
-              disabled={!authReady || Boolean(setupError)}
-              sx={{ minHeight: 48, px: 3 }}
-            >
-              {authReady ? 'Sign in with Microsoft Entra ID' : <CircularProgress size={20} />}
-            </Button>
-          ) : (
-            <Paper component="form" elevation={0} onSubmit={submit} className="composer">
-              <TextField
-                fullWidth
-                multiline
-                maxRows={5}
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                placeholder="Ask about resources, health, metrics, activity, or AKS logs…"
-                inputProps={{ maxLength: 4000, 'aria-label': 'Ask the operations assistant' }}
-                disabled={busy}
-                variant="standard"
-                InputProps={{ disableUnderline: true }}
-              />
-              <Tooltip title="Send message">
-                <span>
-                  <IconButton
-                    type="submit"
-                    color="primary"
-                    aria-label="Send message"
-                    disabled={!draft.trim() || busy || draft.length > 4000}
-                    className="send-button"
-                  >
-                    <ArrowUpwardRounded />
-                  </IconButton>
-                </span>
-              </Tooltip>
-              <Typography variant="caption" color="text.secondary" className="composer-hint">
-                Don’t include passwords, tokens, or other secrets.
-              </Typography>
-            </Paper>
-          )}
+          <Paper component="form" elevation={0} onSubmit={submit} className="composer">
+            <TextField
+              fullWidth
+              multiline
+              maxRows={5}
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder="Ask about resources, health, metrics, activity, or AKS logs…"
+              inputProps={{ maxLength: 4000, 'aria-label': 'Ask the operations assistant' }}
+              disabled={busy}
+              variant="standard"
+              InputProps={{ disableUnderline: true }}
+            />
+            <Tooltip title="Send message">
+              <span>
+                <IconButton
+                  type="submit"
+                  color="primary"
+                  aria-label="Send message"
+                  disabled={!draft.trim() || busy || draft.length > 4000}
+                  className="send-button"
+                >
+                  <ArrowUpwardRounded />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Typography variant="caption" color="text.secondary" className="composer-hint">
+              Public demo: don’t enter secrets or sensitive data.
+            </Typography>
+          </Paper>
           <Divider sx={{ mt: 2, mb: 1.5, borderColor: 'rgba(255,255,255,.08)' }} />
           <Typography variant="caption" color="text.secondary" className="disclaimer">
             AI responses can be inaccurate. Diagnostics are read-only; review recommendations before acting.
