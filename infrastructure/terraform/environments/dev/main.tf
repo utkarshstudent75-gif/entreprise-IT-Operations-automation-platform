@@ -367,22 +367,6 @@ module "workload_identity" {
   service_account_name      = "fastapi-sa"
 }
 
-module "ops_assistant_identity" {
-  source               = "../../modules/ops-assistant-identity"
-  name                 = "${local.resource_prefix}-ops-assistant-identity"
-  resource_group_name  = module.resource_group.resource_group_name
-  location             = module.resource_group.location
-  tags                 = local.common_tags
-  oidc_issuer_url      = module.aks.oidc_issuer_url
-  namespace            = "backend"
-  service_account_name = "ops-assistant"
-  monitoring_resource_group_ids = {
-    application     = module.resource_group.resource_group_id
-    terraform_state = data.azurerm_resource_group.terraform_state.id
-    aks_nodes       = data.azurerm_resource_group.aks_nodes.id
-  }
-}
-
 #################################
 # Phase 4A: Managed Data Services
 # Enterprise IT Operations Automation Platform

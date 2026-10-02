@@ -14,7 +14,7 @@ Inventory and monitoring are scoped to the development resource group, Terraform
 
 The assistant does **not** currently query Log Analytics, application logs, Kubernetes pod events, or Prometheus, and it does not execute restarts or scale workloads. No shell, arbitrary KQL, or Azure write tool is exposed. The previously discussed restart confirmation and GitOps scale-PR workflows are not implemented yet; do not describe them as available.
 
-The Terraform identity module creates a dedicated AKS workload identity with `Reader` and `Monitoring Reader` at the three resource-group scopes. Reader permissions on `eitoap-tfstate-rg` permit Azure Resource Manager metadata reads only; no blob/data-plane role is assigned. Grant this identity only the specific Foundry project role needed to invoke the pre-created agent. Do not grant Contributor, Owner, Storage Blob Data Reader, or broad subscription roles.
+The Terraform identity module creates a dedicated AKS workload identity with `Reader` and `Monitoring Reader` at the three resource-group scopes. It is provisioned from the isolated `infrastructure/terraform/environments/ops-assistant-dev/` root and uses the separate `ops-assistant-dev.terraform.tfstate` backend key. That root reads only the existing resource groups and manages only the assistant identity, its federated credential, and its six read-only role assignments. The AKS OIDC issuer URL is supplied as an input, so this root does not read or manage AKS configuration. It does not reconcile the existing application infrastructure. Reader permissions on `eitoap-tfstate-rg` permit Azure Resource Manager metadata reads only; no blob/data-plane role is assigned. Grant this identity only the specific Foundry project role needed to invoke the pre-created agent. Do not grant Contributor, Owner, Storage Blob Data Reader, or broad subscription roles.
 
 ## Required Azure prerequisites
 
@@ -31,7 +31,7 @@ Before creating resources:
 
 ## Provision and configure
 
-From `infrastructure/terraform/environments/dev/`, after confirming the Azure CLI subscription:
+From `infrastructure/terraform/environments/ops-assistant-dev/`, after confirming the Azure CLI subscription:
 
 ```powershell
 az account show --query "{subscription:id,tenant:tenantId,name:name}" -o json
@@ -39,7 +39,7 @@ terraform init
 terraform plan
 ```
 
-Do not run `terraform apply` until the reviewed plan targets the correct subscription and the state backend can be safely accessed. The module `ops_assistant_identity_client_id` output is used by the backend chart; it is not an API key.
+The separate state key ensures an assistant plan contains only the assistant identity, federated credential, and six read-only role assignments; the existing resource groups are data lookups, and the AKS OIDC issuer is supplied in `terraform.tfvars`. Confirm the plan reports only these eight resource creations and no changes or deletions before applying. This does not resolve drift in the full dev Terraform root; continue to review that root separately and do not apply its plan until the unrelated changes are understood. The `ops_assistant_identity_client_id` output from this directory is used by the backend chart; it is not an API key.
 
 Configure the following non-secret values after the Foundry project, agent, and Static Web App exist:
 
