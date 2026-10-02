@@ -51,6 +51,14 @@ module "resource_group" {
 
 data "azurerm_client_config" "current" {}
 
+data "azurerm_resource_group" "terraform_state" {
+  name = "eitoap-tfstate-rg"
+}
+
+data "azurerm_resource_group" "aks_nodes" {
+  name = module.aks.node_resource_group
+}
+
 resource "random_id" "suffix" {
   byte_length = 4
 }

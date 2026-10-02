@@ -1,0 +1,7 @@
+subscription_id                     = "e97a4adb-6608-45db-b1a7-828b08f35811"
+tenant_id                           = "3d1c2036-80b7-4b3f-b16f-c67ae436a703"
+application_resource_group_name     = "enterprise-it-operations-platform-dev-rg"
+terraform_state_resource_group_name = "eitoap-tfstate-rg"
+aks_node_resource_group_name        = "MC_enterprise-it-operations-platform-dev-rg_enterprise-dev-aks_eastus"
+oidc_issuer_url                     = "https://eastus.oic.prod-aks.azure.com/3d1c2036-80b7-4b3f-b16f-c67ae436a703/ff2fdc6b-7ef1-4c71-8317-3e6720217ca1/"
+location                            = "eastus"

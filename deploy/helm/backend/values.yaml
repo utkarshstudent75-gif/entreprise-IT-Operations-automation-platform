@@ -47,3 +47,8 @@ networkPolicy:
   enabled: true
   ingressNamespace: ingress
   monitoringNamespace: monitoring
+
+opsAssistant:
+  enabled: false
+  clientId: ""
+  serviceAccountName: ops-assistant

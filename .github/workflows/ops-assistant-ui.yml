@@ -1,0 +1,35 @@
+name: Deploy AI Ops Assistant UI
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "ops-assistant-ui/**"
+      - ".github/workflows/ops-assistant-ui.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VITE_ENTRA_CLIENT_ID: ${{ vars.VITE_ENTRA_CLIENT_ID }}
+      VITE_ENTRA_TENANT_ID: ${{ vars.VITE_ENTRA_TENANT_ID }}
+      VITE_ASSISTANT_API_SCOPE: ${{ vars.VITE_ASSISTANT_API_SCOPE }}
+      VITE_ASSISTANT_API_URL: ${{ vars.VITE_ASSISTANT_API_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: ops-assistant-ui
+          api_location: ""
+          output_location: dist

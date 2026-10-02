@@ -17,6 +17,7 @@ spec:
       helm:
         valueFiles:
           - $repo/deploy/helm/values/dev.yaml
+          - $repo/deploy/helm/values/ops-assistant-dev.yaml
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: database

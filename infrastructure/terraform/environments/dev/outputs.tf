@@ -205,5 +205,3 @@ output "validation_workstation_private_ip" {
 }
 
 
-
-
