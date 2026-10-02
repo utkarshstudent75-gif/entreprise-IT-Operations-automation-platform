@@ -44,9 +44,7 @@ alert_ingest_router = APIRouter(
 )
 
 
-def _check_assistant_rate_limit(
-    client_ip: str, operation: str, limit: int
-) -> None:
+def _check_assistant_rate_limit(client_ip: str, operation: str, limit: int) -> None:
     try:
         rate_limiter.check_limit(
             key=f"ops-assistant:{operation}:{client_ip}",
@@ -62,10 +60,7 @@ def _check_assistant_rate_limit(
 
 
 @router.post("/chat", response_model=StandardResponse[OpsAssistantChatResponse])
-async def chat_with_ops_assistant(
-    payload: OpsAssistantChatRequest,
-    request: Request,
-):
+async def chat_with_ops_assistant(payload: OpsAssistantChatRequest, request: Request):
     client_ip = request.client.host if request.client else "unknown"
     _check_assistant_rate_limit(client_ip, "chat", 20)
     answer = await ask_ops_assistant(payload.messages)
