@@ -6,9 +6,7 @@ from app.api.routers.dashboard import router as dashboard_router
 from app.api.routers.identity import router as identity_router
 from app.api.routers.metrics import router as metrics_router
 from app.api.routers.mfa import router as mfa_router
-from app.api.routers.ops_assistant import (
-    alert_ingest_router as ops_alert_ingest_router,
-)
+from app.api.routers.ops_assistant import alert_ingest_router as ops_alert_ingest_router
 from app.api.routers.ops_assistant import router as ops_assistant_router
 from app.api.routers.password_reset import router as password_router
 from app.api.routers.software import router as software_router
