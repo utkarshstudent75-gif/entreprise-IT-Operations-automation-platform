@@ -1,5 +1,8 @@
 from unittest.mock import MagicMock, patch
 
+import azure.identity as azure_identity
+import azure.keyvault.secrets as azure_keyvault_secrets
+
 from app.core.config import Settings, retrieve_secrets_from_key_vault  # noqa: E402
 
 
@@ -52,9 +55,9 @@ def test_retrieve_secrets_from_key_vault():
 
     mock_secret_client.get_secret.side_effect = lambda name: mock_secrets.get(name)
 
-    with patch(
-        "azure.keyvault.secrets.SecretClient", return_value=mock_secret_client
-    ), patch("azure.identity.DefaultAzureCredential", return_value=MagicMock()):
+    with patch.object(
+        azure_keyvault_secrets, "SecretClient", return_value=mock_secret_client
+    ), patch.object(azure_identity, "DefaultAzureCredential", return_value=MagicMock()):
 
         retrieve_secrets_from_key_vault(settings)
 
@@ -95,9 +98,9 @@ def test_retrieve_secrets_from_key_vault_preserves_tls():
     }
     mock_secret_client.get_secret.side_effect = lambda name: mock_secrets.get(name)
 
-    with patch(
-        "azure.keyvault.secrets.SecretClient", return_value=mock_secret_client
-    ), patch("azure.identity.DefaultAzureCredential", return_value=MagicMock()):
+    with patch.object(
+        azure_keyvault_secrets, "SecretClient", return_value=mock_secret_client
+    ), patch.object(azure_identity, "DefaultAzureCredential", return_value=MagicMock()):
 
         retrieve_secrets_from_key_vault(settings)
 
@@ -138,9 +141,9 @@ def test_retrieve_secrets_from_key_vault_ignores_placeholders():
     }
     mock_secret_client.get_secret.side_effect = lambda name: mock_secrets.get(name)
 
-    with patch(
-        "azure.keyvault.secrets.SecretClient", return_value=mock_secret_client
-    ), patch("azure.identity.DefaultAzureCredential", return_value=MagicMock()):
+    with patch.object(
+        azure_keyvault_secrets, "SecretClient", return_value=mock_secret_client
+    ), patch.object(azure_identity, "DefaultAzureCredential", return_value=MagicMock()):
 
         retrieve_secrets_from_key_vault(settings)
 
