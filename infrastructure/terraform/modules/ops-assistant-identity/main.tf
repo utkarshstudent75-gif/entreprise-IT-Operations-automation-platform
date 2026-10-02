@@ -14,14 +14,22 @@ resource "azurerm_federated_identity_credential" "this" {
 }
 
 locals {
-  read_roles = toset(["Reader", "Monitoring Reader"])
-  assignments = {
-    for pair in setproduct(keys(var.monitoring_resource_group_ids), local.read_roles) :
-    "${pair[0]}-${replace(pair[1], " ", "-")}" => {
-      scope = var.monitoring_resource_group_ids[pair[0]]
-      role  = pair[1]
+  assignments = merge(
+    {
+      subscription_reader = {
+        scope = "/subscriptions/${var.subscription_id}"
+        role  = "Reader"
+      }
+      subscription_monitoring_reader = {
+        scope = "/subscriptions/${var.subscription_id}"
+        role  = "Monitoring Reader"
+      }
+      subscription_log_analytics_reader = {
+        scope = "/subscriptions/${var.subscription_id}"
+        role  = "Log Analytics Reader"
+      }
     }
-  }
+  )
 }
 
 resource "azurerm_role_assignment" "read_only_monitoring" {

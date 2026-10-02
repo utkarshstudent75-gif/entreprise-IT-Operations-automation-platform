@@ -25,6 +25,7 @@ config:
   opsAssistantFoundryProjectEndpoint: ""
   opsAssistantFoundryAgentName: ""
   opsAssistantAzureSubscriptionId: ""
+  opsAssistantFunctionsBaseUrl: ""
   opsAssistantAllowedOrigins: ""
 
 redis:

@@ -8,8 +8,15 @@ metadata:
     {{- toYaml .Values.ingress.annotations | nindent 4 }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
+  {{- if and .Values.ingress.host .Values.ingress.tlsSecretName }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.host | quote }}
+      secretName: {{ .Values.ingress.tlsSecretName | quote }}
+  {{- end }}
   rules:
-    - http:
+    - {{ if .Values.ingress.host }}host: {{ .Values.ingress.host | quote }}{{ end }}
+      http:
         paths:
           - path: /api
             pathType: Prefix
