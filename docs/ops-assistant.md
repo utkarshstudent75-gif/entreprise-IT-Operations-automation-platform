@@ -2,7 +2,7 @@
 
 ## What is included
 
-The standalone React chat client in `ops-assistant-ui/` signs users in with Microsoft Entra ID and sends access tokens only to the FastAPI backend. The backend accepts the assistant API only for the `Platform Administrator` and `Support Engineer` system roles. Entra application role values `Platform.Admin` and `Platform.IT` map to those roles respectively; the backend also accepts the corresponding `PlatformAdministrator`/`Platform Administrator` and `SupportEngineer`/`Support Engineer` values.
+The standalone React chat client in `ops-assistant-ui/` is a public demo and does not require sign-in. Anyone who can reach the UI or assistant API can submit chat prompts and read the Azure inventory, resource health, metrics, logs, and alert stream available to the configured read-only managed identity. Treat those results as public, and do not enter secrets or sensitive information. The assistant API applies per-client IP rate limits. Alert ingestion remains protected by its shared token, and the other platform APIs retain their existing authentication.
 
 The backend calls the configured Microsoft Foundry agent using the Entra-authenticated Azure AI Projects SDK. The Foundry tool loop dispatches to separate, HTTP-triggered Azure Functions for read-only tools:
 
@@ -15,7 +15,7 @@ This follows the linked AWS demo's interaction model: the agent invokes focused 
 
 The Log Analytics tool supports `AzureActivity`, `AzureDiagnostics`, `ContainerLogV2`, and `KubeEvents`, with fixed time windows (5 minutes, 15 minutes, 1 hour, 6 hours, 24 hours, or 7 days), table-specific filter fields, and a maximum of 200 rows. KQL is assembled by the backend from these allowlisted values; users and the model cannot submit arbitrary KQL. Queries are additionally filtered to resource scope in the configured subscription. Returned rows and response size are bounded, with best-effort redaction of common credential patterns. Redaction is not a guarantee that logs contain no sensitive data. Workspace discovery does not enable diagnostic ingestion: logs are available only when resource diagnostic settings send them to a discovered workspace; for example, AKS container logs require the relevant Container Insights/diagnostic collection.
 
-Alerts are separate from on-demand agent tools. Azure Monitor alert rules and Action Groups invoke the `alerts/monitor` HTTP-triggered Function using the common alert schema. The Function normalizes the event and sends it to an authenticated backend endpoint; Redis maintains active findings (expiring after seven days if Azure does not send a resolution) and publishes changes to an authenticated Server-Sent Events stream. The signed-in UI holds that stream only while its tab is visible; it does not poll Azure every minute or send email/Teams/browser-closed notifications. Configure Azure Monitor rules for Resource Health, failed Activity Log operations, and the approved log signals; a workspace with no diagnostic ingestion cannot produce log alerts.
+Alerts are separate from on-demand agent tools. Azure Monitor alert rules and Action Groups invoke the `alerts/monitor` HTTP-triggered Function using the common alert schema. The Function normalizes the event and sends it to an authenticated backend endpoint; Redis maintains active findings (expiring after seven days if Azure does not send a resolution) and publishes changes to an authenticated Server-Sent Events stream. The public demo UI opens that stream only while its tab is visible; it does not poll Azure every minute or send email/Teams/browser-closed notifications. Configure Azure Monitor rules for Resource Health, failed Activity Log operations, and the approved log signals; a workspace with no diagnostic ingestion cannot produce log alerts.
 
 The assistant does not query the Kubernetes API, Prometheus, or arbitrary application data sources, and it does not execute restarts or scale workloads. No shell, arbitrary KQL, or Azure write tool is exposed. The linked AWS demo's Prometheus-specific metrics and direct EKS health checks require Azure-side equivalents (for example, Azure Monitor metrics and Container Insights/AKS diagnostics); those data sources are not available unless configured. The previously discussed restart confirmation and GitOps scale-PR workflows are not implemented; do not describe them as available.
 
@@ -33,7 +33,7 @@ Before creating resources:
 3. Check Foundry Agents Service availability, model deployment availability/quota, Azure Functions and Storage availability, Static Web Apps availability, region, network egress from AKS and Functions, and cost in the selected subscription.
 4. Review the Terraform plan, especially the subscription-wide `Reader`, `Monitoring Reader`, and `Log Analytics Reader` assignments. The last role grants log-reading access to every workspace in the subscription. Applying Terraform changes permissions and must be approved by the subscription owner.
 5. Create a Microsoft Foundry project and model deployment; create an agent named for the deployment configuration and grant the new managed identity the minimum Foundry project role needed to invoke it.
-6. Configure the existing backend Entra API registration with an exposed delegated scope (for example `access_as_user`) and grant the assistant UI Entra app access to that API. The backend must validate the API audience, tenant, and operator app roles.
+6. Configure the backend CORS allowlist for the static UI origin and ensure the backend API is reachable over HTTPS. The assistant UI has no Entra app registration or delegated API scope.
 
 ## Provision and configure
 
@@ -57,7 +57,7 @@ Configure the following non-secret values after the Foundry project, agent, and 
 - Store the generated Function key as Key Vault secret `ops-assistant-functions-key`; the backend loads it at startup and sends it only in the `x-functions-key` header.
 - Store a random shared alert-ingest token as Key Vault secret `ops-assistant-alert-ingest-token`. Configure the same value in the Function App through a Key Vault reference, and set `OPS_ASSISTANT_ALERT_INGEST_URL` there to the backend `/api/v1/ops-assistant/alerts/events` HTTPS endpoint.
 - `backend.opsAssistant.clientId`: Terraform output `ops_assistant_identity_client_id`, stored in `deploy/helm/values/ops-assistant-dev.yaml`.
-- `VITE_ENTRA_CLIENT_ID`, `VITE_ENTRA_TENANT_ID`, `VITE_ASSISTANT_API_SCOPE`, and `VITE_ASSISTANT_API_URL` for the static UI build.
+- `VITE_ASSISTANT_API_URL` for the static UI build.
 
 The assistant dev override sets `backend.opsAssistant.enabled` and the Terraform output `ops_assistant_identity_client_id`; the backend Argo CD application loads this override after the existing dev values. This adds the annotated `ops-assistant` service account and workload-identity pod label. It does not grant Kubernetes API permissions.
 
@@ -77,9 +77,9 @@ Create Azure Monitor Action Groups with the `alerts/monitor` Function receiver a
 
 ## Deploy the separate UI
 
-Set repository variable `VITE_ENTRA_CLIENT_ID`, `VITE_ENTRA_TENANT_ID`, `VITE_ASSISTANT_API_SCOPE`, and `VITE_ASSISTANT_API_URL` for the `ops-assistant-ui` Vite build. Add the Static Web Apps deployment token as the GitHub Actions secret `AZURE_STATIC_WEB_APPS_API_TOKEN`. The workflow `.github/workflows/ops-assistant-ui.yml` deploys the separate UI on changes to `ops-assistant-ui/` on `master` or by manual dispatch.
+Set repository variable `VITE_ASSISTANT_API_URL` for the `ops-assistant-ui` Vite build. This public demo does not need Entra client, tenant, or scope variables. Add the Static Web Apps deployment token as the GitHub Actions secret `AZURE_STATIC_WEB_APPS_API_TOKEN`. The workflow `.github/workflows/ops-assistant-ui.yml` deploys the separate UI on changes to `ops-assistant-ui/` on `master` or by manual dispatch.
 
-For local UI development, install dependencies in `ops-assistant-ui/`, copy `.env.example` to `.env.local`, configure the Entra app and API scope, and run `npm run dev`. The Vite development server proxies `/api` to `http://localhost:8000`.
+For local UI development, install dependencies in `ops-assistant-ui/`, copy `.env.example` to `.env.local`, set the API URL if needed, and run `npm run dev`. The Vite development server proxies `/api` to `http://localhost:8000`.
 
 ## Validation and operational limits
 
