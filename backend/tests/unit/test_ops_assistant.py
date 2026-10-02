@@ -70,7 +70,7 @@ def test_assistant_rate_limit_returns_retryable_http_error(monkeypatch):
 
     with pytest.raises(HTTPException) as error:
         _check_assistant_rate_limit(
-            {"email": "operator@example.com"},
+            "203.0.113.10",
             "alerts",
             5,
         )
