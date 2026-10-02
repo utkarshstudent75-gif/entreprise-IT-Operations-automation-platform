@@ -2,7 +2,7 @@
 
 ## What is included
 
-The standalone React chat client in `ops-assistant-ui/` signs users in with Microsoft Entra ID and sends access tokens only to the FastAPI backend. The backend accepts the assistant API only for the existing `Platform Administrator` and `Support Engineer` application roles.
+The standalone React chat client in `ops-assistant-ui/` signs users in with Microsoft Entra ID and sends access tokens only to the FastAPI backend. The backend accepts the assistant API only for the `Platform Administrator` and `Support Engineer` system roles. Entra application role values `Platform.Admin` and `Platform.IT` map to those roles respectively; the backend also accepts the corresponding `PlatformAdministrator`/`Platform Administrator` and `SupportEngineer`/`Support Engineer` values.
 
 The backend calls the configured Microsoft Foundry agent using the Entra-authenticated Azure AI Projects SDK. The Foundry tool loop dispatches to separate, HTTP-triggered Azure Functions for read-only tools:
 
