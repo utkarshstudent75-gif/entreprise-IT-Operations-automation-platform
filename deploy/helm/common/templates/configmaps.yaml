@@ -29,6 +29,7 @@ data:
   FOUNDRY_PROJECT_ENDPOINT: {{ .Values.config.opsAssistantFoundryProjectEndpoint | default "" | quote }}
   FOUNDRY_AGENT_NAME: {{ .Values.config.opsAssistantFoundryAgentName | default "" | quote }}
   OPS_AZURE_SUBSCRIPTION_ID: {{ .Values.config.opsAssistantAzureSubscriptionId | default "" | quote }}
+  OPS_ASSISTANT_FUNCTIONS_BASE_URL: {{ .Values.config.opsAssistantFunctionsBaseUrl | default "" | quote }}
   OPS_ASSISTANT_ALLOWED_ORIGINS: {{ .Values.config.opsAssistantAllowedOrigins | default "" | quote }}
 ---
 apiVersion: v1

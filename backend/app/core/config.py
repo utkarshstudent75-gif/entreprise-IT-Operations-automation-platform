@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     FOUNDRY_PROJECT_ENDPOINT: str | None = None
     FOUNDRY_AGENT_NAME: str | None = None
     OPS_AZURE_SUBSCRIPTION_ID: str | None = None
+    OPS_ASSISTANT_FUNCTIONS_BASE_URL: str | None = None
+    OPS_ASSISTANT_FUNCTIONS_KEY: str | None = None
+    OPS_ASSISTANT_ALERT_INGEST_TOKEN: str | None = None
     OPS_ASSISTANT_ALLOWED_ORIGINS: str = ""
 
     # Password Policy Configuration
@@ -151,6 +154,14 @@ def retrieve_secrets_from_key_vault(settings_obj: Settings) -> None:
         if api_audience:
             settings_obj.API_AUDIENCE = api_audience
 
+        functions_key = _secret("ops-assistant-functions-key")
+        if functions_key:
+            settings_obj.OPS_ASSISTANT_FUNCTIONS_KEY = functions_key
+
+        alert_ingest_token = _secret("ops-assistant-alert-ingest-token")
+        if alert_ingest_token:
+            settings_obj.OPS_ASSISTANT_ALERT_INGEST_TOKEN = alert_ingest_token
+
         # 2. Fetch Database Credentials
         db_host = _secret("database-host")
         db_port = _secret("database-port")
@@ -166,8 +177,7 @@ def retrieve_secrets_from_key_vault(settings_obj: Settings) -> None:
             if "?" in current_url:
                 query = "?" + current_url.rsplit("?", 1)[1]
             settings_obj.DATABASE_URL = (
-                f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/"
-                f"{db_name}{query}"
+                f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}{query}"
             )
 
         # 3. Fetch Redis Credentials

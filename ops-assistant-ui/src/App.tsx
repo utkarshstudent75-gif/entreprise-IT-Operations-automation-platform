@@ -4,10 +4,12 @@ import {
   Avatar,
   Box,
   Button,
+  Chip,
   CircularProgress,
   Divider,
   IconButton,
   Paper,
+  Snackbar,
   Stack,
   TextField,
   Tooltip,
@@ -15,15 +17,32 @@ import {
 } from '@mui/material'
 import AddCommentOutlined from '@mui/icons-material/AddCommentOutlined'
 import ArrowUpwardRounded from '@mui/icons-material/ArrowUpwardRounded'
+import AutoAwesomeRounded from '@mui/icons-material/AutoAwesomeRounded'
+import CheckCircleOutlineRounded from '@mui/icons-material/CheckCircleOutlineRounded'
 import CloudOutlined from '@mui/icons-material/CloudOutlined'
+import DnsOutlined from '@mui/icons-material/DnsOutlined'
 import Inventory2Outlined from '@mui/icons-material/Inventory2Outlined'
+import LogoutRounded from '@mui/icons-material/LogoutRounded'
 import MonitorHeartOutlined from '@mui/icons-material/MonitorHeartOutlined'
+import NotificationsActiveRounded from '@mui/icons-material/NotificationsActiveRounded'
 import ShieldOutlined from '@mui/icons-material/ShieldOutlined'
 import { InteractionRequiredAuthError, PublicClientApplication, type AccountInfo } from '@azure/msal-browser'
 import axios from 'axios'
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string }
 type ChatResponse = { success: boolean; data: { answer: string } }
+type OpsAlert = {
+  id: string
+  source: string
+  severity: 'warning' | 'error' | 'critical'
+  title: string
+  resource_name: string | null
+  scope: string | null
+  occurred_at: string | null
+  summary: string
+}
+type AlertChange = { condition: 'fired' | 'resolved'; alert: OpsAlert }
+type AlertSnapshot = { alerts: OpsAlert[]; checked_at: string }
 
 const apiScope = import.meta.env.VITE_ASSISTANT_API_SCOPE?.trim() ?? ''
 const apiBaseUrl = import.meta.env.VITE_ASSISTANT_API_URL?.trim() || '/api/v1'
@@ -38,9 +57,11 @@ const msalInstance = new PublicClientApplication({
 })
 
 const suggestions = [
+  { label: 'Summarize resources across my subscription', icon: Inventory2Outlined },
   { label: 'Check reported Azure resource health', icon: MonitorHeartOutlined },
-  { label: 'List the resources in my monitored resource groups', icon: Inventory2Outlined },
-  { label: 'Explain how this project deploys to AKS', icon: CloudOutlined },
+  { label: 'Investigate an incident and explain the likely root cause', icon: AutoAwesomeRounded },
+  { label: 'Show recent Azure activity from my log workspaces', icon: CloudOutlined },
+  { label: 'Check recent AKS events and container logs', icon: DnsOutlined },
 ]
 
 function boundedHistory(messages: ChatMessage[]): ChatMessage[] {
@@ -70,7 +91,12 @@ export default function App() {
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [alerts, setAlerts] = useState<OpsAlert[]>([])
+  const [alertError, setAlertError] = useState('')
+  const [lastAlertCheck, setLastAlertCheck] = useState('')
+  const [alertNotice, setAlertNotice] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
+  const previousAlertIds = useRef(new Set<string>())
 
   const setupError = useMemo(() => {
     if (!import.meta.env.VITE_ENTRA_CLIENT_ID) return 'Set VITE_ENTRA_CLIENT_ID to enable sign-in.'
@@ -115,6 +141,10 @@ export default function App() {
     await msalInstance.loginRedirect({ scopes: [apiScope] })
   }
 
+  async function signOut() {
+    await msalInstance.logoutRedirect({ account: account ?? undefined })
+  }
+
   async function getAccessToken(): Promise<string> {
     if (!account) throw new Error('Sign in with your work account to continue.')
     try {
@@ -128,6 +158,128 @@ export default function App() {
     }
   }
 
+  useEffect(() => {
+    if (!account) return
+    let active = true
+    let controller: AbortController | null = null
+    let connecting = false
+    let reconnectTimer = 0
+
+    function consumeEvent(eventName: string, data: string) {
+      if (eventName === 'snapshot') {
+        const snapshot = JSON.parse(data) as AlertSnapshot
+        setAlerts(snapshot.alerts)
+        previousAlertIds.current = new Set(snapshot.alerts.map((alert) => alert.id))
+        setLastAlertCheck(snapshot.checked_at)
+        setAlertError('')
+        return
+      }
+      if (eventName !== 'alert') return
+
+      const change = JSON.parse(data) as AlertChange
+      const changedAt = new Date().toISOString()
+      setLastAlertCheck(changedAt)
+      if (change.condition === 'resolved') {
+        previousAlertIds.current.delete(change.alert.id)
+        setAlerts((current) => current.filter((alert) => alert.id !== change.alert.id))
+        setAlertNotice(`Resolved: ${change.alert.title}`)
+        return
+      }
+
+      const isNew = !previousAlertIds.current.has(change.alert.id)
+      previousAlertIds.current.add(change.alert.id)
+      setAlerts((current) => [
+        change.alert,
+        ...current.filter((alert) => alert.id !== change.alert.id),
+      ])
+      if (isNew) setAlertNotice(`New issue: ${change.alert.title}`)
+    }
+
+    async function streamAlerts(signal: AbortSignal) {
+      const token = await getAccessToken()
+      const response = await fetch(
+        `${apiBaseUrl.replace(/\/$/, '')}/ops-assistant/alerts/stream`,
+        {
+          headers: {
+            Authorization: 'Bearer ' + token,
+            Accept: 'text/event-stream',
+          },
+          signal,
+        },
+      )
+      if (!response.ok) {
+        const body = await response.json().catch(() => null) as { detail?: string } | null
+        throw new Error(body?.detail ?? 'The live alert feed could not connect.')
+      }
+      if (!response.body) throw new Error('The live alert stream returned no data.')
+      setAlertError('')
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      try {
+        while (active && !signal.aborted) {
+          const { value, done } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          let separator = buffer.indexOf('\n\n')
+          while (separator !== -1) {
+            const packet = buffer.slice(0, separator)
+            buffer = buffer.slice(separator + 2)
+            const eventName = packet.match(/^event:\s*(.+)$/m)?.[1]
+            const data = packet
+              .split(/\r?\n/)
+              .filter((line) => line.startsWith('data:'))
+              .map((line) => line.slice(5).trim())
+              .join('\n')
+            if (eventName && data) consumeEvent(eventName, data)
+            separator = buffer.indexOf('\n\n')
+          }
+        }
+      } finally {
+        reader.releaseLock()
+      }
+    }
+
+    async function connect() {
+      if (connecting || !active || document.visibilityState !== 'visible') return
+      connecting = true
+      controller = new AbortController()
+      const streamController = controller
+      try {
+        await streamAlerts(streamController.signal)
+        if (active && !streamController.signal.aborted) {
+          throw new Error('The live alert stream disconnected.')
+        }
+      } catch (streamError) {
+        if (active && !streamController.signal.aborted) {
+          setAlertError(describeError(streamError))
+        }
+      } finally {
+        connecting = false
+        if (active && document.visibilityState === 'visible') {
+          reconnectTimer = window.setTimeout(() => void connect(), 15_000)
+        }
+      }
+    }
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        controller?.abort()
+      } else if (!controller || controller.signal.aborted) {
+        void connect()
+      }
+    }
+    if (document.visibilityState === 'visible') void connect()
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      active = false
+      controller?.abort()
+      window.clearTimeout(reconnectTimer)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [account])
+
   async function sendMessage(content: string) {
     const text = content.trim()
     if (!text || busy || text.length > 4000) return
@@ -140,7 +292,7 @@ export default function App() {
       const token = await getAccessToken()
       const response = await axios.post<ChatResponse>(
         `${apiBaseUrl.replace(/\/$/, '')}/ops-assistant/chat`,
-        { messages: boundedHistory(nextMessages).filter((message) => message.role === 'user') },
+        { messages: boundedHistory(nextMessages) },
         { headers: { Authorization: `Bearer ${token}` } },
       )
       setMessages((current) => [...current, { role: 'assistant', content: response.data.data.answer }])
@@ -163,24 +315,57 @@ export default function App() {
   }
 
   const signedInLabel = account?.name ?? account?.username
+  const initials = signedInLabel?.slice(0, 1).toUpperCase() ?? 'O'
 
   return (
     <Box className="app-shell">
       <Box component="aside" className="side-rail">
-        <Box className="brand-mark"><CloudOutlined /></Box>
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="overline" className="eyebrow">EITOAP / CLOUD</Typography>
-          <Typography variant="h6" className="brand-title">Ops Assistant</Typography>
+        <Box className="brand-lockup">
+          <Box className="brand-mark"><CloudOutlined /></Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="overline" className="eyebrow">EITOAP / CLOUD</Typography>
+            <Typography variant="h6" className="brand-title">Ops Assistant</Typography>
+          </Box>
         </Box>
         <Tooltip title="Start a new conversation">
-          <IconButton aria-label="Start a new conversation" onClick={newConversation} className="new-chat">
-            <AddCommentOutlined />
-          </IconButton>
+          <Button
+            aria-label="Start a new conversation"
+            onClick={newConversation}
+            className="new-chat"
+            startIcon={<AddCommentOutlined />}
+          >
+            New conversation
+          </Button>
         </Tooltip>
+        <Box className="nav-section">
+          <Typography variant="overline" className="nav-label">WORKSPACE</Typography>
+          <Box className="nav-item active">
+            <AutoAwesomeRounded />
+            <Typography variant="body2">AI Assistant</Typography>
+            <Box className="nav-active-dot" />
+          </Box>
+        </Box>
+        <Paper elevation={0} className="scope-card">
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Box className="scope-icon"><DnsOutlined /></Box>
+            <Typography variant="overline" className="scope-kicker">ACCESS SCOPE</Typography>
+          </Stack>
+          <Typography variant="body2" className="scope-title">Azure subscription</Typography>
+          <Typography variant="caption" color="text.secondary">Inventory · health · metrics · logs</Typography>
+          <Chip
+            size="small"
+            icon={<CheckCircleOutlineRounded />}
+            label="Read-only access"
+            className="scope-chip"
+          />
+        </Paper>
         <Box className="rail-spacer" />
         <Box className="security-note">
           <ShieldOutlined fontSize="small" />
-          <Typography variant="caption">Entra protected</Typography>
+          <Box>
+            <Typography variant="caption" display="block">Entra protected</Typography>
+            <Typography variant="caption" color="text.secondary">Least-privilege diagnostics</Typography>
+          </Box>
         </Box>
       </Box>
 
@@ -189,24 +374,99 @@ export default function App() {
           <Stack direction="row" alignItems="center" spacing={1.25}>
             <Box className="status-dot" />
             <Typography variant="body2" color="text.secondary">
-              Azure operations · Read-only diagnostics
+              Operations workspace <Box component="span" className="topbar-separator">/</Box> Read-only diagnostics
             </Typography>
           </Stack>
-          <Typography variant="body2" className="account-label">
-            {signedInLabel || 'Not signed in'}
-          </Typography>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            {account && <Avatar className="account-avatar">{initials}</Avatar>}
+            <Typography variant="body2" className="account-label">
+              {signedInLabel || 'Not signed in'}
+            </Typography>
+            {account && (
+              <Tooltip title="Sign out">
+                <IconButton aria-label="Sign out" onClick={() => void signOut()} className="sign-out">
+                  <LogoutRounded fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Stack>
         </Box>
 
         <Box className="conversation">
+          {account && (
+            <Paper elevation={0} className="alert-center">
+              <Stack direction="row" alignItems="center" spacing={1.25} className="alert-center-heading">
+                <Box className="alert-center-icon"><NotificationsActiveRounded /></Box>
+                <Box className="alert-center-copy">
+                  <Typography variant="subtitle2">Live monitoring</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Azure Monitor events stream while this tab is open
+                  </Typography>
+                </Box>
+                <Chip
+                  size="small"
+                  label={`${alerts.length} active`}
+                  className={alerts.length ? 'alert-count active' : 'alert-count'}
+                />
+                {lastAlertCheck && (
+                  <Typography variant="caption" className="last-alert-check">
+                    Updated {new Date(lastAlertCheck).toLocaleTimeString()}
+                  </Typography>
+                )}
+              </Stack>
+              {alertError && <Alert severity="error" className="alert-source-warning">{alertError}</Alert>}
+              {alerts.length > 0 ? (
+                <Stack spacing={1} className="active-alert-list">
+                  {alerts.slice(0, 5).map((alert) => (
+                    <Box key={alert.id} className={`active-alert ${alert.severity}`}>
+                      <Box className="active-alert-marker" />
+                      <Box className="active-alert-content">
+                        <Typography variant="body2" className="active-alert-title">
+                          {alert.title}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {[alert.resource_name, alert.scope, alert.source]
+                            .filter(Boolean)
+                            .join(' · ')}
+                          {alert.occurred_at && ` · ${new Date(alert.occurred_at).toLocaleTimeString()}`}
+                        </Typography>
+                        <Typography variant="caption" display="block" className="active-alert-summary">
+                          {alert.summary}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  ))}
+                  {alerts.length > 5 && (
+                    <Typography variant="caption" color="text.secondary" className="more-alerts">
+                      And {alerts.length - 5} more active alert{alerts.length - 5 === 1 ? '' : 's'}
+                    </Typography>
+                  )}
+                </Stack>
+              ) : (
+                <Typography variant="body2" className="no-alert-signals">
+                  {alertError
+                    ? 'The live monitoring stream needs attention; review its status above.'
+                    : 'No active Azure Monitor alerts.'}
+                </Typography>
+              )}
+            </Paper>
+          )}
           {messages.length === 0 ? (
             <Box className="welcome">
-              <Avatar className="welcome-avatar"><CloudOutlined /></Avatar>
-              <Typography variant="overline" className="eyebrow">AZURE OPERATIONS</Typography>
-              <Typography variant="h3" className="welcome-title">How can I help<br />with your deployment?</Typography>
+              <Box className="welcome-orb"><AutoAwesomeRounded /></Box>
+              <Typography variant="overline" className="eyebrow">YOUR AZURE OPERATIONS COPILOT</Typography>
+              <Typography variant="h3" className="welcome-title">Clarity for your<br />cloud operations.</Typography>
               <Typography color="text.secondary" className="welcome-copy">
-                Ask about the EITOAP deployment, or request a read-only check of the Azure resources
-                in its configured resource groups.
+                Ask in plain language. I can inspect resources across the configured subscription,
+                check reported health and metrics, and search approved tables in every Log Analytics
+                workspace in the subscription.
               </Typography>
+              <Stack direction="row" spacing={1} className="welcome-badges">
+                <Chip size="small" icon={<ShieldOutlined />} label="Entra secured" />
+                <Chip size="small" icon={<CheckCircleOutlineRounded />} label="Read-only tools" />
+                <Chip size="small" icon={<CloudOutlined />} label="Azure + AKS" />
+              </Stack>
+              <Typography variant="overline" className="suggestion-heading">GET STARTED</Typography>
               <Box className="suggestion-grid">
                 {suggestions.map(({ label, icon: Icon }) => (
                   <Button
@@ -240,7 +500,7 @@ export default function App() {
               {busy && (
                 <Stack direction="row" alignItems="center" spacing={1.5} className="thinking">
                   <CircularProgress size={18} />
-                  <Typography variant="body2" color="text.secondary">Checking your request…</Typography>
+                  <Typography variant="body2" color="text.secondary">Checking Azure with read-only tools…</Typography>
                 </Stack>
               )}
               <div ref={bottomRef} />
@@ -268,7 +528,7 @@ export default function App() {
                 maxRows={5}
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
-                placeholder="Ask about your Azure or AKS deployment…"
+                placeholder="Ask about resources, health, metrics, activity, or AKS logs…"
                 inputProps={{ maxLength: 4000, 'aria-label': 'Ask the operations assistant' }}
                 disabled={busy}
                 variant="standard"
@@ -298,6 +558,12 @@ export default function App() {
           </Typography>
         </Box>
       </Box>
+      <Snackbar
+        open={Boolean(alertNotice)}
+        autoHideDuration={6000}
+        onClose={() => setAlertNotice('')}
+        message={alertNotice}
+      />
     </Box>
   )
 }

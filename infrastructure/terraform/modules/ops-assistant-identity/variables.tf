@@ -36,7 +36,7 @@ variable "service_account_name" {
   default     = "ops-assistant"
 }
 
-variable "monitoring_resource_group_ids" {
-  type        = map(string)
-  description = "Only the Azure resource groups where read-only inventory and metrics are allowed."
+variable "subscription_id" {
+  type        = string
+  description = "Subscription where read-only inventory and monitoring are allowed."
 }

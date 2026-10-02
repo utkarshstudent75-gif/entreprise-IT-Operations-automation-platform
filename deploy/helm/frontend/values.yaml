@@ -54,5 +54,7 @@ ingress:
   annotations:
     kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  host: ""
+  tlsSecretName: ""
   backendService: backend-service
   backendPort: 8000
