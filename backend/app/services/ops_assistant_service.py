@@ -1092,12 +1092,16 @@ def _run_foundry_response(messages: list[OpsAssistantMessage]) -> str:
     from openai import APIError, OpenAIError
 
     input_messages = [
-        {"role": "developer", "content": AGENT_POLICY},
+        {"type": "message", "role": "developer", "content": AGENT_POLICY},
         {
+            "type": "message",
             "role": "developer",
             "content": f"Curated EITOAP deployment reference:\n{get_deployment_knowledge()}",
         },
-        *[message.model_dump() for message in messages],
+        *[
+            {"type": "message", **message.model_dump()}
+            for message in messages
+        ],
     ]
     credential = DefaultAzureCredential()
     try:
