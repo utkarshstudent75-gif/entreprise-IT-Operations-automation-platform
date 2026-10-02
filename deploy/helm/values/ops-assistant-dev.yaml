@@ -1,7 +1,7 @@
 # Non-secret settings for the read-only AI Ops Assistant.
 config:
-  opsAssistantFoundryProjectEndpoint: ""
-  opsAssistantFoundryAgentName: ""
+  opsAssistantFoundryProjectEndpoint: "https://eitoap-ops-foundry-2026.services.ai.azure.com/api/projects/eitoap-ops-assistant"
+  opsAssistantFoundryAgentName: "eitoap-ops-assistant"
   opsAssistantAzureSubscriptionId: "e97a4adb-6608-45db-b1a7-828b08f35811"
   opsAssistantAllowedOrigins: ""
 

@@ -408,7 +408,7 @@ def _run_foundry_response(messages: list[OpsAssistantMessage]) -> str:
     credential = DefaultAzureCredential()
     try:
         with AIProjectClient(
-            endpoint=endpoint, credential=credential
+            endpoint=endpoint, credential=credential, allow_preview=True
         ) as project_client:
             with project_client.get_openai_client(
                 agent_name=agent_name
