@@ -3,7 +3,7 @@ config:
   opsAssistantFoundryProjectEndpoint: "https://eitoap-ops-foundry-2026.services.ai.azure.com/api/projects/eitoap-ops-assistant"
   opsAssistantFoundryAgentName: "eitoap-ops-assistant"
   opsAssistantAzureSubscriptionId: "e97a4adb-6608-45db-b1a7-828b08f35811"
-  opsAssistantFunctionsBaseUrl: ""
+  opsAssistantFunctionsBaseUrl: "https://eitoap-ops-30401-2209.azurewebsites.net/api"
   opsAssistantAllowedOrigins: ""
 
 opsAssistant:
