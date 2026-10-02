@@ -4,12 +4,11 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Header, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from redis.exceptions import RedisError
 from starlette.concurrency import run_in_threadpool
 
-from app.auth.dependencies import check_role
 from app.core.config import settings
 from app.core.exceptions import RateLimitExceededException
 from app.core.rate_limiter import rate_limiter
@@ -34,12 +33,9 @@ logger = logging.getLogger("itpa")
 ALERTS_CHANNEL = "ops-assistant:alerts:events"
 ACTIVE_ALERTS_KEY = "ops-assistant:alerts:active"
 
-ops_assistant_access = check_role(["Platform Administrator", "Support Engineer"])
-
 router = APIRouter(
     prefix="/ops-assistant",
     tags=["AI Operations Assistant"],
-    dependencies=[Depends(ops_assistant_access)],
 )
 
 alert_ingest_router = APIRouter(
@@ -48,12 +44,10 @@ alert_ingest_router = APIRouter(
 )
 
 
-def _check_assistant_rate_limit(
-    user: dict[str, Any], operation: str, limit: int
-) -> None:
+def _check_assistant_rate_limit(client_ip: str, operation: str, limit: int) -> None:
     try:
         rate_limiter.check_limit(
-            key=f"ops-assistant:{operation}:{user['email'].lower()}",
+            key=f"ops-assistant:{operation}:{client_ip}",
             limit=limit,
             window_seconds=60,
         )
@@ -66,11 +60,9 @@ def _check_assistant_rate_limit(
 
 
 @router.post("/chat", response_model=StandardResponse[OpsAssistantChatResponse])
-async def chat_with_ops_assistant(
-    payload: OpsAssistantChatRequest,
-    current_user: dict[str, Any] = Depends(ops_assistant_access),
-):
-    _check_assistant_rate_limit(current_user, "chat", 20)
+async def chat_with_ops_assistant(payload: OpsAssistantChatRequest, request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    _check_assistant_rate_limit(client_ip, "chat", 20)
     answer = await ask_ops_assistant(payload.messages)
     return StandardResponse(data=OpsAssistantChatResponse(answer=answer))
 
@@ -79,10 +71,9 @@ async def chat_with_ops_assistant(
     "/resources",
     response_model=StandardResponse[list[OpsResource]],
 )
-async def list_monitored_resources(
-    current_user: dict[str, Any] = Depends(ops_assistant_access),
-):
-    _check_assistant_rate_limit(current_user, "resources", 10)
+async def list_monitored_resources(request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    _check_assistant_rate_limit(client_ip, "resources", 10)
     if not settings.OPS_AZURE_SUBSCRIPTION_ID:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -107,10 +98,9 @@ async def list_monitored_resources(
     "/resource-health",
     response_model=StandardResponse[list[OpsResourceHealth]],
 )
-async def list_resource_health(
-    current_user: dict[str, Any] = Depends(ops_assistant_access),
-):
-    _check_assistant_rate_limit(current_user, "resource-health", 10)
+async def list_resource_health(request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    _check_assistant_rate_limit(client_ip, "resource-health", 10)
     if not settings.OPS_AZURE_SUBSCRIPTION_ID:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -132,10 +122,9 @@ async def list_resource_health(
 
 
 @router.get("/alerts/stream")
-async def stream_ops_alerts(
-    current_user: dict[str, Any] = Depends(ops_assistant_access),
-):
-    _check_assistant_rate_limit(current_user, "alerts-stream", 10)
+async def stream_ops_alerts(request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    _check_assistant_rate_limit(client_ip, "alerts-stream", 10)
     if not settings.REDIS_URL:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
