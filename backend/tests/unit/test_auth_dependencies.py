@@ -23,9 +23,7 @@ async def test_current_user_maps_existing_entra_app_roles(
         "preferred_username": "operator@example.com",
         "roles": [entra_role],
     }
-    monkeypatch.setattr(
-        jwt_validator, "validate_token", AsyncMock(return_value=claims)
-    )
+    monkeypatch.setattr(jwt_validator, "validate_token", AsyncMock(return_value=claims))
     request = Request({"type": "http", "headers": [], "method": "GET", "path": "/"})
     credentials = HTTPAuthorizationCredentials(
         scheme="Bearer", credentials="test-token"
