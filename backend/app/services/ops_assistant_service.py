@@ -1098,10 +1098,7 @@ def _run_foundry_response(messages: list[OpsAssistantMessage]) -> str:
             "role": "developer",
             "content": f"Curated EITOAP deployment reference:\n{get_deployment_knowledge()}",
         },
-        *[
-            {"type": "message", **message.model_dump()}
-            for message in messages
-        ],
+        *[{"type": "message", **message.model_dump()} for message in messages],
     ]
     credential = DefaultAzureCredential()
     try:
