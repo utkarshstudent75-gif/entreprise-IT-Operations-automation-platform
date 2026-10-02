@@ -2,14 +2,14 @@
 # Shared configuration passed to all Helm charts
 image:
   repository: enterpriseitoperationsplatformdev1bab46e1.azurecr.io/backend
-  tag: fa9c714bf4c9f331cdf08c0bf1046cfd3cb02d9c
+  tag: d4e40e825c2a52c281c97ae698759ada9bf7718f
   pullPolicy: Always
 
 # Frontend Chart Overrides
 frontend:
   image:
     repository: enterpriseitoperationsplatformdev1bab46e1.azurecr.io/frontend
-    tag: fa9c714bf4c9f331cdf08c0bf1046cfd3cb02d9c
+    tag: d4e40e825c2a52c281c97ae698759ada9bf7718f
     pullPolicy: Always
   ingress:
     enabled: true
