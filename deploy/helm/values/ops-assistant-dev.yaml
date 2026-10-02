@@ -4,3 +4,7 @@ config:
   opsAssistantFoundryAgentName: ""
   opsAssistantAzureSubscriptionId: "e97a4adb-6608-45db-b1a7-828b08f35811"
   opsAssistantAllowedOrigins: ""
+
+opsAssistant:
+  enabled: true
+  clientId: "e557bc5f-5776-42ab-97f6-b523c0edbdbb"

@@ -47,10 +47,10 @@ Configure the following non-secret values after the Foundry project, agent, and 
 - `FOUNDRY_AGENT_NAME`: the existing agent name.
 - `OPS_AZURE_SUBSCRIPTION_ID`: the subscription containing the three resource groups.
 - `OPS_ASSISTANT_ALLOWED_ORIGINS`: the exact HTTPS origin of the Static Web App (no wildcard).
-- `backend.opsAssistant.clientId`: Terraform output `ops_assistant_identity_client_id`.
+- `backend.opsAssistant.clientId`: Terraform output `ops_assistant_identity_client_id`, stored in `deploy/helm/values/ops-assistant-dev.yaml`.
 - `VITE_ENTRA_CLIENT_ID`, `VITE_ENTRA_TENANT_ID`, `VITE_ASSISTANT_API_SCOPE`, and `VITE_ASSISTANT_API_URL` for the static UI build.
 
-The backend chart's workload identity is disabled by default. Enable `backend.opsAssistant.enabled` only after setting its identity client ID. This adds the annotated `ops-assistant` service account and workload-identity pod label. It does not grant Kubernetes API permissions.
+The assistant dev override sets `backend.opsAssistant.enabled` and the Terraform output `ops_assistant_identity_client_id`; the backend Argo CD application loads this override after the existing dev values. This adds the annotated `ops-assistant` service account and workload-identity pod label. It does not grant Kubernetes API permissions.
 
 After the UI exists and its origin is configured, add the origin to the backend CORS allowlist and redeploy. The UI's API endpoint must be reachable over HTTPS from the browser.
 
