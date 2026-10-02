@@ -48,6 +48,8 @@ VERSIONS="$(request GET "$PROJECT_ENDPOINT/agents/$AGENT_NAME/versions?api-versi
 VERSION="$(jq -r '.data | max_by(.version | tonumber) | .version // empty' <<< "$VERSIONS")"
 [ -n "$VERSION" ] || { echo "No existing agent version found; refusing to replace or create an unverified agent." >&2; exit 1; }
 CURRENT="$(request GET "$PROJECT_ENDPOINT/agents/$AGENT_NAME/versions/$VERSION?api-version=$API_VERSION")"
+CURRENT_TOOLS="$(jq -c '.definition.tools // []' <<< "$CURRENT")"
+if [[ "$CURRENT_TOOLS" == "$(jq -c . <<< "$TOOLS")" ]]; then echo "Latest agent version already has the expected function tools."; exit 0; fi
 DEFINITION="$(jq -ce '.definition | .tools = ($tools | fromjson)' --arg tools "$TOOLS" <<< "$CURRENT")"
 BODY="$(jq -cn --argjson definition "$DEFINITION" '{description:"AIOps assistant with backend-routed Azure Functions",definition:$definition}')"
 CREATED="$(request POST "$PROJECT_ENDPOINT/agents/$AGENT_NAME/versions?api-version=$API_VERSION" "$BODY")"
