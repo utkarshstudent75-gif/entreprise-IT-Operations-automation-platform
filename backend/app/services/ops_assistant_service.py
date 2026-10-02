@@ -709,11 +709,13 @@ def _query_azure_resource_logs(
             record = dict(zip(column_names, row, strict=True))
             record = {
                 key: (
-                    _redact_log_text(value[:2048])
-                    + (" [truncated]" if len(value) > 2048 else "")
+                    (
+                        _redact_log_text(value[:2048])
+                        + (" [truncated]" if len(value) > 2048 else "")
+                    )
+                    if isinstance(value, str)
+                    else value
                 )
-                if isinstance(value, str)
-                else value
                 for key, value in record.items()
             }
             record_size = len(json.dumps(record, default=str))
