@@ -408,3 +408,266 @@ docs/screenshots/         Selected project screenshots
 ```
 
 See the [observability guide](./docs/phase-4-observability.md) for monitoring details. This project is licensed under the [MIT License](./LICENSE).
+
+---
+
+## AI Ops Assistant Setup
+
+The AI Ops Assistant is a read-only diagnostic tool that uses Azure AI Foundry and Azure Functions to provide natural language access to Azure resource inventory, health, metrics, and logs.
+
+### Architecture
+
+```
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  Streamlit UI   │────▶│  Backend API     │────▶│  Azure Services │
+│  (Port 8501)    │     │  (Port 8000)     │     │  (Azure APIs)   │
+└─────────────────┘     └──────────────────┘     └─────────────────┘
+                              │
+                              ▼
+                    ┌──────────────────┐
+                    │  Function App    │
+                    │  (Port 8000)     │
+                    └──────────────────┘
+                              │
+                              ▼
+                    ┌──────────────────┐
+                    │  Azure Foundry   │
+                    │  (gpt-4.1-nano)  │
+                    └──────────────────┘
+```
+
+### Prerequisites
+
+- Azure CLI (`az`) installed and logged in (`az login`)
+- `jq` and `curl` installed
+- Azure subscription with permissions to create resources
+- Azure AI Foundry access (AI Services account)
+- GitHub repository with Actions enabled
+
+### Required Azure Permissions
+
+The setup requires the following permissions on the subscription:
+
+| Role | Scope | Purpose |
+|------|-------|---------|
+| `Reader` | Subscription | Read resource inventory |
+| `Monitoring Reader` | Subscription | Read resource health and metrics |
+| `Log Analytics Reader` | Subscription | Query Log Analytics workspaces |
+| `Key Vault Secrets User` | Key Vault | Read Function App key and Foundry config |
+| `Cognitive Services User` | AI Services | Deploy models and create agents |
+
+### Quick Setup (Automated)
+
+Run the automated setup script:
+
+```bash
+# Clone and navigate to the repository
+git clone https://github.com/utkarshstudent75-gif/entreprise-IT-Operations-automation-platform.git
+cd entreprise-IT-Operations-automation-platform
+
+# Make script executable and run
+chmod +x scripts/setup-ai-ops-assistant.sh
+./scripts/setup-ai-ops-assistant.sh
+```
+
+The script will:
+1. Create AI Services account (if not exists)
+2. Deploy the gpt-4.1-nano model
+3. Create Foundry project and agent with tools
+4. Create and configure Function App
+5. Deploy Function App code
+6. Configure Key Vault secrets
+7. Set up RBAC permissions
+8. Verify the deployment
+
+### Manual Setup (Step by Step)
+
+If you prefer to run each step manually:
+
+#### 1. Create AI Services Account
+
+```bash
+az cognitiveservices account create \
+    --name eitoap-ops-foundry-2026 \
+    --resource-group enterprise-it-operations-platform-dev-rg \
+    --location eastus \
+    --kind AIServices \
+    --sku S0
+```
+
+#### 2. Deploy Model
+
+```bash
+az cognitiveservices account deployment create \
+    --name eitoap-ops-foundry-2026 \
+    --resource-group enterprise-it-operations-platform-dev-rg \
+    --deployment-name gpt-4.1-nano \
+    --model-name gpt-4.1-nano \
+    --model-version "2025-04-14" \
+    --model-format OpenAI \
+    --sku-capacity 50 \
+    --sku-name "GlobalStandard"
+```
+
+#### 3. Create Foundry Project and Agent
+
+```bash
+# Get access token
+TOKEN=$(az account get-access-token --scope "https://ai.azure.com/.default" --query accessToken -o tsv)
+
+# Create project
+curl -sS -X PUT "https://eitoap-ops-foundry-2026.services.ai.azure.com/api/projects/eitoap-ops-assistant?api-version=v1" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"displayName": "eitoap-ops-assistant", "description": "AIOps Assistant Project"}'
+
+# Create agent with tools (see scripts/setup-ai-ops-assistant.sh for full JSON)
+```
+
+#### 4. Create and Deploy Function App
+
+```bash
+# Create storage account
+az storage account create \
+    --name eitoapops304012209sa \
+    --resource-group enterprise-it-operations-platform-dev-rg \
+    --location eastus \
+    --sku Standard_LRS \
+    --kind StorageV2
+
+# Create Function App
+az functionapp create \
+    --name eitoap-ops-30401-2209 \
+    --resource-group enterprise-it-operations-platform-dev-rg \
+    --storage-account eitoapops304012209sa \
+    --consumption-plan-location eastus \
+    --runtime python \
+    --runtime-version 3.11 \
+    --functions-version 4 \
+    --os-type Linux
+
+# Deploy code
+cd backend
+func azure functionapp publish eitoap-ops-30401-2209 --python
+```
+
+#### 5. Configure Key Vault and RBAC
+
+```bash
+# Store Function App key in Key Vault
+FUNCTION_KEY=$(az functionapp keys list --name eitoap-ops-30401-2209 --resource-group enterprise-it-operations-platform-dev-rg --query "functionKeys.default" -o tsv)
+
+az keyvault secret set --vault-name enterprise-it-operations --name ops-assistant-functions-key --value "$FUNCTION_KEY"
+az keyvault secret set --vault-name enterprise-it-operations --name foundry-project-endpoint --value "https://eitoap-ops-foundry-2026.services.ai.azure.com/api/projects/eitoap-ops-assistant"
+az keyvault secret set --vault-name enterprise-it-operations --name foundry-agent-name --value "eitoap-ops-assistant"
+
+# Assign RBAC roles
+CLIENT_ID=$(az functionapp identity show --name eitoap-ops-30401-2209 --resource-group enterprise-it-operations-platform-dev-rg --query "userAssignedIdentities[].clientId" -o tsv)
+
+for ROLE in "Reader" "Monitoring Reader" "Log Analytics Reader"; do
+    az role assignment create --assignee "$CLIENT_ID" --role "$ROLE" --scope "/subscriptions/<SUBSCRIPTION_ID>"
+done
+
+az role assignment create --assignee "$CLIENT_ID" --role "Key Vault Secrets User" --scope "/subscriptions/<SUBSCRIPTION_ID>/resourceGroups/enterprise-it-operations-platform-dev-rg/providers/Microsoft.KeyVault/vaults/enterprise-it-operations"
+```
+
+#### 6. Configure Function App Settings
+
+```bash
+az functionapp config appsettings set \
+    --name eitoap-ops-30401-2209 \
+    --resource-group enterprise-it-operations-platform-dev-rg \
+    --settings \
+        OPS_AZURE_SUBSCRIPTION_ID=<SUBSCRIPTION_ID> \
+        OPS_ASSISTANT_FUNCTIONS_BASE_URL=https://eitoap-ops-30401-2209.azurewebsites.net/api \
+        OPS_ASSISTANT_FUNCTIONS_KEY=<FUNCTION_KEY> \
+        FOUNDRY_PROJECT_ENDPOINT=https://eitoap-ops-foundry-2026.services.ai.azure.com/api/projects/eitoap-ops-assistant \
+        FOUNDRY_AGENT_NAME=eitoap-ops-assistant \
+        KEYVAULT_NAME=enterprise-it-operations
+```
+
+### Verification
+
+Test the Function App directly:
+
+```bash
+FUNCTION_KEY=$(az functionapp keys list --name eitoap-ops-30401-2209 --resource-group enterprise-it-operations-platform-dev-rg --query "functionKeys.default" -o tsv)
+
+curl -X POST "https://eitoap-ops-30401-2209.azurewebsites.net/api/tools/inventory" \
+    -H "x-functions-key: $FUNCTION_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{}'
+```
+
+Test the agent via backend API:
+
+```bash
+curl -X POST https://ops-api.itproject.in/api/v1/ops-assistant/chat \
+    -H "Content-Type: application/json" \
+    -d '{"messages": [{"role": "user", "content": "Summarize resources across my subscription"}]}'
+```
+
+### Available Tools
+
+The agent has access to these read-only tools:
+
+| Tool | Description |
+|------|-------------|
+| `get_azure_resource_inventory` | List Azure resources in the subscription |
+| `get_azure_resource_health` | Get Azure Resource Health status |
+| `get_azure_resource_metrics` | Query Azure Monitor metrics for a resource |
+| `get_subscription_log_workspaces` | Discover Log Analytics workspaces |
+| `query_azure_resource_logs` | Query Log Analytics (AzureActivity, AzureDiagnostics, ContainerLogV2, KubeEvents) |
+
+### Example Queries
+
+- "Summarize resources across my subscription"
+- "Check resource health for all resources"
+- "Get CPU metrics for the AKS cluster for the last hour"
+- "Query logs for errors in the last hour"
+- "Check recent AKS events and container logs"
+- "Investigate an incident and explain the likely root cause"
+
+### Access Points
+
+| Component | URL |
+|-----------|-----|
+| Static Web App UI | `https://nice-mud-0021c3f0f.6.azurestaticapps.net` |
+| Backend API | `https://ops-api.itproject.in/api/v1/ops-assistant/chat` |
+| Function App | `https://eitoap-ops-30401-2209.azurewebsites.net` |
+| Foundry Project | `https://eitoap-ops-foundry-2026.services.ai.azure.com/api/projects/eitoap-ops-assistant` |
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| "Microsoft Foundry returned an empty response" | Increase `max_output_tokens` in `ops_assistant_service.py` or check model deployment |
+| "Azure Functions tool is temporarily unavailable" | Check Function App is running and key is correct in Key Vault |
+| "Azure Monitor is temporarily unavailable" | Check Azure Monitor service health or retry |
+| "Rate limit exceeded" | Increase model deployment capacity or wait |
+| Function App cold start | Move to Premium plan or enable alwaysOn |
+
+### Cleanup
+
+To remove all AI Ops Assistant resources:
+
+```bash
+# Delete Function App
+az functionapp delete --name eitoap-ops-30401-2209 --resource-group enterprise-it-operations-platform-dev-rg
+
+# Delete AI Services account
+az cognitiveservices account delete --name eitoap-ops-foundry-2026 --resource-group enterprise-it-operations-platform-dev-rg
+
+# Delete Key Vault secrets
+az keyvault secret delete --vault-name enterprise-it-operations --name ops-assistant-functions-key
+az keyvault secret delete --vault-name enterprise-it-operations --name foundry-project-endpoint
+az keyvault secret delete --vault-name enterprise-it-operations --name foundry-agent-name
+
+# Remove role assignments
+az role assignment delete --assignee <CLIENT_ID> --role Reader --scope /subscriptions/<SUBSCRIPTION_ID>
+# ... repeat for other roles
+```
+
+---
+
+This project is licensed under the [MIT License](./LICENSE).
