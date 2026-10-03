@@ -19,6 +19,11 @@ concurrency:
   group: ci-${{ github.workflow }}-${{github.ref}}
   cancel-in-progress: true
 
+# Skip entire workflow if commit message contains [skip ci] or [ci skip]
+# Allows tearing down infrastructure without triggering rebuild
+# Example: git commit -m "chore: tear down infra [skip ci]"
+if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, '[ci skip]')"
+
 jobs:
     # ############## STAGE 1: BACKEND QUALITY AND TESTS ##################
     # Start PostgreSQL and Redis, then check and test the backend application.
