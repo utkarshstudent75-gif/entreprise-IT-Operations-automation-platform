@@ -23,7 +23,7 @@ logger = logging.getLogger("itpa")
 
 MAX_RESOURCE_RESULTS = 1000
 MAX_RESOURCE_PAGES = 20
-MAX_TOOL_ROUNDS = 2
+MAX_TOOL_ROUNDS = 1
 MAX_LOG_RESULTS = 200
 MAX_LOG_RESPONSE_CHARACTERS = 24000
 LOG_TIME_RANGES = {
@@ -1129,7 +1129,7 @@ def _run_foundry_response(messages: list[OpsAssistantMessage]) -> str:
             ) as openai_client:
                 response = openai_client.responses.create(
                     input=input_messages,
-                    max_output_tokens=4000,
+                    max_output_tokens=2000,
                 )
                 for _ in range(MAX_TOOL_ROUNDS):
                     tool_calls = [
@@ -1148,7 +1148,7 @@ def _run_foundry_response(messages: list[OpsAssistantMessage]) -> str:
                     response = openai_client.responses.create(
                         input=tool_outputs,
                         previous_response_id=response.id,
-                        max_output_tokens=4000,
+                        max_output_tokens=2000,
                     )
                 answer = response.output_text
                 if not answer or not answer.strip():
