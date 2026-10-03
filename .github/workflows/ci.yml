@@ -78,6 +78,7 @@ jobs:
             SMS_SENDER_ID: ${{ secrets.SMS_SENDER_ID || '+15551234567' }}
             SMS_TEST_RECIPIENT: ${{ secrets.SMS_TEST_RECIPIENT || '+18005550199' }}
             LIVE_SMS_TEST_ENABLED: ${{ secrets.SMS_ACCOUNT_SID != '' && 'true' || 'false' }}
+            RUN_LIVE_SMS_TESTS: ${{ vars.RUN_LIVE_SMS_TESTS || 'false' }}
 
 
         name: Backend Build
@@ -136,9 +137,9 @@ jobs:
               run: |
                     pytest --junitxml=junit.xml --ignore=tests/integration/test_sms_integration.py
 
-            # Step 10: Run the live SMS integration test only when credentials are configured.
+            # Step 10: Run the live SMS integration test only when explicitly enabled and credentials are configured.
             - name: Run Live SMS Integration Tests (od2.in mock provider)
-              if: ${{ env.SMS_ACCOUNT_SID != '' }}
+              if: ${{ env.SMS_ACCOUNT_SID != '' && env.LIVE_SMS_TEST_ENABLED == 'true' && env.RUN_LIVE_SMS_TESTS == 'true' }}
               run: |
                     pytest tests/integration/test_sms_integration.py -v --junitxml=junit-sms.xml
 
