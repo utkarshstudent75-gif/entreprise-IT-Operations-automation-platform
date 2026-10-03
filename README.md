@@ -412,6 +412,8 @@ See the [observability guide](./docs/phase-4-observability.md) for monitoring de
 ---
 
 ## AI Ops Assistant Setup
+<img width="891" height="412" alt="image" src="https://github.com/user-attachments/assets/363c32b0-e96b-4a80-ab70-6d0e7a4d5e63" />
+
 
 The AI Ops Assistant is a read-only diagnostic tool that uses Azure AI Foundry and Azure Functions to provide natural language access to Azure resource inventory, health, metrics, and logs.
 
