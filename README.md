@@ -628,14 +628,7 @@ The agent has access to these read-only tools:
 - "Check recent AKS events and container logs"
 - "Investigate an incident and explain the likely root cause"
 
-### Access Points
 
-| Component | URL |
-|-----------|-----|
-| Static Web App UI | `https://nice-mud-0021c3f0f.6.azurestaticapps.net` |
-| Backend API | `https://ops-api.itproject.in/api/v1/ops-assistant/chat` |
-| Function App | `https://eitoap-ops-30401-2209.azurewebsites.net` |
-| Foundry Project | `https://eitoap-ops-foundry-2026.services.ai.azure.com/api/projects/eitoap-ops-assistant` |
 
 ### Troubleshooting
 
