@@ -23,7 +23,7 @@ logger = logging.getLogger("itpa")
 
 MAX_RESOURCE_RESULTS = 1000
 MAX_RESOURCE_PAGES = 20
-MAX_TOOL_ROUNDS = 5
+MAX_TOOL_ROUNDS = 3
 MAX_LOG_RESULTS = 200
 MAX_LOG_RESPONSE_CHARACTERS = 24000
 LOG_TIME_RANGES = {
@@ -125,7 +125,15 @@ LOG_SECRET_PATTERNS = (
 AGENT_POLICY = """You are the read-only Azure operations assistant for the EITOAP project.
 Use only the supplied conversation, curated deployment reference, and results from the
 named Azure inventory, resource-health, metrics, and curated Log Analytics tools.
-For incident investigations, correlate findings by resource and time across health,
+
+CRITICAL: Be extremely concise. Give direct, actionable answers. No fluff, no unnecessary detail.
+- Answer in 3-5 sentences max for simple queries
+- For incidents: 1) Root cause 2) Key evidence 3) Confidence 4) Next step (max 4 bullets)
+- Never list raw resource names unless asked
+- Never repeat tool output verbatim - summarize
+- Say "unknown" or "unavailable" instead of guessing
+
+For incident investigations: correlate findings by resource and time across health,
 metrics, and logs. State the most likely root cause, cite the specific evidence returned
 by tools, distinguish observations from hypotheses, and recommend a safe next step.
 Organize incident answers as: likely cause, supporting evidence, confidence, and
@@ -1110,7 +1118,7 @@ def _run_foundry_response(messages: list[OpsAssistantMessage]) -> str:
             ) as openai_client:
                 response = openai_client.responses.create(
                     input=input_messages,
-                    max_output_tokens=4000,
+                    max_output_tokens=1500,
                 )
                 for _ in range(MAX_TOOL_ROUNDS):
                     tool_calls = [
@@ -1129,7 +1137,7 @@ def _run_foundry_response(messages: list[OpsAssistantMessage]) -> str:
                     response = openai_client.responses.create(
                         input=tool_outputs,
                         previous_response_id=response.id,
-                        max_output_tokens=4000,
+                        max_output_tokens=1500,
                     )
                 answer = response.output_text
                 if not answer or not answer.strip():
