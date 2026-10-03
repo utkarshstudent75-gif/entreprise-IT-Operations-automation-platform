@@ -49,6 +49,6 @@ networkPolicy:
   monitoringNamespace: monitoring
 
 opsAssistant:
-  enabled: false
-  clientId: ""
+  enabled: true
+  clientId: "e557bc5f-5776-42ab-97f6-b523c0edbdbb"
   serviceAccountName: ops-assistant

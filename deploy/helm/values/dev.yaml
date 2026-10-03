@@ -74,6 +74,10 @@ config:
   # Load SMS/DB/Redis/Graph secrets from Azure Key Vault at startup.
   # Requires the pod identity to hold "Key Vault Secrets User" on the vault.
   keyvaultName: "enterprise-it-operations"
+  opsAssistantFunctionsBaseUrl: "https://eitoap-ops-30401-2209.azurewebsites.net/api"
+  opsAssistantFoundryProjectEndpoint: "https://eitoap-ops-foundry-2026.services.ai.azure.com/api/projects/eitoap-ops-assistant"
+  opsAssistantFoundryAgentName: "eitoap-ops-assistant"
+  opsAssistantAzureSubscriptionId: "e97a4adb-6608-45db-b1a7-828b08f35811"
 
 # Database & Redis connection secrets (referencing Azure PostgreSQL & Azure Cache for Redis)
 secrets:
